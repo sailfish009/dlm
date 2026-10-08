@@ -5,17 +5,18 @@
   "sha256": {
     ".github/workflows/tests.yml": "37ed6582df739767373cfb1669d85dd76ce6038f670aed29f7ac054af2c0c8ea",
     ".gitignore": "b285d64dbe51bf3c999f7f665bb460d187fcc18b7b05e7c3c27855d2c1fea1d6",
-    "CHANGELOG.md": "051809b1aaa1710e22a352a88667be2f0b36d4f459228903d93749b5a9174cb8",
+    "CHANGELOG.md": "228024e5104fc52ff4503a2ff5cc91950a168b1b5edd96a7168c2f2645366ac1",
     "CONTRIBUTING.md": "fd724253e07d8641d3d5d5715c6eb65c34528f3117e084350835286c5d66d8cb",
     "LICENSE": "b944e29689f6d8fd9f379b45471dce4003c5bb4ce3025eb23ba6260eeea1a7f0",
     "PRE_REGISTRATION.md": "8d44154f0c53e528c59d77b238d68c430505cb8f37f590763933b2a105c8516d",
-    "PUBLICATION_CHECKLIST.md": "f9f568cd2e26d9cacecb1206e2b0fb56cdd63f67d950f99f6ebf2064df6af713",
-    "README.md": "5d8b33ec13e43ac5773fec5f6ba2d3e0a07743b4dbc7036963118edc992d007f",
+    "PUBLICATION_CHECKLIST.md": "dc786b86d07f337950badf34e3338677975f3aa32fec2f5c56bb40efd750b32f",
+    "README.md": "b6feff8d7bb4c9f585b44e86267a1d9d89922d09c769ae0676755b9ff57b56d9",
     "RESULTS_DIALOGUE.md": "fb5498cb3e1667f31d6a0932e7a003a7819f66eb3ac39b41290f052373155e60",
     "RESULTS_GROUNDING.md": "d530efe1ed5793066d1037a327986884d3b04cb2fd56cb15c4e2635f5237166e",
     "dlm/__init__.py": "b7f0aedbfa9b6a99c5b26f5a51627f89eb47add9c539437e61fd9e25c4b39cbc",
     "dlm/adapter.py": "02325e8817b688edab44626e6a63a60afab84cfabaa435d7646cec6a46d6fa7d",
     "dlm/byte_tokenizer.py": "4a8a294e8a342aef9ebdd2cf845ae0585aa2682731fd4a7308eba2509849bafc",
+    "dlm/chat.py": "daddb9d02203444f469f8a2ed5be9baef639e4a5ebe4e32c29b18ca41e8491c8",
     "dlm/decider.py": "ebcc7a4ca7f27d469ae9aab38f5c07d8b55d9b450b60f1ba3fcda3dafe3dbb2f",
     "dlm/decision.py": "de7d0990d6dc4da691cb5dfbe3ea3a6ebf48ef2b777f68bf0d430760bf907c0f",
     "dlm/deduce.py": "134dc1b089511617c712eb3030bc5a22914ca75ce0dd430158f886d780bc1ab0",
@@ -36,11 +37,12 @@
     "examples/decision_demo.py": "f2ee679566aacff593b61d1f9de74e2e5e340db229bbd1b121805df1ec266eab",
     "examples/dialogue_demo.py": "5a9b581e0fb01db8fb6a0c3bd1ce7a1bbabb6240494fffccefff0402de19fe32",
     "examples/grounding_demo.py": "277f82dfe39f7ee60ef1d8323aba3813951a828c593b0bd1aa10720fa0d26895",
-    "pyproject.toml": "33f40131391a693327d804690503da465a1b7a95261ecdc0b28788be09d859fd",
+    "pyproject.toml": "523f257d0000a4800d273b1f360273f396afca5e6e08cc3663773b8c3bf8b3a5",
     "requirements.txt": "f799525b6306dd448a2c70f1724b0182c872752de421eaf71ec0c14435eb3b3d",
     "run_dialogue_eval.py": "b1f6568c398f23f429ae2867f72e67fcdfb86ab6f90bbbf7bc2f12083bbc8e1c",
     "run_eval.py": "383322b493fca5e6a36d5ebd5f14a89ec1ad7e4f9279fe03c8014144bc21d092",
     "run_grounding_eval.py": "00474be712ed7327cdc6b7cf473e721685f5985d992115dd3463b99e8baf8d1b",
+    "tests/test_chat.py": "8050c3da6d8b035657dadb13a2d6805a98a156ce7b9837bb0ab89a9f11c3f2aa",
     "tests/test_dialogue.py": "d3d44b63e411529669c671e8113f648619b0ff37a7cf333c77d041b7c7e41390",
     "tests/test_dialogue_eval.py": "43475c5866e5120c80f3dd5dc2d6ee7bcbceca29f07620d995bb403c34c5e8bd",
     "tests/test_dlm.py": "d249e9363d3dce290c81cfff6a2c20ed158a6a5c59291a9a71a2d9d15b8c1533",
@@ -50,6 +52,6 @@
     "tests/test_tiny_encoder.py": "75f569c59c3795e48f6ea84988f16171e99b92e754894eab81395ee6ed27aebf",
     "tests/test_tokenizer.py": "d62fa75c18203083e77bec525354c69b832d3e6ec2b2d0165ceb61ebd3d74003",
     "tools/build_upload.py": "89fadd119a96383198e3e963f74d891fdad8ee92876f3aded673baa8b20a3f15",
-    "work.txt": "04adf62a6d36b05e6ca288d51ef1eda31e112af71be674d028a4da3fc8cde03e"
+    "work.txt": "98337a5674d96ff4add80351d23fca42be2b1bde5f5733e18b3f6605edbfdfec"
   }
 }

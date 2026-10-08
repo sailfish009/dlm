@@ -3,6 +3,10 @@
 ## 0.0.3 — grounding front-end + grounded dialogue loop
 
 ### Added (W4 — dialogue loop)
+- `dlm/chat.py` + console script `dlm-chat` (`python -m dlm.chat`): interactive
+  grounded dialogue. Commands `:help :kb :facts :rules :user :quit`; statements
+  grow the KB, questions return a verdict + proof trace, ungrounded input
+  abstains. `tests/test_chat.py` 6 tests.
 - `dlm/dialogue.py` — `DialogueSession` / `Reply` / `Verbalizer`: utterance →
   ground → prove/assert → template reply. `ask()`/`tell()` force intent (resolves
   the query/statement ambiguity); ungrounded input abstains; a negated assertion

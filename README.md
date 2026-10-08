@@ -55,10 +55,29 @@ utterance (via any `Grounder`), then either asserts it (KB growth, user-tagged
 provenance), asks by proof, abstains, or rejects a contradiction.
 
 ```bash
-python -m pytest -q                       # 83 tests
+python -m pytest -q                       # 89 tests
 PYTHONPATH=. python examples/dialogue_demo.py    # induction + conversation + abstain
 python run_dialogue_eval.py               # writes artifacts/dialogue_eval.json
+
+dlm-chat                                  # INTERACTIVE conversation (installed)
 ```
+
+To actually talk to it, install and run the console script:
+
+```bash
+python -m pip install -e '.[learn]'
+dlm-chat            # or: python -m dlm.chat
+```
+
+```
+you> is alice an ancestor of dave
+DLM: yes — ancestor(alice, dave)   [anc_step] ; parent(alice, bob)   [fact] ; ...
+you> erin is a parent of frank
+DLM: noted parent(erin, frank) (KB now 4 facts)
+you> who likes cake
+DLM: I don't understand that sentence (no grounder produced an atom).
+```
+Commands: `:help :kb :facts :rules :user :quit`.
 
 Matched arms (single variable = the grounder; intent forced with `ask`/`tell`):
 
@@ -85,9 +104,10 @@ rendering, and it **abstains** instead of guessing.
 pip install -e .              # symbolic core: numpy only
 pip install -e '.[learn]'     # + torch, for the NL grounding branch
 
-python -m pytest -q                       # 83 tests
+python -m pytest -q                       # 89 tests
 PYTHONPATH=. python examples/grounding_demo.py
 PYTHONPATH=. python examples/dialogue_demo.py
+dlm-chat                                  # interactive grounded dialogue
 python run_grounding_eval.py --epochs 150 # writes artifacts/grounding_eval.json
 python run_dialogue_eval.py               # writes artifacts/dialogue_eval.json
 ```
@@ -133,6 +153,7 @@ dlm/                 engine + wire + grounding front-end
   schema,interpreter,decision,adapter                 # v0.0002 decision engine
   grounding,byte_tokenizer,tiny_encoder,grounder_learn# v0.0003 NL front-end
   dialogue                                            # v0.0003 grounded dialogue loop
+  chat                                                # dlm-chat interactive REPL
 run_eval.py          v0.0002 decision-wire evaluation
 run_grounding_eval.py v0.0003 matched-arm grounding evaluation
 run_dialogue_eval.py v0.0003 matched-arm dialogue evaluation

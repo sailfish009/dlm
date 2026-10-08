@@ -19,7 +19,7 @@
 
 ## Evidence
 
-- [x] `python -m pytest -q` → 83 passed.
+- [x] `python -m pytest -q` → 89 passed.
 - [x] `PYTHONPATH=. python examples/grounding_demo.py` runs (T1 hit, T2 hit, abstain).
 - [x] `PYTHONPATH=. python examples/dialogue_demo.py` runs (induction, KB growth,
       deduction over the new fact, lexical fallback, abstention).
@@ -27,6 +27,8 @@
       (reproducible: lexical 0.547, t2_trained 0.352, t2_frozen 0.195).
 - [x] `python run_dialogue_eval.py` → `artifacts/dialogue_eval.json`
       (t1_only 0.545/0.500, chain 0.727/0.750, 0 confident-wrong).
+- [x] `dlm-chat` runs interactively (ask/tell/deny, `:kb`, `:quit`) and abstains
+      on out-of-domain input.
 - [x] v0.0002 decision eval still reproducible: `python run_eval.py`.
 
 ## Dialogue loop (W4)

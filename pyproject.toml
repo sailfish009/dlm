@@ -24,6 +24,9 @@ gpu = ["torch>=2.0"]
 learn = ["torch>=2.0"]   # NL grounding branch (byte tokenizer, tiny encoder, InfoNCE head)
 test = ["pytest>=8.0"]
 
+[project.scripts]
+dlm-chat = "dlm.chat:main"   # interactive grounded dialogue (no generation)
+
 [tool.setuptools.packages.find]
 include = ["dlm*"]
 exclude = ["tests*", "examples*"]
