@@ -1,87 +1,148 @@
-# DLM v0.0001 — PRE-REGISTRATION
+# DLM v0.0003 — PRE-REGISTRATION
 
-> Governed in spirit by `/research/GUIDELINES.md`. DLM is not a `qvm_v*`/`testq_v*`
-> version, so no quantum resource is claimed. Claim tiers are still declared.
+Governed in spirit by `/research/GUIDELINES.md`. No quantum resource is claimed.
 
-## 0. Identity
+This version ships two evaluated systems: the v0.0002 **decision engine**
+(`run_eval.py`) and the v0.0003 **grounding front-end** (`run_grounding_eval.py`).
 
-- **Project**: DLM — Deductive Logic Model (`/research/dlm_v0.0001`).
-- **Contrast**: LLM = Large + Language (inductive statistics); VLM = Vision + Language;
-  DLM = Deductive + Logic. Non-generative: it derives answers and emits a proof,
-  it does not produce free text.
-- **Difference from Cyc**: Cyc hand-authors rules. DLM *induces* rules from
-  positive/negative examples, then deduces. Rule acquisition is a first-class step.
+---
+
+## A. Grounding front-end (v0.0003)
+
+### Identity
+
+The NL front-end maps a user sentence to a predicate atom, or abstains. It is the
+SAME bottleneck as web-text extraction, so it is the primary risk.
+
+- **No generation in the answer path.** T2 is retrieval: nearest candidate atom
+  over a fixed atom index, or abstain below a threshold.
+- **Tiers** behind one `Grounder` protocol: T1 deterministic grammar
+  (`GrammarGrounder`), T2 learned (`LearnedGrounder`) or lexical
+  (`CharNgramGrounder`), chained by `ChainGrounder`.
+- **Borrowed structure** (not code): a projection head trained with a
+  bidirectional in-batch InfoNCE and a learnable `logit_scale` (CLM
+  `_clm_loss` shape), with group masking. pyssl-style SSL is future work.
+- No pretrained encoder exists on this host (no `transformers`; MeowLLM ships no
+  weights), so the ~3.1M encoder is trained from scratch on 6GB.
+
+### Claim tiers
+
+| Component | Tier | Why |
+|---|---|---|
+| Grounding exact-match on a fixed test set | **Tier 2** | deterministic metric |
+| Threshold / retrieval effects | **Tier 1** | calibration knob |
+| Whole system | **no Tier 3** | no hardware/quantum claim |
+
+**R2.3 compliance**: no "advantage" language. 6GB is a constraint.
+
+### Single core variable / matched arms
+
+The only variable is the grounder. All arms see the same sentences and the same
+candidate atom set (64 atoms = 4 relations x 16 ordered entity pairs).
+
+| Arm | Grounding source |
+|---|---|
+| `t1_train` | deterministic grammar over TRAIN phrases only |
+| `lexical` | char-3gram cosine nearest prototype (no learning) |
+| `t2_trained` | encoder + head trained end to end |
+| `t2_frozen` | same head, encoder frozen at random init |
+
+### Splits and threshold policy (fixed before the run)
+
+- Phrases per relation are split into **train / val / test**; the test phrasing is
+  unseen, so `t1_train` abstains on all of it by construction.
+- The retrieval threshold is chosen on **VAL only**, then frozen for TEST.
+- Test atoms are a subset of the train atom index (no unwinnable items).
+
+### Postulates
+
+- **G1 (abstain over guess)**: a grounder that cannot map the sentence returns
+  `ok=False`; it never fabricates an atom.
+- **G2 (learning is real)**: `t2_trained` beats `t2_frozen` and chance.
+- **G3 (registered null)**: if the learned grounder does not beat the lexical
+  baseline on the same split, that is recorded as `control_favored` and the
+  lexical grounder stays the default. Ties are ties.
+
+### Judgement / stop rules
+
+- **Survival**: `t2_trained` ≥ `lexical` on exact-atom accuracy, with G1 intact.
+- **Null**: register it (done: `NEGATIVE_LEDGER.md` NL-6) and do not claim a win.
+- Every number carries (n, split, path). No best-of-sweep.
+
+---
+
+## B. Decision engine (v0.0002, still shipped)
+
+DLM v0.0002 is a **System-One decision engine** for CLM / strands-decider style
+pipelines. The LLM **torso and learned head are replaced by DLM deduction** on a
+closed, groundable view:
+
+- **Input**: a `state` and `questions` in the strands-decider wire shape
+  (`noul`, `choice`, `score`).
+- **Decision**: each option is interpreted to a logical atom, the KB is queried,
+  and the answer distribution comes from **derivability + proof features**,
+  calibrated on a small feature set. No embeddings, no tokenizer, no LoRA, no
+  LM head, no vision tower in the decision path.
+- **Output**: the same wire types (`NoulAnswer`, `ChoiceAnswer`, `ScoreAnswer`)
+  with the same confidence formulas.
+
+Franca / pyssl are **not** part of the decision path. They are the perception
+encoders behind an optional `Grounding` hook (image → predicates), considered
+separately.
 
 ## Claim tiers
 
 | Component | Tier | Why |
 |---|---|---|
-| Deduction engine (forward fixpoint + SLD) | **Tier 2** | exact symbolic semantics; soundness is consistency-checked, not a performance gate |
-| Rule induction (`generalize.py`) | **Tier 2** | exact anti-unification + bounded search; outputs are Horn clauses |
-| Decider head (`decider.py`) | **Tier 1** | learned inductive bias over hand features |
-| Whole system | **no Tier 3** | no physical/hardware advantage is claimed |
+| DLM decision (enumerate → prove) | **Tier 2** | exact symbolic semantics; auditable proof |
+| Calibration over discrete features | **Tier 1** | learned bias |
+| Whole system | **no Tier 3** | no hardware/quantum advantage claimed |
 
-**R2.3 compliance**: no "advantage" language. The 6 GB result is a *feasibility
-constraint*, not an advantage.
+**R2.3 compliance**: no "advantage" language. 6 GB is a constraint, not a gain.
 
-## 1. Goal link
+## Single core variable / matched arms
 
-Provide a local, non-generative reasoning system for closed domains: from a
-retrieved knowledge base, induce general rules and derive answers with an
-auditable proof. It is the deductive counterpart to the LLM's inductive mode.
+The only variable is the **decision source**. All arms share the same KB, the
+same interpreter, and the same candidate options.
 
-## 2. Preserved / changed
-
-- **Preserved**: the `/research` discipline — claim tiers, matched arms,
-  exact checks, a negative ledger, a `work.txt` resume log.
-- **Changed**: the object is a symbolic Horn program with a discriminative
-  gate, not a differentiable attention model.
-
-## 3. Single core variable / controls
-
-The only variable is the **decider gate**. Both arms use the identical KB, the
-identical candidate set, and the identical deduction engine:
-
-| Arm | Selection |
+| Arm | Decision source |
 |---|---|
-| `no_decider` | all retrieved candidates |
-| `with_decider` | candidates with calibrated P ≥ 0.5, then System-2 fallback to all candidates if no answer |
+| **B (DLM)** | exact proof: derivable / refuted / partial features |
+| **A (matched)** | learned head on the *same discrete features* (no proof) |
+| **C (prior)** | retrieval-only base rate (no proof, no head) |
 
-`fallback=True` is a soundness-preserving design: the decider may not reduce
-recall. Recall loss is reported as a failure, not smoothed over.
+Arm A isolates the *proof* from the *features*: same inputs, learned readout.
 
-## 4. Resources and their definitions (non-quantum)
+## Postulates (written before the run)
 
-- Resource under test: **the discriminative gate** (does ranking retrieved
-  candidates change cost or answers?).
-- Matched control: `no_decider`, same candidates.
-- No invariance/function-class claim beyond the feature vector's stated order.
+- **P1 (soundness)**: for `noul`, whenever DLM returns P(true) above the act
+  threshold, the statement is entailed; a refuted statement never gets P(true) > 0.5.
+- **P2 (exact preference)**: on a task where the KB alone is sufficient and only
+  one option is derivable, `choice` accuracy is 1.0 and confidence ≥ 0.9 (a
+  forced answer is certain).
+- **P3 (abstention)**: options that cannot be interpreted to an atom yield
+  abstention, never a fabricated probability.
+- **P4 (registered null, carried from v0.0001)**: on a task where options are
+  groundable but the *features cannot separate* an instantiable-but-wrong option
+  from a good one, arm A and arm B are tied, and both exceed chance only via the
+  base rate. Expected; recorded, not tuned.
 
-## 5. Postulates (predictions, written before the run)
+## Judgement / stop rules
 
-- **P1**: forward closure and SLD answers agree on all ground atoms (exact).
-- **P2**: induction recovers a consistent rule for `grandparent` and never
-  covers a declared negative.
-- **P3**: the decider's fast path keeps all true-positive answers (via fallback).
-- **P4 (null expected)**: the 8 hand features do **not** separate an
-  instantiable, same-shape, semantically wrong rule from a good one; false
-  positives from such a rule persist in both arms.
+- **Survival**: B ≥ A on groundable decision tasks with exactness (P1) intact,
+  and B is not worse than A where P4 does not apply.
+- **Null**: if B ≈ A everywhere, report that proofs add nothing over features on
+  these tasks and register it; do not claim a win.
+- Ties are ties. Every number carries (n, split, path). No best-of-sweep.
 
-## 6. Judgement / stop rules
+## Scale and limits
 
-- **Survival** of the decider gate: fast-path candidate reduction with zero
-  recall loss and a reported fallback rate.
-- **Null**: P4 confirmed → register in `RESULTS.md` and record as the top
-  v0.0002 work item (semantic/anchor features), not as "needs more tuning".
-- Ties are reported as ties. No best-of-sweep ranking without the seed/split.
+- Closed domains only. If the KB does not ground an option, the engine abstains.
+- The learned components (rule induction, calibration) are bounded as in v0.0001.
+- Retrieval recall upper-bounds decision quality.
 
-## 7. Scale and limits
+## Next decision this run informs
 
-- Toy domains only (a few dozen facts, dim-free). No claim beyond tested scale.
-- Retrieval recall bounds what the pipeline can ever answer.
-
-## 8. Next decision this run informs
-
-If the decider gate survives, keep it and invest in features (v0.0002). If the
-engine's induction is the only durable contribution, pivot to rule-learning
-coverage rather than gate tuning.
+If B survives, keep the engine and invest in the **interpreter/grounding** layer
+(so more real questions become groundable). If B ≈ A, pivot to grounding rather
+than decision tuning.

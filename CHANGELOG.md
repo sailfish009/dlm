@@ -1,32 +1,43 @@
 # Changelog
 
-## 0.0.1
+## 0.0.3 — grounding front-end (branch L1–L4)
 
-First release of the Deductive Logic Model. A local, non-generative reasoning
-system: it induces rules, retrieves a knowledge base, and derives answers with
-an auditable proof. No language model and no free-text generation are used.
+Added the natural-language front-end and measured it.
 
-- `dlm/terms.py`: terms, atoms, unification (Robinson + occurs-check). No
-  function symbols, so the Herbrand base is finite and deduction terminates.
-- `dlm/rules.py`: function-free Horn clauses (`Rule`), facts, alpha-renaming.
-- `dlm/kb.py`: predicate-indexed knowledge base with a Datalog safety check
-  (every head variable must appear in the body).
-- `dlm/deduce.py`: forward least-fixpoint closure and SLD backward chaining,
-  returning a `Proof` tree; the two agree on every ground atom.
-- `dlm/generalize.py`: inductive rule learning by anti-unification (LGG) over
-  positive and negative examples, bounded in body length; recovers
-  `grandparent(?x,?z) :- edge(?x,?y), edge(?y,?z)` and never covers a negative.
-- `dlm/retrieval.py`: predicate-indexed candidates and an 8-feature vector.
-- `dlm/decider.py`: a 161-parameter NumPy MLP gate (plus a torch mirror), with
-  temperature calibration. This is the only learned component.
-- `dlm/pipeline.py`: orchestration with a recall-preserving System-2 fallback:
-  if the gate yields no answer, deduction retries with the full candidate set.
-- tests: 9 pytest cases (unification, safety, forward/backward soundness, proof
-  trace, induction, feature contract, decider, fallback recall).
-- examples: induction and deduction walkthroughs; a VRAM probe.
+### Added
+- `dlm/byte_tokenizer.py` — dependency-free byte tokenizer (vocab 260); `tokenizers`
+  is not installed, so MeowLLM's BPE file is not used.
+- `dlm/tiny_encoder.py` — ~3.08M encoder vendored from MeowLLM blocks (MIT); RoPE,
+  RMSNorm, SwiGLU, SDPA with an additive key-padding mask; `freeze()`/`unfreeze()`.
+- `dlm/grounder_learn.py` — `ProjectionHead` (CLM-style linear + L2 + `logit_scale`),
+  `LearnedGrounder` (bidirectional InfoNCE with group masking; retrieve-or-abstain),
+  `CharNgramGrounder` (untrained lexical control), `AtomIndex`, `synthesize_pairs`,
+  `pattern_split`.
+- `run_grounding_eval.py` — matched-arm evaluation with a val-only threshold;
+  writes `artifacts/grounding_eval.json` (incl. per-phrase breakdown).
+- `examples/grounding_demo.py` — `ChainGrounder([T1, lexical])` + DLM proof.
+- `RESULTS_GROUNDING.md`, this version's publication checklist, bundle tool.
 
-Honest scope: claim Tier 2 for the engine and induction, Tier 1 for the decider,
-no Tier 3. The 6 GB GPU result is a feasibility constraint, not an advantage.
-Registered null (P4): the 8 hand features cannot separate an instantiable,
-same-shape, semantically wrong rule from a good one; false positives persist in
-both matched arms. Recorded, not hidden, in `RESULTS.md`.
+### Result (registered negative)
+- Test exact atom: lexical **0.547** > `t2_trained` 0.352 > `t2_frozen` 0.195 >
+  `t1_train` coverage 0.000 (chance 0.016). Judgment `control_favored`;
+  registered as `NEGATIVE_LEDGER.md` NL-6.
+- Adopted: lexical T2 is the default fallback; the learned grounder is promoted
+  only if it beats lexical on the same split.
+
+### Notes
+- 59 tests pass (`pytest`); `by_phrase` shows the lexical arm wins mainly by
+  entity-pair matching; both arms fail when relation words change.
+- Bugs fixed while building: SDPA bool-mask polarity (now additive float mask →
+  padding-invariant features); `AtomIndex` key normalisation (spacing);
+  `LearnedGrounder.save/load` did not persist `proj_dim`/`default_threshold`.
+
+## 0.0.2 — decision engine (LLM torso replacement)
+
+See `dlm_v0.0002/CHANGELOG.md`. DLM answers the `strands-decider` wire
+(`noul`/`choice`/`score`) from proof; matched arms B=1.000, A=0.467, C=0.467;
+P4 registered null (2 false positives).
+
+## 0.0.1 — deductive core
+
+Horn engine, LGG rule induction, KB, retrieve/decide pipeline, demo + VRAM probe.

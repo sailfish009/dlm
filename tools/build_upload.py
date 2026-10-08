@@ -4,6 +4,9 @@ No upload is performed. Caches, generated artifacts, logs and local install
 records are excluded. Run from the repository root:
 
     python tools/build_upload.py
+
+The bundle sha256 is printed and is NOT stored inside the bundle itself
+(circular-hash avoidance). Record it only under artifacts/.
 """
 import hashlib
 import json
@@ -18,10 +21,10 @@ from dlm import __version__ as VERSION  # single source of truth
 
 ARTIFACT_TAG = 'v0.000' + VERSION.split('.')[-1]
 
-TOP_FILES = ('README.md', 'PRE_REGISTRATION.md', 'RESULTS.md', 'CHANGELOG.md',
+TOP_FILES = ('README.md', 'PRE_REGISTRATION.md', 'RESULTS_GROUNDING.md', 'CHANGELOG.md',
              'CONTRIBUTING.md', 'PUBLICATION_CHECKLIST.md', 'LICENSE',
              'pyproject.toml', 'requirements.txt', '.gitignore', 'work.txt',
-             'run_demo.py', 'probe_vram.py')
+             'run_eval.py', 'run_grounding_eval.py')
 TOP_DIRS = ('dlm', 'tests', 'examples', 'tools', '.github')
 
 

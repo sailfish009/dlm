@@ -1,50 +1,32 @@
-# GitHub update — web file upload
+# Publication checklist — dlm v0.0003
 
-Release candidate: **0.0.1**, the first Deductive Logic Model
-(induced Horn rules + exact deduction + a 161-parameter gate).
-No GitHub upload, hosted CI run, tag creation, or package-registry publication
-is performed by these scripts.
+## Claims
 
-## Local verification
+- [x] Claim tiers declared (Tier 2 grounding/engine, Tier 1 calibration/retrieval, no Tier 3).
+- [x] Single core variable per comparison (the grounder); arms differ only there.
+- [x] Registered negative recorded, not tuned around: `NEGATIVE_LEDGER.md` NL-6
+      (`control_favored`: lexical 0.547 > learned 0.352).
+- [x] Limitations stated: no pretrained encoder; 128 training pairs; grounding is
+      Tier 2 and imperfect; 6GB is a constraint, not an advantage.
 
-```bash
-python -m pip install -e .
-python -m pytest tests -q
-python examples/induction_demo.py
-python examples/deduction_demo.py
-python run_demo.py
-python probe_vram.py          # GPU section needs CUDA
-python -m pip wheel . --no-deps --wheel-dir artifacts/dist
-python tools/build_upload.py
-```
+## Grounding method (pre-registered before numbers)
 
-Review `CHANGELOG.md`, `PRE_REGISTRATION.md` and `RESULTS.md`. The clean source
-ZIP excludes caches, editable-install records, wheels, generated artifacts and
-machine-specific files.
+- [x] Threshold tuned on VAL only, frozen for TEST.
+- [x] Arms share one candidate atom set; test atoms ⊆ train atoms.
+- [x] T1 uses train phrases only, so its held-out coverage is 0 by construction.
+- [x] `by_phrase` breakdown reported, not just the aggregate.
+- [x] No free-text generation in the answer path (retrieval + abstain + template).
 
-## Files
+## Evidence
 
-- Upload source tree: `artifacts/github_upload/`
-- Identical ZIP: `artifacts/dlm_v0.0001_github_upload.zip`
-- Optional Release attachment: `artifacts/dist/dlm_deductive_logic_model-0.0.1-py3-none-any.whl`
-- `SOURCE_MANIFEST.json` in the upload tree records file hashes (excluding itself).
+- [x] `python -m pytest -q` → 59 passed.
+- [x] `PYTHONPATH=. python examples/grounding_demo.py` runs (T1 hit, T2 hit, abstain).
+- [x] `python run_grounding_eval.py --epochs 150` → `artifacts/grounding_eval.json`
+      (reproducible: lexical 0.547, t2_trained 0.352, t2_frozen 0.195).
+- [x] v0.0002 decision eval still reproducible: `python run_eval.py`.
 
-## GitHub 웹 업로드 순서
+## Artifact
 
-1. GitHub 저장소에서 **Add file → Upload files**를 선택합니다.
-2. ZIP을 먼저 압축 해제하고 **내부 파일과 폴더**를 업로드합니다. ZIP 자체만 올리지 마세요.
-3. `README.md`, `pyproject.toml`, `dlm/`, `tests/`가 저장소 최상위에 놓이는지 확인합니다.
-4. 숨김 항목인 `.github/`와 `.gitignore`도 포함합니다. 파일 선택기에서 숨김 파일 표시를 켭니다.
-5. 변경 내용을 검토하고 `Release 0.0.1: deductive logic model` 같은 메시지로 commit합니다.
-6. Actions에서 Python 3.11–3.14 작업이 통과하는지 확인합니다. 로컬 통과와 hosted CI 통과는 다릅니다.
-7. 통과 후 `v0.0.1` tag/release를 만들고 wheel을 필요에 따라 첨부합니다.
-
-웹 업로드는 기존 파일을 갱신하지만, 새 묶음에 없는 과거 파일을 자동으로 삭제하지는 않습니다.
-토큰·인증 정보·개인 환경 파일을 업로드하지 마세요.
-
-## Owner verification (not yet performed by the agent)
-
-- [ ] Review source and the registered null (P4) in `RESULTS.md`.
-- [ ] Upload through the GitHub web interface.
-- [ ] Confirm all hosted Actions jobs pass.
-- [ ] Create release/tag `v0.0.1` and attach the wheel if desired.
+- [x] `python tools/build_upload.py` → bundle + zip, folder == zip, sha256 printed.
+- [ ] Verify the extracted bundle outside the checkout (pytest + examples + manifest).
+- [ ] GitHub web upload (not performed; needs a remote URL/repo name).

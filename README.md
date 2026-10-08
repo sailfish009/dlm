@@ -1,80 +1,108 @@
-# DLM v0.0001 — Deductive Logic Model
+# DLM — Deductive Logic Model (v0.0003)
 
-A **local, non-generative** reasoning system for closed domains.
+**DLM = Deductive + Logic + Model.** It answers `noul` / `choice` / `score`
+questions by *proof*, not by generating text. There is **no LLM in the answer
+path**: the decision is a sound Horn-clause derivation over a knowledge base,
+with an auditable proof trace.
 
-LLM = Large **Language** Model · VLM = **Vision**–Language Model ·
-**DLM = Deductive Logic Model**.
+    LLM = Large      + Language + Model   (inductive statistics)
+    VLM = Vision     + Language + Model
+    DLM = Deductive  + Logic    + Model   (induce rules, then deduce and decide)
 
-A DLM does not generate free text. It **induces** general rules from examples,
-**retrieves** a knowledge base, and **derives** answers by deduction, returning
-an auditable proof. Unlike Cyc, the rules are learned, not hand-authored.
+## What changed in v0.0003
 
-Runs inside a **6 GB GPU (RTX 2060)** budget: the only learned component is a
-161-parameter re-ranking head; retrieval and deduction are exact and CPU-side.
+v0.0002 was the decision-engine torso (wires `noul`/`choice`/`score`). v0.0003
+adds the missing **natural-language front-end**: a grounder that maps a user
+sentence to a predicate atom. It is built and *measured* in four modules:
 
-## Architecture
+| # | module | what it is |
+|---|---|---|
+| L1 | `dlm/byte_tokenizer.py` | dependency-free byte tokenizer (vocab 260) |
+| L2 | `dlm/tiny_encoder.py` | ~3.1M transformer encoder (MeowLLM blocks, MIT) |
+| L3 | `dlm/grounder_learn.py` | CLM-style InfoNCE head, retrieval grounder, lexical control |
+| L4 | `run_grounding_eval.py` | matched-arm evaluation → `artifacts/grounding_eval.json` |
 
-```
-query ─▶ Retrieval ─▶ Decider (rank) ─▶ Logic engine ─▶ answer + proof
-             │              │                 │
-        predicate index  learned gate   forward-chain / SLD
-        (exact, CPU)     (161 params)   (exact, CPU)
-             └────────── System-2 fallback if the gate yields no answer ──────┘
-```
+## The honest result (read this before trusting the grounder)
 
-1. **Enumeration / retrieval** — candidate facts and rules are pulled by
-   predicate index (`retrieval.py`).
-2. **Decider** — a tiny MLP scores candidates from 8 hand features and keeps
-   P ≥ 0.5 (`decider.py`). It is a *gate*, not a generator.
-3. **Logic** — the restricted KB is closed under forward chaining and queried
-   with SLD resolution, producing a `Proof` tree (`deduce.py`).
-4. **Induction** — `generalize.py` learns Horn rules by anti-unification over
-   positive/negative examples, bounded in body length.
+On the v0.0003 benchmark the **learned** grounder is *below* a trivial
+character-n-gram baseline:
+
+| arm | coverage | exact atom (test) |
+|---|---|---|
+| `t1_train` deterministic grammar (seen phrasing only) | 0.000 | 0.000 |
+| `lexical` char-3gram, **no learning** | 1.000 | **0.547** |
+| `t2_trained` encoder + head trained | 1.000 | 0.352 |
+| `t2_frozen` random frozen encoder + head | 1.000 | 0.195 |
+
+chance exact = 0.0156; majority-relation = 0.250. Training *does* help
+(0.352 > 0.195 > chance), but it does **not** beat the lexical baseline, so the
+CLM frozen-pretrained-encoder advantage is **not reproduced** here — there is no
+pretrained encoder, only 128 training pairs and 2 phrases per relation.
+
+This is registered (`NEGATIVE_LEDGER.md` NL-6, judgment `control_favored`) and the
+engineering consequence is adopted: the **lexical grounder is the default T2
+fallback**, and `LearnedGrounder` is promoted only if it beats lexical on the same
+split. See `RESULTS_GROUNDING.md` for the full `by_phrase` breakdown.
+
+**6GB is a constraint, not an advantage.** The symbolic core is ~MB; the encoder
+is ~3.1M. No claim of efficiency superiority is made.
 
 ## Quickstart
 
 ```bash
-cd /research/dlm_v0.0001
-python3 -m pytest tests -q          # 9 unit tests
-python3 examples/induction_demo.py  # recover a rule from examples
-python3 examples/deduction_demo.py  # derive an answer + proof trace
-python3 run_demo.py                 # end-to-end demo -> artifacts/demo_metrics.json
-python3 probe_vram.py               # 6 GB feasibility probe -> artifacts/vram_probe.json
-python3 tools/build_upload.py       # clean GitHub web-upload bundle
+pip install -e .              # symbolic core: numpy only
+pip install -e '.[learn]'     # + torch, for the NL grounding branch
+
+python -m pytest -q                       # 59 tests
+PYTHONPATH=. python examples/grounding_demo.py
+python run_grounding_eval.py --epochs 150 # writes artifacts/grounding_eval.json
 ```
 
-Install as a package: `python -m pip install -e .` (add `[gpu]` for the torch
-mirror used by the VRAM probe).
+## The pipeline
 
-## Module map
+```
+[user NL] --Grounder--> query atoms ------------------------+
+                                                            v
+[web/API] --Fetcher--> text --Extractor--> candidate atoms -> IngestionGate -> KB
+                                                            |                  |
+                                                            DLM proof <--------+
+                                                                |
+[answer] <--Verbalizer-- proof + provenance
+```
 
-| File | Role |
+* **Grounder tiers** behind one `Grounder` protocol: T1 deterministic grammar
+  (`GrammarGrounder`, reliable but narrow), T2 learned retrieval
+  (`LearnedGrounder`) / lexical (`CharNgramGrounder`), `ChainGrounder` tries them
+  in order. A grounder **abstains** rather than guesses.
+* **No generation.** Retrieval + abstain; the verbalizer is a template.
+* **Logic** is function-free Horn (Datalog) with a safety check; the proof trace
+  is returned with the answer.
+
+## Claim tiers
+
+| claim | tier |
 |---|---|
-| `dlm/terms.py` | Terms, atoms, unification (Robinson + occurs-check). No function symbols → finite Herbrand base. |
-| `dlm/rules.py` | Horn clauses (`Rule`), facts, alpha-renaming. |
-| `dlm/kb.py` | Indexed knowledge base, Datalog safety check. |
-| `dlm/deduce.py` | Forward fixpoint + SLD backward chaining with proof trace. |
-| `dlm/generalize.py` | LGG-based inductive rule learning. |
-| `dlm/retrieval.py` | Predicate-indexed retrieval + 8-feature vectors. |
-| `dlm/decider.py` | NumPy MLP gate (+ a torch mirror for the VRAM probe). |
-| `dlm/pipeline.py` | End-to-end orchestration and training-data collection. |
+| engine decision / proof | 2 |
+| grounding exact-match on a fixed test set | 2 |
+| confidence calibration | 1 |
+| retrieval / threshold effects | 1 |
+| "learned grounding beats lexical" | **not claimed** (NL-6) |
+| quantum / 6GB advantage | none |
 
-## Claim tiers (see `PRE_REGISTRATION.md`)
+## Layout
 
-- Engine + induction: **Tier 2** (exact symbolic semantics).
-- Decider: **Tier 1** (learned bias over hand features).
-- System: **no Tier 3**, no hardware advantage claimed. 6 GB is a constraint.
+```
+dlm/                 engine + wire + grounding front-end
+  terms,rules,kb,deduce,generalize,retrieval,decider   # v0.0001 core
+  schema,interpreter,decision,adapter                 # v0.0002 decision engine
+  grounding,byte_tokenizer,tiny_encoder,grounder_learn# v0.0003 NL front-end
+run_eval.py          v0.0002 decision-wire evaluation
+run_grounding_eval.py v0.0003 matched-arm grounding evaluation
+tests/ examples/ tools/build_upload.py work.txt
+```
 
-## Honest limitations (v0.0001)
+## License
 
-- **Features do not separate same-shape semantic distractors.** A rule that is
-  instantiable but wrong (`reach_rev`) shares identical features with a good
-  rule; false positives persist in both arms. See `RESULTS.md` and P4.
-- Induction is limited to small, binary/unary, function-free Horn theories.
-- Retrieval recall upper-bounds achievable accuracy.
-- Toy scale only; no claim beyond a few dozen facts.
-
-## Resume log
-
-`work.txt` holds GOAL / DECISIONS / NEXT STEP. v0.0002 top item: semantic/anchor
-features so the gate can drop `reach_far`/`reach_step` without fallback.
+Apache-2.0. `dlm/tiny_encoder.py` vendors blocks adapted from
+[MeowLLM](https://github.com/phanii9/MeowLLM) (MIT, © 2026 phanii9); attribution
+is kept in the file header.

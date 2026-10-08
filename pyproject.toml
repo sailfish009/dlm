@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlm-deductive-logic-model"
-version = "0.0.1"
-description = "A local, non-generative Deductive Logic Model: induced Horn rules, exact deduction, and an auditable proof"
+version = "0.0.3"
+description = "DLM: a deductive decision engine with a learned natural-language grounding front-end (no LLM in the answer path)"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
@@ -21,7 +21,13 @@ classifiers = [
 
 [project.optional-dependencies]
 gpu = ["torch>=2.0"]
+learn = ["torch>=2.0"]   # NL grounding branch (byte tokenizer, tiny encoder, InfoNCE head)
+test = ["pytest>=8.0"]
 
 [tool.setuptools.packages.find]
 include = ["dlm*"]
 exclude = ["tests*", "examples*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["artifacts", "__pycache__", "dist", "build", ".git"]

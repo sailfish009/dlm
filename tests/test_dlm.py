@@ -1,122 +1,167 @@
-"""DLM v0.0001 unit tests."""
+"""DLM v0.0002 tests: wire schema, interpreter, decision engine, adapter."""
 from __future__ import annotations
 
-from itertools import product
+import math
 
-import numpy as np
 import pytest
 
 from dlm import (
-    Decider,
-    Engine,
+    ChainInterpreter,
+    ChoiceQuestion,
+    DecisionEngine,
+    DlmTorso,
+    FEATURE_NAMES,
+    GroundingInterpreter,
     KnowledgeBase,
-    Pipeline,
-    Rule,
-    collect_training_data,
+    NoulQuestion,
+    ParsedOption,
+    SchemaInterpreter,
+    ScoreQuestion,
+    SystemOneService,
+    derive_confidence,
+    derive_score_confidence,
     fact,
-    induce_rules,
+    parse_atom,
     rule,
 )
-from dlm.retrieval import feature_vector
-from dlm.terms import V, atom, unify, unify_atom
+from dlm.interpreter import ParseError
+from dlm.terms import V
 
 
-# -- terms ------------------------------------------------------------------
-def test_unify_binds_and_fails():
-    s = unify_atom(atom("parent", V("x"), "bob"), atom("parent", "alice", V("y")))
-    assert s is not None and str(s["x"]) == "alice" and str(s["y"]) == "bob"
-    assert unify_atom(atom("p", V("x")), atom("q", V("x"))) is None
-    assert unify_atom(atom("p", V("x")), atom("p", V("x"), V("y"))) is None
-
-
-def test_occurs_check():
-    assert unify(V("x"), V("x")) == {}
-    assert unify(V("x"), atom("f", V("x")).args[0] if False else V("y")) is not None
-
-
-# -- knowledge base ---------------------------------------------------------
-def _ancestor_kb() -> KnowledgeBase:
+def reach_kb() -> KnowledgeBase:
     kb = KnowledgeBase()
     for a, b in [("alice", "bob"), ("bob", "carol"), ("carol", "dave")]:
-        kb.add_fact(fact("parent", a, b))
+        kb.add_fact(fact("edge", a, b))
     x, y, z = V("x"), V("y"), V("z")
-    kb.add_rule(rule(fact("ancestor", x, y), fact("parent", x, y), name="base"))
-    kb.add_rule(rule(fact("ancestor", x, z), fact("parent", x, y), fact("ancestor", y, z), name="step"))
+    kb.add_rule(rule(fact("reach", x, y), fact("edge", x, y), name="base"))
+    kb.add_rule(rule(fact("reach", x, z), fact("edge", x, y), fact("reach", y, z), name="step"))
+    kb.add_rule(rule(fact("level", 1), fact("reach", "alice", "carol"), name="l1"))
     return kb
 
 
-def test_unsafe_rule_rejected():
-    kb = KnowledgeBase()
+# -- schema ---------------------------------------------------------------
+def test_confidence_formulas_match_reference():
+    assert derive_confidence([1.0, 0.0, 0.0]) == 1.0
+    assert derive_confidence([0.5, 0.5]) == 0.0
+    assert math.isclose(derive_confidence([1 / 3, 1 / 3, 1 / 3]), 0.0, abs_tol=1e-12)
+    assert derive_score_confidence([0.0, 1.0, 0.0]) == 1.0
+    assert math.isclose(derive_score_confidence([0.5, 0.0, 0.5]), 0.0, abs_tol=1e-12)
+
+
+def test_wire_validation():
     with pytest.raises(ValueError):
-        kb.add_rule(rule(fact("reach", V("x"), V("y")), fact("node", V("x")), name="unsafe"))
+        ChoiceQuestion(instructions="x", criteria={"only": None})
+    with pytest.raises(ValueError):
+        ScoreQuestion(instructions="x", criteria=["a"])
+    with pytest.raises(ValueError):
+        NoulQuestion(instructions="x", criteria={"maybe": None})
 
 
-def test_forward_backward_agree():
-    kb = _ancestor_kb()
-    eng = Engine(kb, max_depth=64)
-    closure = eng.forward_chain()
-    consts = ["alice", "bob", "carol", "dave"]
-    for p in ("ancestor", "parent"):
-        for a, b in product(consts, consts):
-            g = fact(p, a, b)
-            assert (g in closure) == eng.entails(g)
+# -- interpreter ----------------------------------------------------------
+def test_parse_atom_forms():
+    assert str(parse_atom("edge(alice, bob)")) == "edge(alice, bob)"
+    assert str(parse_atom("node(alice).")) == "node(alice)"
+    assert str(parse_atom("reach(?x, ?y)")) == "reach(?x, ?y)"
+    assert str(parse_atom('p("a b", 2)')) == "p(a b, 2)"
+    with pytest.raises(ParseError):
+        parse_atom("alice is connected")
 
 
-def test_proof_trace_is_a_tree():
-    eng = Engine(_ancestor_kb(), max_depth=64)
-    sol = next(eng.prove(fact("ancestor", "alice", "dave")))
-    assert sol.proof.atom == fact("ancestor", "alice", "dave")
-    assert sol.proof.leaves() >= 3
-    assert sol.proof.depth() >= 3
+def test_schema_interpreter_negation_and_abstain():
+    si = SchemaInterpreter()
+    r = si.interpret(None, "not edge(alice, bob)")
+    assert r.ok and r.negated and str(r.atom) == "edge(alice, bob)"
+    bad = si.interpret(None, "alice is connected to bob")
+    assert not bad.ok and bad.atom is None
 
 
-# -- induction --------------------------------------------------------------
-def test_induce_grandparent():
-    kb = KnowledgeBase()
-    for a, b in [("alice", "bob"), ("bob", "carol"), ("carol", "dave"), ("dave", "erin")]:
-        kb.add_fact(fact("parent", a, b))
-    pos = [fact("grandparent", "alice", "carol"), fact("grandparent", "bob", "dave"), fact("grandparent", "carol", "erin")]
-    neg = [fact("grandparent", "alice", "bob"), fact("grandparent", "bob", "carol"), fact("grandparent", "alice", "dave")]
-    rules = induce_rules(kb, pos, neg, max_body=2, n_exist=1)
-    assert rules, "expected at least one induced rule"
-    assert all(len(r.body) == 2 for r in rules)
-    # the induced rule must actually derive the positives
-    trial = KnowledgeBase()
-    for f in kb.facts():
-        trial.add_fact(f)
-    for r in rules:
-        trial.add_rule(r)
-    closure = Engine(trial).forward_chain()
-    assert set(pos) <= closure
-    assert not (set(neg) & closure)
+def test_chain_interpreter_prefers_first_success():
+    si = SchemaInterpreter()
+    g = GroundingInterpreter(lambda state, opt: ParsedOption(atom=parse_atom("seen(cat)"), ok=True))
+    chain = ChainInterpreter(si, g)
+    assert str(chain.interpret(None, "edge(a, b)").atom) == "edge(a, b)"
+    assert str(chain.interpret(None, "the cat").atom) == "seen(cat)"
 
 
-# -- decider / pipeline -----------------------------------------------------
-def test_decider_learns_separable_task():
-    rng = np.random.default_rng(0)
-    X = rng.normal(size=(256, 8))
-    y = (X[:, 0] + X[:, 1] > 0).astype(float)
-    dec = Decider(seed=0).fit(X[:192], y[:192], epochs=500, lr=0.1)
-    assert dec.num_params() < 1000
-    acc = float(np.mean((dec.predict_proba(X[192:]) > 0.5) == (y[192:] > 0.5)))
-    assert acc > 0.9
+# -- decision engine ------------------------------------------------------
+def test_noul_true_false_and_abstain():
+    eng = DecisionEngine(reach_kb())
+    assert eng.noul(NoulQuestion(instructions="reach(alice,carol)")).noul == 1.0
+    assert eng.noul(NoulQuestion(instructions="reach(carol,alice)")).noul == 0.0
+    abstained = eng.noul(NoulQuestion(instructions="alice knows carol"))
+    assert abstained.abstained and abstained.noul == 0.5
 
 
-def test_feature_vector_length_matches_retriever():
-    kb = _ancestor_kb()
-    f = feature_vector(atom("ancestor", "alice", "dave"), fact("ancestor", "alice", "bob"), "fact", kb)
-    from dlm.retrieval import Retriever
+def test_choice_single_correct_is_confident():
+    eng = DecisionEngine(reach_kb())
+    q = ChoiceQuestion(instructions="which?", criteria={
+        "a": "reach(alice,dave)", "b": "reach(carol,bob)", "c": "reach(dave,alice)"})
+    ans = eng.choice(q)
+    assert ans.choice == "a" and not ans.abstained
+    assert ans.confidence >= 0.9  # P2: a forced answer is certain
 
-    assert len(f) == Retriever.NUM_FEATURES
+
+def test_choice_abstains_on_uninterpretable_option():
+    eng = DecisionEngine(reach_kb())
+    q = ChoiceQuestion(instructions="mixed", criteria={"a": "reach(alice,dave)", "b": "alice is connected"})
+    ans = eng.choice(q)
+    assert ans.abstained and ans.confidence == 0.0
+    assert set(ans.probabilities.values()) == {0.5}  # uniform, never a guess
 
 
-def test_pipeline_fallback_preserves_recall():
-    kb = _ancestor_kb()
+def test_score_reads_ordinal_levels():
+    eng = DecisionEngine(reach_kb())
+    ans = eng.score(ScoreQuestion(instructions="rate", criteria=["low", "mid", "high"]))
+    assert not ans.abstained
+    assert abs(ans.score - 1.0) < 0.05  # level(1) is the derivable level
+    assert set(ans.legend) == {"0", "1", "2"}
+
+
+def test_registered_null_p4_false_positive():
+    """P4: an instantiable-but-wrong rule is not separable, so it scores 1.0."""
+    kb = reach_kb()
     x, y = V("x"), V("y")
-    kb.add_rule(rule(fact("ancestor", x, y), fact("ghost", x, y), name="distractor"))
-    positives = [fact("ancestor", a, b) for a, b in [("alice", "carol"), ("alice", "dave"), ("bob", "dave")]]
-    X, yv = collect_training_data(kb, positives)
-    dec = Decider(seed=0).fit(X, yv, epochs=400, lr=0.1)
-    pipe = Pipeline(kb, decider=dec, threshold=0.5, max_depth=64)
-    for q in positives:
-        assert pipe.answer(q, use_decider=True).answers, f"fallback lost {q}"
+    kb.add_rule(rule(fact("reach", x, y), fact("edge", y, x), name="rev"))  # semantically wrong
+    eng = DecisionEngine(kb)
+    # reach(bob,alice) is false in the real chain, but rev derives it from edge(alice,bob).
+    assert eng.noul(NoulQuestion(instructions="reach(bob,alice)")).noul == 1.0
+
+
+# -- adapter --------------------------------------------------------------
+def test_torso_feature_contract():
+    tor = DlmTorso(DecisionEngine(reach_kb()))
+    hit = tor.features("", "reach(alice,carol)")
+    miss = tor.features("", "reach(carol,alice)")
+    assert hit.shape == (len(FEATURE_NAMES),)
+    assert hit[0] == 1.0 and hit[1] == 1.0
+    assert miss[0] == 1.0 and miss[1] == 0.0
+    assert tor.batch_features("", ["reach(alice,carol)", "reach(carol,alice)"]).shape == (2, len(FEATURE_NAMES))
+    assert tor.state_features().shape == (4,)
+
+
+def test_wire_roundtrip():
+    svc = SystemOneService(DecisionEngine(reach_kb()))
+    out = svc.handle({
+        "state": "",
+        "questions": {
+            "q_entail": {"type": "noul", "instructions": "reach(alice,carol)"},
+            "q_pick": {"type": "choice", "instructions": "which?",
+                       "criteria": {"a": "reach(alice,dave)", "b": "reach(carol,bob)"}},
+            "q_rate": {"type": "score", "instructions": "rate", "criteria": ["low", "mid", "high"]},
+        },
+    })
+    assert out["model"] == "dlm-engine-latest"
+    assert out["answers"]["q_entail"]["noul"] == 1.0
+    assert out["answers"]["q_pick"]["choice"] == "a"
+    assert "legend" in out["answers"]["q_rate"]
+    assert out["usage"] == {"input_tokens": 0, "output_tokens": 0}
+
+
+def test_no_tokenizer_or_lm_head_in_decision_path():
+    """The decision path must not import a language model runtime."""
+    import sys
+
+    assert "transformers" not in sys.modules
+    import dlm.decision  # noqa: F401
+
+    assert "transformers" not in sys.modules
