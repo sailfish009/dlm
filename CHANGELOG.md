@@ -1,10 +1,23 @@
 # Changelog
 
-## 0.0.3 — grounding front-end (branch L1–L4)
+## 0.0.3 — grounding front-end + grounded dialogue loop
 
-Added the natural-language front-end and measured it.
+### Added (W4 — dialogue loop)
+- `dlm/dialogue.py` — `DialogueSession` / `Reply` / `Verbalizer`: utterance →
+  ground → prove/assert → template reply. `ask()`/`tell()` force intent (resolves
+  the query/statement ambiguity); ungrounded input abstains; a negated assertion
+  that contradicts the KB is rejected; conclusions carry `user` vs `process`
+  provenance. **No text generation** — the only dynamic text is a proof rendering.
+- `run_dialogue_eval.py` + `tests/test_dialogue_eval.py` — matched-arm evaluation
+  (single variable = the grounder, intent forced); writes
+  `artifacts/dialogue_eval.json`. Result: `t1_only` cov 0.545 / verdict 0.500,
+  `chain` cov 0.727 / verdict 0.750, both with 0 confident-wrong; judgment
+  `fallback_helps` (small n = 11, a smoke test).
+- `examples/dialogue_demo.py` — live induction + conversation + abstention.
+- `RESULTS_DIALOGUE.md` — write-up, honest limits, reopen conditions.
+- `tests/test_dialogue.py` — 17 tests.
 
-### Added
+### Added (branch L1–L4 — NL grounding front-end)
 - `dlm/byte_tokenizer.py` — dependency-free byte tokenizer (vocab 260); `tokenizers`
   is not installed, so MeowLLM's BPE file is not used.
 - `dlm/tiny_encoder.py` — ~3.08M encoder vendored from MeowLLM blocks (MIT); RoPE,

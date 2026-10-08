@@ -66,6 +66,7 @@ from .grounder_learn import (
     synthesize_pairs,
 )
 from .terms import Atom, Const, Subst, Term, Var, atom, substitute_atom, unify, unify_atom
+from .dialogue import DialogueSession, Reply, Verbalizer
 
 __version__ = "0.0.3"
 
@@ -86,4 +87,5 @@ __all__ = [
     "TinyEncoder", "TinyEncoderConfig", "build_encoder",
     "ProjectionHead", "AtomIndex", "LearnedGrounder", "CharNgramGrounder",
     "TrainReport", "synthesize_pairs", "pattern_split", "DEFAULT_ENTITIES",
+    "DialogueSession", "Reply", "Verbalizer",
 ]

@@ -21,10 +21,11 @@ from dlm import __version__ as VERSION  # single source of truth
 
 ARTIFACT_TAG = 'v0.000' + VERSION.split('.')[-1]
 
-TOP_FILES = ('README.md', 'PRE_REGISTRATION.md', 'RESULTS_GROUNDING.md', 'CHANGELOG.md',
+TOP_FILES = ('README.md', 'PRE_REGISTRATION.md', 'RESULTS_GROUNDING.md',
+             'RESULTS_DIALOGUE.md', 'CHANGELOG.md',
              'CONTRIBUTING.md', 'PUBLICATION_CHECKLIST.md', 'LICENSE',
              'pyproject.toml', 'requirements.txt', '.gitignore', 'work.txt',
-             'run_eval.py', 'run_grounding_eval.py')
+             'run_eval.py', 'run_grounding_eval.py', 'run_dialogue_eval.py')
 TOP_DIRS = ('dlm', 'tests', 'examples', 'tools', '.github')
 
 

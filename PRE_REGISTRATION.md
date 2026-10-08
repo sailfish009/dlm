@@ -146,3 +146,67 @@ Arm A isolates the *proof* from the *features*: same inputs, learned readout.
 If B survives, keep the engine and invest in the **interpreter/grounding** layer
 (so more real questions become groundable). If B ≈ A, pivot to grounding rather
 than decision tuning.
+---
+
+## C. Dialogue loop (v0.0003, W4)
+
+Registered for completeness: the arms, metric definitions, and the judgement rule
+below were fixed in `run_dialogue_eval.py` **before** the numbers were read
+(`judge()` is a pure function of the two arms' metrics).
+
+### Identity
+
+`DialogueSession` is not a new capability; it is the loop that assembles the
+existing parts:
+
+    utterance -- Grounder --> Grounding(kind=query|assert)
+        assert -> contradiction check -> kb.add_fact (user provenance)
+        query  -> DecisionEngine.noul(atom) -> proof -> template verbalizer
+        ungrounded / non-ground atom -> ABSTAIN;  negated contradiction -> REJECT
+
+No generation. The only dynamic reply text is a `Proof.render()` rendering.
+
+### Single core variable / matched arms
+
+The only variable is the grounder; everything else (KB, scripted turns, forced
+intent with `ask`/`tell`, verbalizer) is identical.
+
+| Arm | Grounding source |
+|---|---|
+| `t1_only` | grammar over TRAIN phrasing only (abstains on unseen) |
+| `chain`   | `t1_only` + lexical char-3gram T2 (the adopted default fallback) |
+
+### Metric definitions (fixed before reading)
+
+- `coverage` = fraction of turns the grounder grounded.
+- `exact_atom_accuracy` = over turns with a gold atom; wrong atom counts wrong.
+- `verdict_accuracy` = over turns with a gold verdict; **abstention counts as an
+  incorrect verdict** (end-to-end usefulness).
+- `verdict_accuracy_when_grounded` = same, excluding abstentions.
+- `confident_wrong` = grounded turns whose verdict disagrees with gold (a sound
+  proof of the wrong atom). This is the failure mode that dominates a bad
+  grounding, so it is reported separately and never averaged away.
+
+Gold atoms/verdicts are explicit, not re-derived from the KB, so a wrong
+grounding cannot hide behind a self-consistent oracle.
+
+### Judgment rule (fixed before reading)
+
+- `control_favored` if `chain.confident_wrong > t1_only.confident_wrong`.
+- `fallback_helps` if `chain.coverage > t1_only.coverage` **and**
+  `chain.verdict_accuracy >= t1_only.verdict_accuracy`.
+- `tie` otherwise.
+
+### Postulates
+
+- **D1**: the loop never generates text and never invents an atom.
+- **D2**: ungrounded input abstains; a negated assertion contradicting the KB is
+  rejected; a non-ground atom is never asserted.
+- **D3 (small-n)**: n is 11 (4 unseen), so any judgement here is a smoke test of
+  the loop, **not** a claim about general dialogue. This is stated in the payload.
+
+### Result
+
+Judgement `fallback_helps` (recorded in `RESULTS_DIALOGUE.md`,
+`artifacts/dialogue_eval.json`). This concerns a **different contrast** from NL-6
+(lexical vs *learned*); here the alternative to lexical is *abstention*.

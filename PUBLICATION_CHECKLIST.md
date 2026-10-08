@@ -19,11 +19,27 @@
 
 ## Evidence
 
-- [x] `python -m pytest -q` → 59 passed.
+- [x] `python -m pytest -q` → 83 passed.
 - [x] `PYTHONPATH=. python examples/grounding_demo.py` runs (T1 hit, T2 hit, abstain).
+- [x] `PYTHONPATH=. python examples/dialogue_demo.py` runs (induction, KB growth,
+      deduction over the new fact, lexical fallback, abstention).
 - [x] `python run_grounding_eval.py --epochs 150` → `artifacts/grounding_eval.json`
       (reproducible: lexical 0.547, t2_trained 0.352, t2_frozen 0.195).
+- [x] `python run_dialogue_eval.py` → `artifacts/dialogue_eval.json`
+      (t1_only 0.545/0.500, chain 0.727/0.750, 0 confident-wrong).
 - [x] v0.0002 decision eval still reproducible: `python run_eval.py`.
+
+## Dialogue loop (W4)
+
+- [x] Single variable = the grounder; intent forced with `ask`/`tell` so the
+      measurement is the loop + grounder, not a question/statement heuristic.
+- [x] Gold atoms/verdicts are explicit (not a self-consistent oracle), so wrong
+      grounding is visible as `confident_wrong`.
+- [x] Small-n caveat stated (n = 11 turns; a scripted smoke test, not a claim).
+- [x] No generation; the only dynamic text is a `Proof.render()` rendering.
+- [x] Ungrounded input abstains; a contradicting negated assertion is rejected.
+- [x] Cross-referenced with NL-6 in `NEGATIVE_LEDGER.md` so the two contrasts
+      (lexical vs learned; lexical vs abstention) are not confused.
 
 ## Artifact
 

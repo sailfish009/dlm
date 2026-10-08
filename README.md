@@ -21,6 +21,7 @@ sentence to a predicate atom. It is built and *measured* in four modules:
 | L2 | `dlm/tiny_encoder.py` | ~3.1M transformer encoder (MeowLLM blocks, MIT) |
 | L3 | `dlm/grounder_learn.py` | CLM-style InfoNCE head, retrieval grounder, lexical control |
 | L4 | `run_grounding_eval.py` | matched-arm evaluation → `artifacts/grounding_eval.json` |
+| W4 | `dlm/dialogue.py` | the **dialogue loop**: ground → prove/assert → template reply |
 
 ## The honest result (read this before trusting the grounder)
 
@@ -47,15 +48,48 @@ split. See `RESULTS_GROUNDING.md` for the full `by_phrase` breakdown.
 **6GB is a constraint, not an advantage.** The symbolic core is ~MB; the encoder
 is ~3.1M. No claim of efficiency superiority is made.
 
+## Talking to it, and what "learning" means
+
+`dlm/dialogue.py` turns the parts into a loop: `DialogueSession` grounds an
+utterance (via any `Grounder`), then either asserts it (KB growth, user-tagged
+provenance), asks by proof, abstains, or rejects a contradiction.
+
+```bash
+python -m pytest -q                       # 83 tests
+PYTHONPATH=. python examples/dialogue_demo.py    # induction + conversation + abstain
+python run_dialogue_eval.py               # writes artifacts/dialogue_eval.json
+```
+
+Matched arms (single variable = the grounder; intent forced with `ask`/`tell`):
+
+| arm | coverage | exact-atom | verdict | confident-wrong | abstain |
+|---|---|---|---|---|---|
+| `t1_only` grammar (train phrasing) | 0.545 | 0.600 | 0.500 | 0 | 0.455 |
+| `chain` T1 + lexical T2 | 0.727 | 0.800 | 0.750 | 0 | 0.273 |
+
+Judgment `fallback_helps` (n = 11 scripted turns — a smoke test, not a general
+dialogue claim). `verdict_accuracy` counts abstention as incorrect. See
+`RESULTS_DIALOGUE.md`.
+
+**Learning = symbolic, in four layers** (see `RESULTS_GROUNDING.md`):
+1. **KB growth** — `tell()` adds facts. 2. **Rule induction** —
+`induce_rules()` (LGG) generalizes Horn rules. 3. **Discriminative head** —
+`LearnedGrounder` InfoNCE (`control_favored` vs lexical, so not the default).
+4. **Active ingestion** — *not implemented yet* (W1–W3). **Conversation is not
+neural generation**: replies are templates, the only dynamic text is a proof
+rendering, and it **abstains** instead of guessing.
+
 ## Quickstart
 
 ```bash
 pip install -e .              # symbolic core: numpy only
 pip install -e '.[learn]'     # + torch, for the NL grounding branch
 
-python -m pytest -q                       # 59 tests
+python -m pytest -q                       # 83 tests
 PYTHONPATH=. python examples/grounding_demo.py
+PYTHONPATH=. python examples/dialogue_demo.py
 python run_grounding_eval.py --epochs 150 # writes artifacts/grounding_eval.json
+python run_dialogue_eval.py               # writes artifacts/dialogue_eval.json
 ```
 
 ## The pipeline
@@ -74,6 +108,8 @@ python run_grounding_eval.py --epochs 150 # writes artifacts/grounding_eval.json
   (`GrammarGrounder`, reliable but narrow), T2 learned retrieval
   (`LearnedGrounder`) / lexical (`CharNgramGrounder`), `ChainGrounder` tries them
   in order. A grounder **abstains** rather than guesses.
+* **Dialogue** (`DialogueSession`) is that pipeline as a loop: query → proof,
+  tell → KB growth, contradiction → reject, no grounder → abstain.
 * **No generation.** Retrieval + abstain; the verbalizer is a template.
 * **Logic** is function-free Horn (Datalog) with a safety check; the proof trace
   is returned with the answer.
@@ -96,8 +132,10 @@ dlm/                 engine + wire + grounding front-end
   terms,rules,kb,deduce,generalize,retrieval,decider   # v0.0001 core
   schema,interpreter,decision,adapter                 # v0.0002 decision engine
   grounding,byte_tokenizer,tiny_encoder,grounder_learn# v0.0003 NL front-end
+  dialogue                                            # v0.0003 grounded dialogue loop
 run_eval.py          v0.0002 decision-wire evaluation
 run_grounding_eval.py v0.0003 matched-arm grounding evaluation
+run_dialogue_eval.py v0.0003 matched-arm dialogue evaluation
 tests/ examples/ tools/build_upload.py work.txt
 ```
 
