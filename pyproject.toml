@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlm-deductive-logic-model"
-version = "0.0.6"
-description = "DLM v0.0006: recognize the general logic a sentence instantiates and make it explicit as function-free Horn atoms."
+version = "0.0.7"
+description = "DLM v0.0007: recognize the general logic a sentence instantiates, make it explicit as function-free Horn atoms, and abstain when it cannot."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}

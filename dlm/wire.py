@@ -46,7 +46,7 @@ __all__ = [
 
 QUESTION_TYPES = ("noul", "choice", "score")
 NOUL_KEYS = ("false", "true")
-MODEL = "dlm-v0.0006"
+MODEL = "dlm-v0.0007"
 
 
 class WireError(ValueError):

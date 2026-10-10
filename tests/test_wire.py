@@ -204,7 +204,7 @@ def test_usage_counts_and_model():
             },
         )
     )
-    assert resp["model"] == "dlm-v0.0006"
+    assert resp["model"] == "dlm-v0.0007"
     assert resp["usage"] == {
         "billing_units": 2,
         "questions": 2,

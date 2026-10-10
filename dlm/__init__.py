@@ -1,7 +1,7 @@
-"""DLM v0.0006 -- rebuilt from the first principle.
+"""DLM v0.0007 -- the v0.0006 core plus the egress boundary.
 
-v0.0005 is kept as a frozen reference for the overall skeleton. v0.0006 starts
-from nothing and implements only the core idea:
+v0.0006 was rebuilt from the first principle; v0.0005 is kept as a frozen
+reference for the overall skeleton. v0.0006 implements only the core idea:
 
     recognize the general logic a natural-language sentence instantiates, make
     it explicit as a function-free Horn atom, and abstain when it cannot.
@@ -86,6 +86,27 @@ from .selfsup import (
     ssl_l_examples,
     train,
 )
+from .realize import (
+    Bundle,
+    CheckedRealizer,
+    Realization,
+    RealizedService,
+    Realizer,
+    TemplateRealizer,
+    bundle_from_answer,
+)
+from .chat import (
+    ChatRule,
+    ChatScript,
+    ChatSession,
+    DEFAULT_SCRIPT,
+    banner,
+    chat_once,
+    fill,
+    match,
+    random_elt,
+    swap_pronouns,
+)
 from .sexp import (
     Form,
     SexpError,
@@ -101,14 +122,20 @@ from .sexp import (
     rule_to_form,
 )
 
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 
 __all__ = [
     "AGENT",
     "Adjudicator",
     "Atom",
+    "Bundle",
+    "ChatRule",
+    "ChatScript",
+    "ChatSession",
+    "CheckedRealizer",
     "Const",
     "DEFAULT_PREPOSITIONS",
+    "DEFAULT_SCRIPT",
     "DictStateGrounder",
     "DlmService",
     "Example",
@@ -132,6 +159,9 @@ __all__ = [
     "Proposal",
     "Proposer",
     "Reader",
+    "Realization",
+    "RealizedService",
+    "Realizer",
     "RejectionSelfTrainer",
     "Retriever",
     "Rule",
@@ -145,6 +175,7 @@ __all__ = [
     "StaticProposer",
     "Subst",
     "Sym",
+    "TemplateRealizer",
     "Term",
     "Var",
     "Verdict",
@@ -152,6 +183,9 @@ __all__ = [
     "WireService",
     "apply_atom",
     "atom_to_form",
+    "banner",
+    "bundle_from_answer",
+    "chat_once",
     "closure",
     "closure_mask_examples",
     "compose_rules",
@@ -160,6 +194,7 @@ __all__ = [
     "entails",
     "evaluate",
     "features",
+    "fill",
     "flip_labels",
     "form_to_atom",
     "form_to_literal",
@@ -167,11 +202,13 @@ __all__ = [
     "form_to_rule",
     "holds",
     "literal_to_form",
+    "match",
     "minimal_pairs",
     "parse",
     "proof_cost",
     "proof_holes",
     "prove",
+    "random_elt",
     "recall_at_k",
     "render_choice",
     "render_noul",
@@ -185,6 +222,7 @@ __all__ = [
     "soundness",
     "ssl_l_examples",
     "state_to_facts",
+    "swap_pronouns",
     "systemone",
     "tokenize",
     "train",

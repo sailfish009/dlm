@@ -1,7 +1,8 @@
-# DLM v0.0006
+# DLM v0.0007
 
-Rebuilt from the first principle. v0.0005 is kept frozen as a reference for the
-overall skeleton; v0.0006 starts from nothing and implements only the core idea:
+Continues v0.0006, which was rebuilt from the first principle. v0.0005 is kept
+frozen as a reference for the overall skeleton; v0.0006 starts from nothing and
+implements only the core idea:
 
 > **Recognize the general logic a natural-language sentence instantiates, make
 > it explicit as a function-free Horn atom, and abstain when it cannot.**
@@ -221,10 +222,83 @@ The **SSL-NL** ledger is separate: `RejectionSelfTrainer` accepts a
 reinforce what the KB entails and cannot invent vocabulary grounding (the
 NL↔logic problem stays open).
 
+## Module 11 — `dlm/realize.py` (checked egress, seam E)
+
+Natural language is allowed at the output boundary too — but only from a
+kernel-authorized `Bundle` and only if it survives a trusted round-trip check.
+Generation is untrusted; the check is trusted.
+
+The kernel asserts a literal; a `Realizer` *proposes* surface text; the
+`CheckedRealizer` re-parses that text with the **same deterministic `Ingestor`
+used at ingress** and accepts it only if it round-trips to exactly the asserted
+literal. A lying realizer cannot smuggle a claim the kernel did not make:
+
+```
+faithful: accepted=True  round_trip=True  source='realizer'
+liar    : text=None      reason="round-trip mismatch: 'bob calls alice' -> (calls bob alice)"
+```
+
+`TemplateRealizer` is the deterministic inverse of the closed-subset reader
+(`agent`→"E V", `agent,patient`→"E V E", `subject`→"E is V",
+`figure,ground`→"E is P E", with `not` insertion). **Abstain bundles are never
+realized** — the honesty fields stay authoritative. `RealizedService` wraps a
+wire service so only decided answers get a checked `"text"` field. A learned
+realizer (e.g. a MeowLLM-style decoder) plugs in as the untrusted `Realizer`;
+the check is what makes it safe. This amends §27 (NL at both boundaries) and
+§28.1 (optional checked egress); the base egress stays template-only.
+
+## Module 12 — `dlm/chat.py` (S-expression chatbot)
+
+The human-facing surface is a small **S-expression chatbot** with two channels
+that are never mixed (NOTE §35). The earlier **MeowLLM neural-renderer path is
+withdrawn** — a rule/pattern chatbot over the same S-expression substrate is
+enough, because the humans reading it are flexible.
+
+**Logic channel (trusted).** S-expression commands drive the kernel:
+
+```
+(assert (parent alice bob))                       ; learn a ground fact
+(rule (ancestor ?x ?y) (parent ?x ?y))            ; learn a Horn rule
+(ask (ancestor alice bob))                        ; kernel decides
+(why (ancestor alice bob))                        ; re-checkable proof
+(retract (parent alice bob))  (facts)  (rules)    ; inspect / retract
+(read "Alice calls Bob")                          ; run the ingress reader
+```
+
+Facts are learned and answers derived **only** by the kernel; a miss is
+`(answer <lit> (verdict abstain))`, and the side table refutes the opposite
+(NOTE §30):
+
+```
+(assert (parent alice bob)) => (ok "learned" (parent alice bob))
+(ask (ancestor alice bob))  => (answer (ancestor alice bob) (verdict asserted)
+                                (proof (ancestor alice bob) rule (parent alice bob)))
+(assert (not (likes bob carol))) (ask (likes bob carol))
+                            => (answer (likes bob carol) (verdict refuted))
+```
+
+**Chatter channel (untrusted, assertion-free).** An Eliza-style
+`pattern -> response` engine (uLisp Eliza / Weizenbaum / Norvig) reflects the
+human's words without asserting anything about the world — so it never violates
+*abstain, never guess*:
+
+```
+NL "i feel sad"   => (reply "why do you feel sad?")
+NL "alice calls bob" => (read (calls alice bob))     ; ingress first
+NL "meaning of life" => (abstain "i cannot read that")
+```
+
+Patterns are tiny S-expressions: `?x` binds one element, `*x` zero or more
+(with backtracking), `_` one unbound, nested lists match structurally. The
+substituted phrase is pronoun-swapped (`i`↔`you`, `my`↔`your`); the fixed
+template keeps its own pronouns. Every reply is a valid S-expression
+(`sexp.dump`), so the whole conversation is machine-readable. Natural language
+lives only at the two boundaries; the model sees symbols.
+
 ## Run the tests (without disturbing the editable v0.0005 install)
 
 ```bash
-cd /research/dlm_v0.0006
+cd /research/dlm_v0.0007
 PYTHONPATH=. python -m pytest -q
 ```
 

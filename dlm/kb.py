@@ -107,6 +107,21 @@ class KnowledgeBase:
             self._rules_by_head.setdefault(r.head.pred, []).append(r)
         return self
 
+    def remove_fact(self, atom: Atom) -> "KnowledgeBase":
+        """Drop ``atom`` if present (idempotent); prunes an empty predicate bucket."""
+        bucket = self._facts.get(atom.pred)
+        if bucket is None:
+            return self
+        bucket.discard(atom)
+        if not bucket:
+            del self._facts[atom.pred]
+        return self
+
+    def remove_negation(self, atom: Atom) -> "KnowledgeBase":
+        """Drop an explicit negative if present (idempotent)."""
+        self._negations.discard(atom)
+        return self
+
     def predicates(self) -> Tuple[str, ...]:
         return tuple(sorted(set(self._facts) | set(self._rules_by_head)))
 
