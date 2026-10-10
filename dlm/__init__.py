@@ -1,91 +1,195 @@
-"""DLM — Deductive Logic Model.
+"""DLM v0.0006 -- rebuilt from the first principle.
 
-v0.0002 is a System-One decision engine: it answers `noul` / `choice` / `score`
-questions by interpreting options to logical atoms and deciding by deduction,
-replacing an LLM torso plus a learned head on closed, groundable views.
+v0.0005 is kept as a frozen reference for the overall skeleton. v0.0006 starts
+from nothing and implements only the core idea:
 
-    LLM = Large   + Language + Model   (inductive statistics)
-    VLM = Vision  + Language + Model
-    DLM = Deductive + Logic  + Model   (induce rules, then deduce and decide)
+    recognize the general logic a natural-language sentence instantiates, make
+    it explicit as a function-free Horn atom, and abstain when it cannot.
 
-Decision path: interpret options -> query KB -> proof-based scores -> tiny
-calibration. No tokenizer, no LoRA, no LM head, no vision tower.
+Module 1 is the semantic normal form -- the *target* of that conversion.
 """
 from __future__ import annotations
 
-from .decider import Decider, torch_decider
-from .adapter import (
-    FEATURE_NAMES,
-    DlmTorso,
-    SystemOneService,
-    parse_request,
-    response_to_dict,
+from .logic import (
+    Atom,
+    Const,
+    Frame,
+    Literal,
+    Rule,
+    Schema,
+    SchemaRegistry,
+    Term,
+    Var,
 )
-from .decision import DecisionEngine, OptionScore, softmax
-from .deduce import Engine, Proof, Solution
-from .generalize import induce_rules, lgg_atoms
-from .interpreter import (
-    ChainInterpreter,
-    GroundingInterpreter,
-    Interpreter,
-    ParseError,
-    ParsedOption,
-    SchemaInterpreter,
-    parse_atom,
+from .kb import DictStateGrounder, KnowledgeBase, StateBinding, StateGrounder
+from .engine import Retriever, closure, entails, holds, prove
+from .kernel import Proof, verify
+from .unify import Subst, apply_atom, unify, walk
+from .reader import (
+    AGENT,
+    DEFAULT_PREPOSITIONS,
+    FIGURE,
+    GROUND,
+    PATIENT,
+    SUBJECT,
+    LexicalReader,
+    Reader,
+    tokenize,
 )
-from .kb import KnowledgeBase
-from .pipeline import Pipeline, PipelineResult, collect_training_data
-from .retrieval import Candidate, Retriever, feature_vector
-from .rules import Rule, fact, rule
-from .schema import (
-    Answer,
-    ChoiceAnswer,
-    ChoiceQuestion,
-    NoulAnswer,
-    NoulQuestion,
-    Question,
-    ScoreAnswer,
-    ScoreQuestion,
-    SystemOneRequest,
-    SystemOneResponse,
-    Usage,
-    derive_confidence,
-    derive_score_confidence,
+from .convert import (
+    Ingestor,
+    form_to_logic,
+    sentence_to_literal,
+    sentence_to_literals,
+    state_to_facts,
 )
-from .grounding import ChainGrounder, GrammarGrounder, Grounder, Grounding, Pattern
-from .byte_tokenizer import ByteTokenizer
-from .tiny_encoder import TinyEncoder, TinyEncoderConfig, build_encoder
-from .grounder_learn import (
-    AtomIndex,
-    CharNgramGrounder,
-    DEFAULT_ENTITIES,
-    LearnedGrounder,
-    ProjectionHead,
-    TrainReport,
-    pattern_split,
-    synthesize_pairs,
+from .judge import (
+    Adjudicator,
+    Judgement,
+    Judge,
+    KbProposer,
+    Policy,
+    ProofJudge,
+    Proposal,
+    Proposer,
+    StaticProposer,
+    Verdict,
 )
-from .terms import Atom, Const, Subst, Term, Var, atom, substitute_atom, unify, unify_atom
-from .dialogue import DialogueSession, Reply, Verbalizer
+from .wire import (
+    DlmService,
+    WireError,
+    WireService,
+    render_choice,
+    render_noul,
+    render_score,
+    systemone,
+)
+from .selfsup import (
+    Example,
+    FeatureScorer,
+    Pair,
+    RejectionSelfTrainer,
+    ScorerRetriever,
+    closure_mask_examples,
+    compose_rules,
+    evaluate,
+    features,
+    flip_labels,
+    minimal_pairs,
+    proof_cost,
+    proof_holes,
+    recall_at_k,
+    rule_composition_examples,
+    rule_removal_examples,
+    scramble_constants,
+    soundness,
+    ssl_l_examples,
+    train,
+)
+from .sexp import (
+    Form,
+    SexpError,
+    Sym,
+    atom_to_form,
+    dump,
+    dump_all,
+    form_to_atom,
+    form_to_literal,
+    form_to_rule,
+    literal_to_form,
+    parse,
+    rule_to_form,
+)
 
-__version__ = "0.0.3"
+__version__ = "0.0.6"
 
 __all__ = [
-    "Atom", "Const", "Subst", "Term", "Var", "atom", "substitute_atom", "unify",
-    "unify_atom", "Rule", "fact", "rule", "KnowledgeBase", "Engine", "Proof",
-    "Solution", "induce_rules", "lgg_atoms", "Candidate", "Retriever",
-    "feature_vector", "Decider", "torch_decider", "Pipeline", "PipelineResult",
-    "collect_training_data", "Answer", "ChoiceAnswer", "ChoiceQuestion",
-    "NoulAnswer", "NoulQuestion", "Question", "ScoreAnswer", "ScoreQuestion",
-    "SystemOneRequest", "SystemOneResponse", "Usage", "derive_confidence",
-    "derive_score_confidence", "DecisionEngine", "OptionScore", "softmax",
-    "ChainInterpreter", "GroundingInterpreter", "Interpreter", "ParseError",
-    "ParsedOption", "SchemaInterpreter", "parse_atom", "__version__",
-    "DlmTorso", "SystemOneService", "parse_request", "response_to_dict",
-    "FEATURE_NAMES", "GrammarGrounder", "ChainGrounder", "Grounder", "Grounding", "Pattern",
-    "ByteTokenizer",
-    "TinyEncoder", "TinyEncoderConfig", "build_encoder",
-    "ProjectionHead", "AtomIndex", "LearnedGrounder", "CharNgramGrounder",
-    "TrainReport", "synthesize_pairs", "pattern_split", "DEFAULT_ENTITIES",
-    "DialogueSession", "Reply", "Verbalizer",
+    "AGENT",
+    "Adjudicator",
+    "Atom",
+    "Const",
+    "DEFAULT_PREPOSITIONS",
+    "DictStateGrounder",
+    "DlmService",
+    "Example",
+    "FIGURE",
+    "FeatureScorer",
+    "Form",
+    "Frame",
+    "GROUND",
+    "Ingestor",
+    "Judge",
+    "Judgement",
+    "KbProposer",
+    "KnowledgeBase",
+    "LexicalReader",
+    "Literal",
+    "PATIENT",
+    "Pair",
+    "Policy",
+    "Proof",
+    "ProofJudge",
+    "Proposal",
+    "Proposer",
+    "Reader",
+    "RejectionSelfTrainer",
+    "Retriever",
+    "Rule",
+    "SUBJECT",
+    "Schema",
+    "SchemaRegistry",
+    "ScorerRetriever",
+    "SexpError",
+    "StateBinding",
+    "StateGrounder",
+    "StaticProposer",
+    "Subst",
+    "Sym",
+    "Term",
+    "Var",
+    "Verdict",
+    "WireError",
+    "WireService",
+    "apply_atom",
+    "atom_to_form",
+    "closure",
+    "closure_mask_examples",
+    "compose_rules",
+    "dump",
+    "dump_all",
+    "entails",
+    "evaluate",
+    "features",
+    "flip_labels",
+    "form_to_atom",
+    "form_to_literal",
+    "form_to_logic",
+    "form_to_rule",
+    "holds",
+    "literal_to_form",
+    "minimal_pairs",
+    "parse",
+    "proof_cost",
+    "proof_holes",
+    "prove",
+    "recall_at_k",
+    "render_choice",
+    "render_noul",
+    "render_score",
+    "rule_composition_examples",
+    "rule_removal_examples",
+    "rule_to_form",
+    "scramble_constants",
+    "sentence_to_literal",
+    "sentence_to_literals",
+    "soundness",
+    "ssl_l_examples",
+    "state_to_facts",
+    "systemone",
+    "tokenize",
+    "train",
+    "unify",
+    "verify",
+    "walk",
+    "__version__",
 ]

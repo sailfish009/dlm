@@ -4,32 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlm-deductive-logic-model"
-version = "0.0.3"
-description = "DLM: a deductive decision engine with a learned natural-language grounding front-end (no LLM in the answer path)"
+version = "0.0.6"
+description = "DLM v0.0006: recognize the general logic a sentence instantiates and make it explicit as function-free Horn atoms."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
 authors = [{name = "sailfish009"}]
-dependencies = ["numpy>=2.0"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "License :: OSI Approved :: Apache Software License",
   "Programming Language :: Python :: 3",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
-  "Topic :: Scientific/Engineering :: Information Analysis"
 ]
 
 [project.optional-dependencies]
-gpu = ["torch>=2.0"]
-learn = ["torch>=2.0"]   # NL grounding branch (byte tokenizer, tiny encoder, InfoNCE head)
 test = ["pytest>=8.0"]
-
-[project.scripts]
-dlm-chat = "dlm.chat:main"   # interactive grounded dialogue (no generation)
 
 [tool.setuptools.packages.find]
 include = ["dlm*"]
-exclude = ["tests*", "examples*"]
+exclude = ["tests*", "artifacts*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

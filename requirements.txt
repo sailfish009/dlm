@@ -1,5 +1,0 @@
-numpy>=2.0
-pytest>=8.0
-# Optional, for the NL grounding branch (dlm.byte_tokenizer / tiny_encoder /
-# grounder_learn) and run_grounding_eval.py:
-#   torch>=2.0

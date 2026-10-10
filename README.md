@@ -1,167 +1,231 @@
-# DLM — Deductive Logic Model (v0.0003)
+# DLM v0.0006
 
-**DLM = Deductive + Logic + Model.** It answers `noul` / `choice` / `score`
-questions by *proof*, not by generating text. There is **no LLM in the answer
-path**: the decision is a sound Horn-clause derivation over a knowledge base,
-with an auditable proof trace.
+Rebuilt from the first principle. v0.0005 is kept frozen as a reference for the
+overall skeleton; v0.0006 starts from nothing and implements only the core idea:
 
-    LLM = Large      + Language + Model   (inductive statistics)
-    VLM = Vision     + Language + Model
-    DLM = Deductive  + Logic    + Model   (induce rules, then deduce and decide)
+> **Recognize the general logic a natural-language sentence instantiates, make
+> it explicit as a function-free Horn atom, and abstain when it cannot.**
 
-## What changed in v0.0003
+"Decomposition" is only the surface trace of that recognition.
 
-v0.0002 was the decision-engine torso (wires `noul`/`choice`/`score`). v0.0003
-adds the missing **natural-language front-end**: a grounder that maps a user
-sentence to a predicate atom. It is built and *measured* in four modules:
+## Why a fresh start
 
-| # | module | what it is |
-|---|---|---|
-| L1 | `dlm/byte_tokenizer.py` | dependency-free byte tokenizer (vocab 260) |
-| L2 | `dlm/tiny_encoder.py` | ~3.1M transformer encoder (MeowLLM blocks, MIT) |
-| L3 | `dlm/grounder_learn.py` | CLM-style InfoNCE head, retrieval grounder, lexical control |
-| L4 | `run_grounding_eval.py` | matched-arm evaluation → `artifacts/grounding_eval.json` |
-| W4 | `dlm/dialogue.py` | the **dialogue loop**: ground → prove/assert → template reply |
+The v0.0005 front-end converts language to atoms by *template lookup* over a
+closed vocabulary: the predicate name is hard-coded in the phrase pattern, so
+the same logical form cannot be recognized under a different vocabulary. The
+target normal form, the role/schema convention, and state -> facts grounding are
+absent. v0.0006 rebuilds those from the ground up.
 
-## The honest result (read this before trusting the grounder)
+## Module 1 — `dlm/logic.py` (semantic normal form)
 
-On the v0.0003 benchmark the **learned** grounder is *below* a trivial
-character-n-gram baseline:
+The **target** of the conversion:
 
-| arm | coverage | exact atom (test) |
-|---|---|---|
-| `t1_train` deterministic grammar (seen phrasing only) | 0.000 | 0.000 |
-| `lexical` char-3gram, **no learning** | 1.000 | **0.547** |
-| `t2_trained` encoder + head trained | 1.000 | 0.352 |
-| `t2_frozen` random frozen encoder + head | 1.000 | 0.195 |
+- `Const`, `Var`, `Term` — function-free terms.
+- `Atom` — a predicate applied to ordered terms.
+- `Literal` — an atom with a sign (negation is metadata, never a predicate).
+- `Schema` — a predicate's arity and **role order**: the general, transferable part.
+- `Frame` — the surface `role -> filler` read from a sentence (unordered).
+- `SchemaRegistry.normalize(frame) -> Literal | None` — order fillers by schema,
+  or **abstain** (unknown predicate / role mismatch).
 
-chance exact = 0.0156; majority-relation = 0.250. Training *does* help
-(0.352 > 0.195 > chance), but it does **not** beat the lexical baseline, so the
-CLM frozen-pretrained-encoder advantage is **not reproduced** here — there is no
-pretrained encoder, only 128 training pairs and 2 phrases per relation.
+```
+sentence --(reader, module 3)--> Frame --(normalize)--> Literal
+```
 
-This is registered (`NEGATIVE_LEDGER.md` NL-6, judgment `control_favored`) and the
-engineering consequence is adopted: the **lexical grounder is the default T2
-fallback**, and `LearnedGrounder` is promoted only if it beats lexical on the same
-split. See `RESULTS_GROUNDING.md` for the full `by_phrase` breakdown.
+## Module 2 — `dlm/sexp.py` (canonical concrete syntax)
 
-**6GB is a constraint, not an advantage.** The symbolic core is ~MB; the encoder
-is ~3.1M. No claim of efficiency superiority is made.
+S-expr is the **surface notation** for every logic unit (atom / literal / rule /
+proof all share it). It is *not* a semantic engine: the logic stays function-free
+Horn, and "abstain, never guess" still applies.
 
-## Talking to it, and what "learning" means
+- `parse(text)` — general, read-only S-expr reader; **never `eval`** (trust boundary).
+- `dump` / `dump_all` — the matching writer.
+- `atom_to_form` / `form_to_atom` / `literal_to_form` / `form_to_literal` — the
+  bridge to module 1.
+- The parser accepts nesting; the function-free core still **rejects** it at
+  `Atom` construction. Syntax is general, semantics abstains.
 
-`dlm/dialogue.py` turns the parts into a loop: `DialogueSession` grounds an
-utterance (via any `Grounder`), then either asserts it (KB growth, user-tagged
-provenance), asks by proof, abstains, or rejects a contradiction.
+`logic.py.__str__` now also emits canonical S-expr, e.g. `(parent alice bob)`,
+`(not (charges c1 c2))`.
+
+## Module 3 — `dlm/reader.py` (sentence -> Frame, seam B)
+
+The **conversion** itself, as an untrusted proposer (protocol `Reader`). A
+learned reader (CLM action head / seq2seq) can replace `LexicalReader` behind
+the same method.
+
+- Closed, role-labelled subset, **full match only**: `E V` -> `V(agent=E)`;
+  `E V E` -> `V(agent=E, patient=E)`; `E COP P E` -> `P(figure=E, ground=E)`;
+  `E COP V` -> `V(subject=E)`.
+- Deterministic preprocessing: lowercase, expand `n't`, drop possessives /
+  determiners / punctuation / auxiliaries; a negation word sets the frame sign.
+- `read(sentence) -> tuple[Frame, ...]`: **all** distinct readings are returned
+  (ambiguity preserved, not resolved); `()` means **abstain**. An unknown
+  predicate word or an unconsumed token makes the sentence unreadable.
+
+```
+"Alice calls Bob"        -> calls(agent=alice, patient=bob)
+"The cat is on the mat"  -> on(figure=cat, ground=mat)
+"Alice flies to Rome"    -> ()   # 'flies' not in the lexicon -> abstain
+```
+
+## Module 4-6 — `kb.py`, `engine.py`, `kernel.py` (kernel C)
+
+The trusted deduction core that logic self-supervision (B) uses as its
+correctness criterion.
+
+- `KnowledgeBase` (`kb.py`) — ground facts + definite Horn `Rule`s (now in
+  `logic.py`) + a negation side table. Facts are indexed by predicate. It also
+  hosts **seam A**: `StateGrounder` (protocol) + `StateBinding` +
+  `DictStateGrounder`, which ground a structured `state` dict into role-labelled
+  `Frame`s (see Module 7); `add_facts` bulk-loads the result.
+- `engine.py` — `closure` (forward chaining to the least fixpoint = derivation
+  set), `prove` (rebuilds a re-checkable `Proof` from the closure's support, so
+  it is **complete by construction** and never disagrees with `entails`),
+  `holds` (positive by closure, negative only by the side table).
+- `kernel.py` — `Proof` + `verify`: re-check a certificate against the KB with
+  **no search**; it must bottom out only in known facts and known rules.
+- `unify.py` — function-free unification shared by engine and kernel.
+
+```
+(rule (ancestor ?x ?y) (parent ?x ?y))
+(rule (ancestor ?x ?z) (parent ?x ?y) (ancestor ?y ?z))
+
+closure(ancestor) = (ancestor a b) (ancestor a c) (ancestor a d) ...
+prove(ancestor a d) -> (proof ...)      verify(proof, kb) == True
+```
+
+## Module 7 — `dlm/convert.py` (input ingress, the firewall)
+
+Standing decision (NOTE.md §27): natural language exists **only at the input
+boundary**. User input and external data are all text, so text is converted to
+logic **immediately at ingress** and no sentence is retained inside the model.
+After this module the only strings are *symbols* (predicate / role / constant
+names), never phrases.
+
+- `Ingestor(reader, registry)` — the single entry point. `literals(sentence)`
+  returns every normalized reading; `literal(sentence)` is the strict gate that
+  **abstains on 0 or >1** readings. `logic(text)` / `form(form)` accept
+  already-symbolic S-expr and skip the reader.
+- `sentence_to_literals` / `sentence_to_literal` / `form_to_logic` — the pieces.
+- Two paths: (a) text → reader (untrusted) → normalize (trust boundary) →
+  `Literal | abstain`; (b) symbolic form → function-free check →
+  `Atom | Literal | Rule`. A third path grounds structured state:
+  (c) `state` dict → `StateGrounder` (seam A) → normalize → facts,
+  via `Ingestor.facts(state)` / `state_to_facts`.
+- **Nothing textual leaves this module.** Downstream (judge, engine) receives
+  logic only.
+
+```
+Ingestor.literal("Alice calls Bob")  -> (calls alice bob)
+Ingestor.literal("Alice flies")      -> None            # abstain
+Ingestor.logic("(rule (r ?x) (calls ?x bob))") -> Rule
+Ingestor.facts({"edge": ["alice", "bob"]}) -> (parent alice bob)    # seam A
+```
+
+## Module 8 — `dlm/judge.py` (judgment, seam D)
+
+The first-class judgment protocol. It keeps the two kinds of signal structurally
+separate:
+
+- **trusted verdict** — a re-checkable proof (seam C) that a ground `Literal` is
+  entailed, or an explicit negative in the side table. **Only this asserts.**
+- **untrusted score** — a number a `Proposer` attaches to a candidate (CLM
+  cosine, strands logit, a learned reader, retrieval). It may only *choose what
+  to try* or *annotate confidence*.
+
+- `Verdict` — `ASSERTED` / `REFUTED` / `ABSTAIN`.
+- `Judgement` — `literal`, `verdict`, `proof`, `score`, `confidence`, `source`.
+- `Proposal` — an untrusted candidate `literal` + `score`.
+- `Judge` protocol (trusted) and `Proposer` protocol (untrusted).
+- `ProofJudge` — asserts iff `prove -> verify` succeeds; a ground negative is
+  refuted only by the side table; non-ground literals abstain.
+- `StaticProposer` / `KbProposer` — untrusted arms (fixed fixtures / KB facts).
+- `Adjudicator` — fuses a `Judge` with proposals under `Policy.GATE` (P1) or
+  `Policy.TWO_AXIS` (P3).
+
+```python
+adj = Adjudicator()
+lie = Proposal(Literal(Atom("steals", (Const("alice"),))), score=1.0, source="evil")
+adj.decide(kb, query=lie.literal, proposals=[lie])   # -> ABSTAIN (never asserted)
+adj.decide(kb, query=legal_literal)                  # -> ASSERTED if provable
+```
+
+The invariant is structural: the `Adjudicator` never reads a proposer's verdict,
+only its `Literal` and `score`, so a high score cannot manufacture an assertion.
+`GATE` drops the learned signal when the proof abstains; `TWO_AXIS` keeps it as
+display-only confidence (the verdict is still `ABSTAIN`).
+
+## Module 9 — `dlm/wire.py` (System-One boundary)
+
+DLM behind the **same JSON interface** as CLM / strands-decider / TypeSafe:
+`{state, questions} -> {model, answers, usage}` with `noul` / `choice` / `score`
+questions. Anything with `answer(request) -> response` satisfies `WireService`,
+so the services are interchangeable by construction.
+
+- **NL only at the boundary**: `state` is grounded to facts (seam A) and every
+  question text becomes a `Literal` (seam B) immediately.
+- **Egress is template-only**: a DLM answer *renders* a proof-backed verdict; it
+  never generates prose. Where the schema has no way to say "I cannot", DLM adds
+  honest fields (`abstain`, `literal`, `proof`, `verdict`, `reason`). Consumers
+  must check `abstain` — DLM never guesses to fill a slot.
+- **DLM extension**: an optional `theory` list of S-expr strings (rules / facts /
+  explicit negatives) makes deduction possible. `state` gives the situation,
+  `theory` the laws; each request runs on a copy of the base KB.
+
+Honest answers per type: a `noul` is true iff proved, false iff its **opposite**
+is on record, otherwise it abstains (absence is not refutation). A `choice`
+picks its key only when exactly one option is provable; 0 or >1 provable options
+abstain. A `score` question is outside the Horn fragment and always abstains.
+
+```python
+svc = DlmService(Ingestor(reader, registry, grounder))
+svc.answer({
+    "state": {"edge": ["alice", "bob"]},
+    "theory": ["(rule (knows ?x ?y) (calls ?x ?y))"],
+    "questions": {"q": {"type": "noul", "instructions": "Alice knows Bob"}},
+})
+# -> answers.q = {noul: 1.0, abstain: False, verdict: "asserted",
+#                 proof: "(proof (knows alice bob) rule (calls alice bob))"}
+```
+
+## Module 10 — `dlm/selfsup.py` (DLM-native self-supervision)
+
+Not surface pretexts. The unlabeled resource is the **theory itself**, and the
+**trusted kernel (C) is the correctness criterion**; the target of every pretext
+is the *evaluation result*, so what is learned is logic, not form (decision B).
+
+Kernel-labeled pretexts: `closure_mask_examples` (derive-or-not),
+`minimal_pairs` (schema-violating permutation / sign flip — logical edits that
+change entailment), `rule_removal_examples` (redundancy delta),
+`compose_rules` / `rule_composition_examples` (a composed rule must not extend
+the closure), `proof_holes` (reconstruct a hidden premise). `ssl_l_examples`
+bundles the **SSL-L** (logic-side) ledger.
+
+The learned object is an **untrusted proposer** (seam B'/D): a dependency-free
+`FeatureScorer` over structural + symbol-identity features, wrapped as a
+`ScorerRetriever` (`Retriever` protocol). It only *ranks*; the kernel still
+decides.
+
+Evaluation is the fixed protocol: `soundness` first, then `recall_at_k`
+(held-out derivation completeness), then `proof_cost`; controls are `flip_labels`
+(surface-SSL) and `scramble_constants` (shuffled-KB).
+
+```
+recall@k  no-SSL=0.57   trained=1.00   surface(flip)=0.00   shuffled-KB=0.71
+soundness = True
+```
+
+The **SSL-NL** ledger is separate: `RejectionSelfTrainer` accepts a
+`(sentence, Literal)` pair only if the kernel already proves it, so it can only
+reinforce what the KB entails and cannot invent vocabulary grounding (the
+NL↔logic problem stays open).
+
+## Run the tests (without disturbing the editable v0.0005 install)
 
 ```bash
-python -m pytest -q                       # 89 tests
-PYTHONPATH=. python examples/dialogue_demo.py    # induction + conversation + abstain
-python run_dialogue_eval.py               # writes artifacts/dialogue_eval.json
-
-dlm-chat                                  # INTERACTIVE conversation (installed)
+cd /research/dlm_v0.0006
+PYTHONPATH=. python -m pytest -q
 ```
 
-To actually talk to it, install and run the console script:
-
-```bash
-python -m pip install -e '.[learn]'
-dlm-chat            # or: python -m dlm.chat
-```
-
-```
-you> is alice an ancestor of dave
-DLM: yes — ancestor(alice, dave)   [anc_step] ; parent(alice, bob)   [fact] ; ...
-you> erin is a parent of frank
-DLM: noted parent(erin, frank) (KB now 4 facts)
-you> who likes cake
-DLM: I don't understand that sentence (no grounder produced an atom).
-```
-Commands: `:help :kb :facts :rules :user :quit`.
-
-Matched arms (single variable = the grounder; intent forced with `ask`/`tell`):
-
-| arm | coverage | exact-atom | verdict | confident-wrong | abstain |
-|---|---|---|---|---|---|
-| `t1_only` grammar (train phrasing) | 0.545 | 0.600 | 0.500 | 0 | 0.455 |
-| `chain` T1 + lexical T2 | 0.727 | 0.800 | 0.750 | 0 | 0.273 |
-
-Judgment `fallback_helps` (n = 11 scripted turns — a smoke test, not a general
-dialogue claim). `verdict_accuracy` counts abstention as incorrect. See
-`RESULTS_DIALOGUE.md`.
-
-**Learning = symbolic, in four layers** (see `RESULTS_GROUNDING.md`):
-1. **KB growth** — `tell()` adds facts. 2. **Rule induction** —
-`induce_rules()` (LGG) generalizes Horn rules. 3. **Discriminative head** —
-`LearnedGrounder` InfoNCE (`control_favored` vs lexical, so not the default).
-4. **Active ingestion** — *not implemented yet* (W1–W3). **Conversation is not
-neural generation**: replies are templates, the only dynamic text is a proof
-rendering, and it **abstains** instead of guessing.
-
-## Quickstart
-
-```bash
-pip install -e .              # symbolic core: numpy only
-pip install -e '.[learn]'     # + torch, for the NL grounding branch
-
-python -m pytest -q                       # 89 tests
-PYTHONPATH=. python examples/grounding_demo.py
-PYTHONPATH=. python examples/dialogue_demo.py
-dlm-chat                                  # interactive grounded dialogue
-python run_grounding_eval.py --epochs 150 # writes artifacts/grounding_eval.json
-python run_dialogue_eval.py               # writes artifacts/dialogue_eval.json
-```
-
-## The pipeline
-
-```
-[user NL] --Grounder--> query atoms ------------------------+
-                                                            v
-[web/API] --Fetcher--> text --Extractor--> candidate atoms -> IngestionGate -> KB
-                                                            |                  |
-                                                            DLM proof <--------+
-                                                                |
-[answer] <--Verbalizer-- proof + provenance
-```
-
-* **Grounder tiers** behind one `Grounder` protocol: T1 deterministic grammar
-  (`GrammarGrounder`, reliable but narrow), T2 learned retrieval
-  (`LearnedGrounder`) / lexical (`CharNgramGrounder`), `ChainGrounder` tries them
-  in order. A grounder **abstains** rather than guesses.
-* **Dialogue** (`DialogueSession`) is that pipeline as a loop: query → proof,
-  tell → KB growth, contradiction → reject, no grounder → abstain.
-* **No generation.** Retrieval + abstain; the verbalizer is a template.
-* **Logic** is function-free Horn (Datalog) with a safety check; the proof trace
-  is returned with the answer.
-
-## Claim tiers
-
-| claim | tier |
-|---|---|
-| engine decision / proof | 2 |
-| grounding exact-match on a fixed test set | 2 |
-| confidence calibration | 1 |
-| retrieval / threshold effects | 1 |
-| "learned grounding beats lexical" | **not claimed** (NL-6) |
-| quantum / 6GB advantage | none |
-
-## Layout
-
-```
-dlm/                 engine + wire + grounding front-end
-  terms,rules,kb,deduce,generalize,retrieval,decider   # v0.0001 core
-  schema,interpreter,decision,adapter                 # v0.0002 decision engine
-  grounding,byte_tokenizer,tiny_encoder,grounder_learn# v0.0003 NL front-end
-  dialogue                                            # v0.0003 grounded dialogue loop
-  chat                                                # dlm-chat interactive REPL
-run_eval.py          v0.0002 decision-wire evaluation
-run_grounding_eval.py v0.0003 matched-arm grounding evaluation
-run_dialogue_eval.py v0.0003 matched-arm dialogue evaluation
-tests/ examples/ tools/build_upload.py work.txt
-```
-
-## License
-
-Apache-2.0. `dlm/tiny_encoder.py` vendors blocks adapted from
-[MeowLLM](https://github.com/phanii9/MeowLLM) (MIT, © 2026 phanii9); attribution
-is kept in the file header.
+See `work.txt` for the module plan and resume point.
