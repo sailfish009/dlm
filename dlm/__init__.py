@@ -1,4 +1,11 @@
-"""DLM v0.0008 -- the v0.0007 core plus verifiable reading and axiom acquisition.
+"""DLM v0.0009 -- the v0.0008 core plus a first-class question layer.
+
+v0.0008 added verifiable reading and tiered, kernel-gated axiom acquisition.
+v0.0009 settles the *question* side of the deductive structure: a first-class
+:mod:`dlm.query` IR (yes/no + wh), an interrogative grammar-as-data
+(:mod:`dlm.question`), a resolver over kernel closure (:mod:`dlm.answer`), and
+one unified natural-language pipeline (:mod:`dlm.qa`) -- so a question is
+answered from proof, never from a guess.
 
 v0.0006 was rebuilt from the first principle; v0.0005 is kept as a frozen
 reference for the overall skeleton. v0.0006 implements only the core idea:
@@ -175,8 +182,20 @@ from .grammar import (
     RewriteRule,
     verify_reading,
 )
+from .lexicon import PredicateLexicon, reducible_forms, third_person, verb_lemma
+from .query import YESNO, WH, Query, answer_atoms
+from .question import (
+    DEFAULT_QUESTION_RULES,
+    HOLE,
+    WHO_WORDS,
+    QuestionReader,
+    QuestionRule,
+    looks_like_question,
+)
+from .answer import Answer, render_answer, resolve
+from .qa import QASession, default_qa_session
 
-__version__ = "0.0.8"
+__version__ = "0.0.9"
 
 __all__ = [
     "AGENT",
@@ -315,5 +334,24 @@ __all__ = [
     "Reading",
     "RewriteRule",
     "verify_reading",
+    "PredicateLexicon",
+    "reducible_forms",
+    "third_person",
+    "verb_lemma",
+    "YESNO",
+    "WH",
+    "Query",
+    "answer_atoms",
+    "DEFAULT_QUESTION_RULES",
+    "HOLE",
+    "WHO_WORDS",
+    "QuestionReader",
+    "QuestionRule",
+    "looks_like_question",
+    "Answer",
+    "render_answer",
+    "resolve",
+    "QASession",
+    "default_qa_session",
     "__version__",
 ]

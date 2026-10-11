@@ -1,4 +1,9 @@
-# DLM v0.0008
+# DLM v0.0009
+
+Continues v0.0008. v0.0009 settles the **question side of the deductive
+structure**, which was the missing piece: a first-class question IR, an
+interrogative grammar-as-data, and a resolver that answers only from kernel
+closure — behind **one** natural-language pipeline instead of two.
 
 Continues v0.0007. v0.0008 adds the **Lisp layer** on both sides of the trust
 boundary without moving it: reading becomes verifiable rewrite-rule *data*, and
@@ -377,15 +382,65 @@ preserved, never resolved by guessing. The default rules reproduce
 change. Verification buys **traceability**, not truth — a wrong rule still
 replays — which is exactly why the kernel, not the reader, asserts.
 
+## Module 21 — `dlm/lexicon.py` (predicate lemmatisation)
+
+One symbol for every surface form. A declarative `alice calls bob` and a question
+`does alice call bob?` denote the same atom only if the reader canonicalises
+`calls`/`called`/`calling` to the declared base form `call`. `PredicateLexicon`
+proposes candidate reductions and accepts only one that is **in the lexicon** —
+the same membership gate as `SchemaRegistry`. Without this, the interrogative
+layer can never address what the declarative layer stored.
+
+## Module 22 — `dlm/query.py` (the question IR)
+
+A `Query` is `YESNO(ground literal)` or `WH(patterns, answer slot)`. A wh question
+is a **finite disjunction of candidate goal atoms** enumerated from schema/lexicon
+data, with one designated answer: a term (`where is alice?` → the place) or the
+**predicate itself** (`what is alice?` → happy/tall). No predicate variables enter
+the kernel — enumeration is a proposer's job, entailment is the kernel's.
+
+## Module 23 — `dlm/question.py` (interrogative grammar as data)
+
+`QuestionRule` data covers do-support, subject/aux inversion, and wh-movement:
+
+```python
+QuestionRule("wh_where_cop", WH, ("where", "?c:cop", "?e0:ent"),
+             head=None, head_class="prep",
+             roles=((FIGURE, "?e0"), (GROUND, HOLE)), answer_role=GROUND)
+```
+
+`head=None` means *enumerate the relation* from the schema registry —
+`where is alice?` becomes `in(alice, ?x) | at(alice, ?x) | ...`. Unmatched
+questions abstain; the reader proposes, it never decides truth.
+
+## Module 24 — `dlm/answer.py` (query resolution)
+
+`resolve(query, kb)` uses only the kernel closure and the negative side table:
+
+- yes/no → `yes` (entailed) / `no` (**explicit negative only**) / `unknown`;
+- wh → matched ground facts, or `unknown` when nothing matches;
+- **unknown is not no**, and a wh miss is never a fabricated filler.
+
+`render_answer` proposes text; the `CheckedRealizer` round-trip gate makes it safe.
+
+## Module 25 — `dlm/qa.py` (one NL pipeline)
+
+`QASession` replaces the old two-behaviour ambiguity (`chat.py` echoed a reading,
+`nl_talk.py` re-implemented assert/ask): question marker? → `QuestionReader` →
+`Query` → `resolve` → rendered/checked; else declarative → `Ingestor.literal` →
+assert; else chatter (assertion-free). See `experiments/qa_read.py`:
+B1 old pipeline yes/no 0.00, wh 0.00; B2 declarative-only + lemma 0.45/0.00;
+**v0.0009 1.00/1.00, false-assert 0**.
+
 ## Run the tests (without disturbing the editable v0.0005 install)
 
 ```bash
-cd /research/dlm_v0.0008
+cd /research/dlm_v0.0009
 PYTHONPATH=. python -m pytest -q
 ```
 
-Experiments: `PYTHONPATH=. python experiments/grammar_read.py` and
-`PYTHONPATH=. python experiments/webverify.py --offline`, plus the v0.0007
-`experiments/trainability.py` and `experiments/webssl/run.py --offline`.
+Experiments: `PYTHONPATH=. python experiments/qa_read.py`,
+`experiments/grammar_read.py`, `experiments/webverify.py --offline`, plus the
+v0.0007 `experiments/trainability.py` and `experiments/webssl/run.py --offline`.
 
 See `work.txt` for the module plan and resume point.

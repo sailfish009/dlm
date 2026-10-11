@@ -156,8 +156,12 @@ class TemplateRealizer:
     sign logic recovers it.
     """
 
-    def __init__(self, registry: SchemaRegistry) -> None:
+    def __init__(self, registry: SchemaRegistry, *, surface=None) -> None:
         self.registry = registry
+        #: optional ``pred -> surface`` hook for agreement on egress (verbs only).
+        #: The egress firewall re-reads the rendered sentence, so any surface that
+        #: the ingress maps back to ``pred`` is safe.
+        self.surface = surface
 
     # -- public ------------------------------------------------------------
     def realize(self, bundle: Bundle) -> Optional[str]:
@@ -177,12 +181,14 @@ class TemplateRealizer:
 
         if roles == frozenset({AGENT}):
             subject = _ent(filled[AGENT])
-            core = f"{subject} {atom.pred}"
-            return f"{subject} not {atom.pred}" if literal.negated else core
+            verb = self.surface(atom.pred) if self.surface is not None else atom.pred
+            core = f"{subject} {verb}"
+            return f"{subject} not {verb}" if literal.negated else core
         if roles == frozenset({AGENT, PATIENT}):
             agent, patient = _ent(filled[AGENT]), _ent(filled[PATIENT])
-            core = f"{agent} {atom.pred} {patient}"
-            return f"{agent} not {atom.pred} {patient}" if literal.negated else core
+            verb = self.surface(atom.pred) if self.surface is not None else atom.pred
+            core = f"{agent} {verb} {patient}"
+            return f"{agent} not {verb} {patient}" if literal.negated else core
         if roles == frozenset({SUBJECT}):
             subject = _ent(filled[SUBJECT])
             core = f"{subject} is {atom.pred}"

@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlm-deductive-logic-model"
-version = "0.0.8"
-description = "DLM v0.0008: verifiable reading (grammar-as-data) and tiered, kernel-gated axiom acquisition on a function-free Horn core."
+version = "0.0.9"
+description = "DLM v0.0009: a first-class question IR (yes/no + wh) resolved by kernel closure, with one unified NL boundary pipeline."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}

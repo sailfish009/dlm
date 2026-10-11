@@ -17,6 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
+from .lexicon import PredicateLexicon
 from .logic import Const, Frame, Term
 from .reader import (
     AGENT,
@@ -144,10 +145,14 @@ class GrammarReader:
         *,
         rules: Optional[Iterable[RewriteRule]] = None,
         copulas: Iterable[str] = COPULAS,
+        lexicon: Optional[PredicateLexicon] = None,
     ) -> None:
         self.predicates = frozenset(predicates)
         self.prepositions = frozenset(prepositions)
         self.copulas = frozenset(copulas)
+        # With a lexicon, a predicate token may be inflected and is canonicalised
+        # to its base form; without one, the exact token must be declared.
+        self.lexicon = lexicon
         self.rules: List[RewriteRule] = list(rules if rules is not None else DEFAULT_RULES)
 
     # -- public ------------------------------------------------------------
@@ -185,11 +190,16 @@ class GrammarReader:
         return tuple(out)
 
     # -- internals ---------------------------------------------------------
+    def _is_pred(self, token: str) -> bool:
+        if self.lexicon is not None:
+            return self.lexicon.is_pred(token)
+        return token in self.predicates
+
     def _is_entity(self, token: str) -> bool:
         return (
             token not in self.copulas
             and token not in self.prepositions
-            and token not in self.predicates
+            and not self._is_pred(token)
         )
 
     def _category_ok(self, cat: str, token: str) -> bool:
@@ -198,7 +208,7 @@ class GrammarReader:
         if cat == "ent":
             return self._is_entity(token)
         if cat == "pred":
-            return token in self.predicates
+            return self._is_pred(token)
         if cat == "cop":
             return token in self.copulas
         if cat == "prep":
@@ -231,6 +241,8 @@ class GrammarReader:
         head = self._resolve(rule.head, bindings)
         if head is None:
             return None
+        if self.lexicon is not None:
+            head = self.lexicon.canonical(head)
         slots: List[Tuple[str, Term]] = []
         for role, ref in rule.roles:
             value = self._resolve(ref, bindings)
