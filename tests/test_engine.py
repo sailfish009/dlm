@@ -116,3 +116,79 @@ def test_prove_agrees_with_entails_on_every_derived_atom():
 
 def test_prove_non_ground_abstains():
     assert prove(build_kb(), Atom("ancestor", (Const("a"), Var("y")))) is None
+
+
+# -- semi-naive evaluation + argument index (performance, same fixpoint) ----
+def _naive_closure(kb: KnowledgeBase):
+    """Reference least fixpoint by repeatedly firing every rule (no indexes)."""
+    facts = set(kb.facts())
+    rules = tuple(kb.rules())
+    changed = True
+    while changed:
+        changed = False
+        for rule in rules:
+            for binding in _naive_match(rule.body, facts, {}):
+                head = Atom(rule.head.pred, tuple(
+                    binding.get(a, a) if isinstance(a, Var) else a for a in rule.head.args
+                ))
+                if all(isinstance(a, Const) for a in head.args) and head not in facts:
+                    facts.add(head)
+                    changed = True
+    return facts
+
+
+def _naive_match(body, facts, binding):
+    if not body:
+        yield binding
+        return
+    first, rest = body[0], body[1:]
+    for fact in tuple(facts):
+        if fact.pred != first.pred or fact.arity != first.arity:
+            continue
+        b = dict(binding)
+        ok = True
+        for pattern, value in zip(first.args, fact.args):
+            if isinstance(pattern, Var):
+                if pattern in b and b[pattern] != value:
+                    ok = False
+                    break
+                b[pattern] = value
+            elif pattern != value:
+                ok = False
+                break
+        if ok:
+            yield from _naive_match(rest, facts, b)
+
+
+def test_closure_matches_naive_reference_on_a_dense_graph():
+    from random import Random
+
+    rng = Random(20240701)
+    kb = KnowledgeBase()
+    nodes = [f"n{i}" for i in range(14)]
+    for a in nodes:
+        for b in nodes:
+            if a != b and rng.random() < 0.18:
+                kb.add_fact(A("e", a, b))
+    kb.add_rule(Rule(
+        Atom("e", (Var("x"), Var("z"))),
+        (Atom("e", (Var("x"), Var("y"))), Atom("e", (Var("y"), Var("z")))),
+        name="trans",
+    ))
+    assert closure(kb) == _naive_closure(kb)
+
+
+def test_arg_index_join_keeps_bound_constant_results():
+    # second body atom is partly bound; the argument index must not drop it.
+    kb = KnowledgeBase()
+    kb.add_fact(A("p", "a", "b"))
+    kb.add_fact(A("p", "c", "b"))
+    kb.add_fact(A("q", "b", "z"))
+    kb.add_rule(Rule(
+        Atom("r", (Var("x"),)),
+        (Atom("p", (Var("x"), Const("b"))), Atom("q", (Const("b"), Const("z")))),
+        name="bound",
+    ))
+    got = closure(kb)
+    assert Atom("r", (Const("a"),)) in got
+    assert Atom("r", (Const("c"),)) in got

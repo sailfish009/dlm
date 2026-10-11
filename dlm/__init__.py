@@ -1,4 +1,4 @@
-"""DLM v0.0007 -- the v0.0006 core plus the egress boundary.
+"""DLM v0.0008 -- the v0.0007 core plus verifiable reading and axiom acquisition.
 
 v0.0006 was rebuilt from the first principle; v0.0005 is kept as a frozen
 reference for the overall skeleton. v0.0006 implements only the core idea:
@@ -7,6 +7,12 @@ reference for the overall skeleton. v0.0006 implements only the core idea:
     it explicit as a function-free Horn atom, and abstain when it cannot.
 
 Module 1 is the semantic normal form -- the *target* of that conversion.
+
+v0.0008 adds the Lisp layer on both sides of the trust boundary without moving
+it: ``grammar.py`` makes the reader *data* whose readings replay as derivations,
+``oracle.py`` models the web as *evidence* (never an oracle), and
+``axiom.py`` + ``induce.py`` learn/store axioms in tiers where only the kernel
+(or an explicit evidence policy) may promote a candidate to usable knowledge.
 """
 from __future__ import annotations
 
@@ -121,13 +127,62 @@ from .sexp import (
     parse,
     rule_to_form,
 )
+from .learn import (
+    AveragedPerceptron,
+    LearnedReader,
+    ReaderExample,
+    build_pred_lexicon,
+    token_features,
+    train_reader,
+    train_tagger,
+)
 
-__version__ = "0.0.7"
+from .learn import (
+    AveragedPerceptron,
+    LearnedReader,
+    ReaderExample,
+    build_pred_lexicon,
+    token_features,
+    train_reader,
+    train_tagger,
+)
+from .oracle import Evidence, Oracle, StaticOracle
+from .axiom import (
+    Axiom,
+    AxiomStore,
+    PromoteError,
+    TIER_CANDIDATE,
+    TIER_EXTERNAL,
+    TIER_KERNEL,
+    TRUST,
+)
+from .induce import (
+    InducedRule,
+    RuleCheck,
+    candidate_rules,
+    extract_lemmas,
+    ground_substitutions,
+    induce_rules,
+    lemma_from_proof,
+    measure_rule,
+    verify_rule,
+)
+from .grammar import (
+    DEFAULT_RULES,
+    Derivation,
+    GrammarReader,
+    Reading,
+    RewriteRule,
+    verify_reading,
+)
+
+__version__ = "0.0.8"
 
 __all__ = [
     "AGENT",
     "Adjudicator",
     "Atom",
+    "AveragedPerceptron",
     "Bundle",
     "ChatRule",
     "ChatScript",
@@ -150,6 +205,7 @@ __all__ = [
     "KbProposer",
     "KnowledgeBase",
     "LexicalReader",
+    "LearnedReader",
     "Literal",
     "PATIENT",
     "Pair",
@@ -159,6 +215,7 @@ __all__ = [
     "Proposal",
     "Proposer",
     "Reader",
+    "ReaderExample",
     "Realization",
     "RealizedService",
     "Realizer",
@@ -185,6 +242,7 @@ __all__ = [
     "atom_to_form",
     "banner",
     "bundle_from_answer",
+    "build_pred_lexicon",
     "chat_once",
     "closure",
     "closure_mask_examples",
@@ -225,9 +283,37 @@ __all__ = [
     "swap_pronouns",
     "systemone",
     "tokenize",
+    "token_features",
     "train",
+    "train_reader",
+    "train_tagger",
     "unify",
     "verify",
     "walk",
+    "Axiom",
+    "AxiomStore",
+    "PromoteError",
+    "TIER_CANDIDATE",
+    "TIER_EXTERNAL",
+    "TIER_KERNEL",
+    "TRUST",
+    "Evidence",
+    "Oracle",
+    "StaticOracle",
+    "InducedRule",
+    "RuleCheck",
+    "candidate_rules",
+    "extract_lemmas",
+    "ground_substitutions",
+    "induce_rules",
+    "lemma_from_proof",
+    "measure_rule",
+    "verify_rule",
+    "DEFAULT_RULES",
+    "Derivation",
+    "GrammarReader",
+    "Reading",
+    "RewriteRule",
+    "verify_reading",
     "__version__",
 ]

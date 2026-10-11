@@ -1,4 +1,9 @@
-# DLM v0.0007
+# DLM v0.0008
+
+Continues v0.0007. v0.0008 adds the **Lisp layer** on both sides of the trust
+boundary without moving it: reading becomes verifiable rewrite-rule *data*, and
+axioms are acquired into **tiers** where only the kernel (or an explicit evidence
+policy) may promote a candidate to usable knowledge.
 
 Continues v0.0006, which was rebuilt from the first principle. v0.0005 is kept
 frozen as a reference for the overall skeleton; v0.0006 starts from nothing and
@@ -295,11 +300,92 @@ template keeps its own pronouns. Every reply is a valid S-expression
 (`sexp.dump`), so the whole conversation is machine-readable. Natural language
 lives only at the two boundaries; the model sees symbols.
 
+## Module 17 — `dlm/oracle.py` (the web as *evidence*, never an oracle)
+
+A tempting shortcut for axiom verification is "look it up on the web". That is a
+useful signal but **not soundness**: the web is noisy, incomplete, adversarial,
+sources are correlated, and absence is not falsity. So the web (or any lookup) is
+modelled as an `Evidence` channel:
+
+```python
+Evidence(confirm=2, contradict=0, unknown=1, sources=("wikidata", "wikipedia"))
+```
+
+One auditable policy decides what it licenses — any contradiction rejects, else
+`min_confirm` confirmations certify, else the item stays a **candidate**:
+
+```python
+evidence.decision(min_confirm=2)  # -> "certify" | "reject" | "candidate"
+```
+
+`Oracle` is the protocol (`check(item) -> Evidence`); `StaticOracle` is the
+deterministic stand-in used by tests and ablations. Nothing here asserts; the
+sound gate stays in `axiom.py` / the kernel.
+
+## Module 18 — `dlm/axiom.py` (the trusted axiom store)
+
+DLM must *learn and store* axioms, but a proposer may not assert. `AxiomStore`
+splits knowledge into tiers, each with provenance:
+
+| tier | meaning | usable for deduction? |
+|------|---------|-----------------------|
+| `candidate` | proposed by a learner / reader / inducer | **never** |
+| `external`  | corroborated by an evidence channel | opt-in (`min_tier=`) |
+| `kernel`    | re-checked by the kernel (proof / entailment) | yes — sound |
+
+The boundary is structural: `propose()` only ever creates candidates, and
+`kb(min_tier=...)` refuses to emit candidates at all (asking for them raises).
+Promotion is an explicit, auditable act:
+
+```python
+store.promote_fact(atom, proof)                # re-checks the proof
+store.promote_rule(rule, lambda r: verify_rule(kb, r) is True)
+store.promote_external(atom, evidence)         # evidence policy, not proof
+```
+
+## Module 19 — `dlm/induce.py` (rule induction + lemma extraction)
+
+Two ways to obtain a rule the kernel can trust:
+
+1. **Lemma from a proof** — resolving certified rules is valid *by construction*:
+   `extract_lemmas(kb)` composes rule pairs and keeps the new ones
+   `verify_rule` confirms. Self-certifying, no oracle.
+2. **Induction checked over the finite domain** — with finitely many constants, a
+   rule `head :- body` is *valid on the KB* iff no ground instance with a true
+   body has a false head. `measure_rule` counts `support` and `counterexamples`;
+   `verify_rule` returns `True` / `False` / `None` (indeterminate — abstain).
+
+`induce_rules` returns a **candidate pool** ranked by support. Only rules with
+zero counterexamples are entailed and safe to promote to kernel tier; rules with
+counterexamples stay candidates until an external channel corroborates them.
+
+## Module 20 — `dlm/grammar.py` (reading as data, parse as derivation)
+
+A `GrammarReader` replaces the hand-coded branches of `LexicalReader` with
+`RewriteRule` **data** (inspectable, enumerable, addable without code):
+
+```python
+RewriteRule("transitive", ("?e0:ent", "?v:pred", "?e1:ent"), "?v",
+             ((AGENT, "?e0"), (PATIENT, "?e1")))
+```
+
+A reading carries its `Derivation`, and `verify_reading` **replays** it — the
+reader's analogue of kernel re-check. Unknown words abstain; ambiguity is
+preserved, never resolved by guessing. The default rules reproduce
+`LexicalReader` exactly, but coverage is now *data*: adding the passive rule
+`(E COP V by E)` lifts that construction from 0.00 to 1.00 coverage with no code
+change. Verification buys **traceability**, not truth — a wrong rule still
+replays — which is exactly why the kernel, not the reader, asserts.
+
 ## Run the tests (without disturbing the editable v0.0005 install)
 
 ```bash
-cd /research/dlm_v0.0007
+cd /research/dlm_v0.0008
 PYTHONPATH=. python -m pytest -q
 ```
+
+Experiments: `PYTHONPATH=. python experiments/grammar_read.py` and
+`PYTHONPATH=. python experiments/webverify.py --offline`, plus the v0.0007
+`experiments/trainability.py` and `experiments/webssl/run.py --offline`.
 
 See `work.txt` for the module plan and resume point.
