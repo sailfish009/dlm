@@ -1,11 +1,18 @@
-"""DLM v0.0024 -- the fused core: a weighted clause set *is* the whole model.
+"""DLM v0.0029 -- the fused core: a weighted clause set *is* the whole model.
 
-(Unchanged since v0.0018/v0.0019.  v0.0020-v0.0024 add no core code; they add
+(Unchanged since v0.0018/v0.0019.  v0.0020-v0.0028 add no core code; they add
 separate, untrusted work -- :mod:`dlm.ssl` (IR self-supervision), :mod:`dlm.io`
 (the data boundary), ``experiments/webloop`` (random-web dual-ability
-self-supervision) and :mod:`dlm.selfsup` (the verifiable-reward self-supervised
-loop that feeds this core the programs it verifies) -- which feed this core
-frames and atoms and consume only kernel verdicts.)
+self-supervision), :mod:`dlm.selfsup` (the verifiable-reward self-supervised
+loop that feeds this core the programs it verifies), :mod:`dlm.vector` (a
+grounded representation vector for one IR tree), :mod:`dlm.execute` (a bounded,
+order-sensitive executor plus experience-fed proof credit, which finally gives the
+learned order control over *execution*) and :mod:`dlm.control` (a goal-conditioned
+control layer over that executor, which scores each ``(goal, clause)`` pair so the
+order can route) and :mod:`dlm.lisp` (the Lisp seam: one evaluator over forms,
+code-level pattern matching, macros that write code, proofs as terms, source
+round-trips and tree reification) -- which feed this core frames
+and atoms and consume only kernel verdicts.)
 
 One object does three jobs:
 

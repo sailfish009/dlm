@@ -1,4 +1,4 @@
-"""DLM v0.0024 -- trusted substrate and public surface (see :mod:`dlm.deductive`).
+"""DLM v0.0029 -- trusted substrate and public surface (see :mod:`dlm.deductive`).
 
 The minimal DLM base is split into exactly two files:
 
@@ -22,8 +22,20 @@ Trust invariant (structural): the theory only *orders*; only the kernel
 (``prove`` + ``verify``) *asserts*.  An unnormalisable input abstains.
 
 Untrusted companions are imported the other way round and never from here:
-:mod:`dlm.ssl` (IR self-supervision), :mod:`dlm.io` (the data boundary) and
-:mod:`dlm.selfsup` (the verifiable-reward self-supervised loop)."""
+:mod:`dlm.ssl` (IR self-supervision), :mod:`dlm.io` (the data boundary),
+:mod:`dlm.selfsup` (the verifiable-reward self-supervised loop),
+:mod:`dlm.vector` (a grounded, exactly-invertible representation vector for one
+IR tree -- the coordinates are named role+token symbols the model can read) and
+:mod:`dlm.execute` (a bounded, order-sensitive backward-chaining executor plus the
+experience-fed proof-credit loop: the learned order finally controls *execution*,
+not just a candidate list, and the kernel still asserts) and :mod:`dlm.control` (a
+goal-conditioned control layer over that executor: the order is scored per
+``(goal, clause)``, so the same clause is ranked first for the goal it can close
+and last for the one it cannot -- learned from the execution trace, still only an
+order) and :mod:`dlm.lisp` (the Lisp seam: one evaluator over forms, code-level
+pattern matching, macros that write code, proofs as terms, source round-trips and
+tree reification -- the S-expr substrate finally reads and writes itself, while
+the kernel stays function-free)."""
 
 from __future__ import annotations
 
@@ -40,7 +52,7 @@ from typing import (
     Union,
 )
 
-__version__ = "0.0.24"
+__version__ = "0.0.29"
 
 __all__ = [
     # -- logic -------------------------------------------------------
