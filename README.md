@@ -1,4 +1,4 @@
-# DLM v0.0029 — the fused two-file core + tree-native IR + verifiable-reward self-supervision + IO boundary + a grounded representation vector + bounded execution control + goal-conditioned control + a Lisp seam
+# DLM v0.0030 — the fused two-file core + tree-native IR + verifiable-reward self-supervision + IO boundary + a grounded representation vector + bounded execution control + goal-conditioned control + a Lisp seam + an explanation/abstraction layer
 
 A restart from the smallest possible base. The **trusted** part is exactly two
 files. DLM is a **deductive logic model**: knowledge lives in an external KB, and
@@ -258,6 +258,31 @@ logic, not function symbols, lambdas or a general `eval` of arbitrary code in th
 kernel; the two algebras meet only at `form_to_atom` / `tree_atoms`. That meeting
 is where a full homoiconic closure (term = form) would go next.
 
+## The explanation layer — self-interpretation at scale
+
+Every earlier layer made the model *more* inspectable clause by clause; v0.0030
+adds the missing half of "extreme interpretability": reviewing a theory that has
+gotten **large**. A million readable clauses are as opaque as a black box, so
+`dlm/explain.py` treats explanation as a first-class, kernel-checked output:
+
+```
+description length  clauses + literals + signature = the reader's review budget
+provenance          why is each clause believed?  (witnesses, round, parent)
+abstraction         group clauses into named modules; review by hierarchy
+compression         drop a clause only if the kernel's closure is unchanged
+explanation         a goal + its re-checkable proof + clauses + provenance + a
+                    counterfactual ("which clause is load-bearing?")
+```
+
+A belief answers *"why?"* with a **term**, not a scalar: `certify_from_tasks`
+computes each clause's marginal contribution with the kernel (`closure` with the
+clause minus `closure` without it) and records the witnesses. Compression is
+decided the same way — the short clause `anc(x,y):-e(x,y)` structurally
+*subsumes* the long `anc(x,y):-e(x,z),e(z,y)` but is **not** logically stronger,
+so redundancy is defined operationally (remove it and re-check the closure), never
+by the structural proxy. The layer is **read-only** over the trusted core: it
+imports `dlm` one way, never asserts, and the kernel stays function-free.
+
 ## Layout
 
 | File | Role |
@@ -271,6 +296,7 @@ is where a full homoiconic closure (term = form) would go next.
 | `dlm/execute.py` | **untrusted bounded executor + experience-fed proof credit** (order-sensitive backward chaining, readable trace, kernel-sound) |
 | `dlm/control.py` | **untrusted goal-conditioned control layer** (context features, learned scorer, episodic memory; ranks each `(goal, clause)` pair) |
 | `dlm/lisp.py` | **untrusted Lisp seam** (one evaluator over forms, code matching, macros, proofs as terms, source round-trip, tree reification) |
+| `dlm/explain.py` | **untrusted explanation / abstraction layer** (description length, proof-carrying hypotheses, modules, exact kernel-checked compression, re-checkable explanations) |
 | `experiments/webssl/` | the web IR-SSL experiment (`web.py`, `bridge.py`, `run.py`) |
 | `experiments/webloop/` | random-web **dual-ability** loop (deduction + conversation), `run.py` |
 | `experiments/ir_tree/` | tree-as-IR reader comparison, `run.py` |
@@ -279,12 +305,13 @@ is where a full homoiconic closure (term = form) would go next.
 | `experiments/execution/` | bounded execution control + experience feedback (budgeted composition with decoys), `run.py` |
 | `experiments/control/` | goal-conditioned control vs every global order (routing task + episodic-memory cache), `run.py` |
 | `experiments/lisp/` | the six Lisp seams exercised end-to-end (eval, match, macro, source loop, proof-as-data, tree→proof), `run.py` |
+| `experiments/explain/` | explanation of a learned theory + exact compression of a lemma library (with a random-removal control), `run.py` |
 | `experiments/io_demo/` | heterogeneous-in → kernel → NL/structured-out demo |
 
 The fused-core API is re-exported from `dlm`, so `from dlm import …` is unchanged.
 The core imports only the trusted substrate; `dlm.ssl`, `dlm.io`,
-`dlm.selfsup`, `dlm.vector`, `dlm.execute`, `dlm.control` and `dlm.lisp` import
-`dlm` (and each other, one way) and never the other way round.
+`dlm.selfsup`, `dlm.vector`, `dlm.execute`, `dlm.control`, `dlm.lisp` and
+`dlm.explain` import `dlm` (and each other, one way) and never the other way round.
 
 ## Run the core experiment
 
@@ -301,7 +328,7 @@ the single `(theory …)` form round-trips (rules + weights).
 ## Run the web IR-SSL experiment
 
 ```
-cd /research/dlm_v0.0029
+cd /research/dlm_v0.0030
 PYTHONPATH=. python experiments/webssl/run.py --offline          # uses experiments/webssl/cache
 ```
 
@@ -326,7 +353,7 @@ real but modest — **+0.093 over the best baseline** on 75 aligned examples.
 ## Run the tree-as-IR experiment
 
 ```
-cd /research/dlm_v0.0029
+cd /research/dlm_v0.0030
 PYTHONPATH=. python experiments/ir_tree/run.py --offline            # mask=obj
 PYTHONPATH=. python experiments/ir_tree/run.py --offline --mask all
 ```
@@ -356,7 +383,7 @@ representation and the features have to be abstracted together.
 ## Run the representation-vector experiment
 
 ```
-cd /research/dlm_v0.0029
+cd /research/dlm_v0.0030
 PYTHONPATH=. python experiments/vector/run.py --offline                    # 400 synthetic trees
 PYTHONPATH=. python experiments/vector/run.py --corpus web --offline       # 75 real IR trees
 ```
@@ -387,7 +414,7 @@ claim on a small corpus.
 ## Run the goal-conditioned control experiment
 
 ```
-cd /research/dlm_v0.0029
+cd /research/dlm_v0.0030
 PYTHONPATH=. python experiments/control/run.py           # 40-node routing task
 PYTHONPATH=. python experiments/control/run.py --quick   # smoke run
 ```
@@ -426,7 +453,7 @@ deferred.
 ## Run the Lisp seam experiment
 
 ```
-cd /research/dlm_v0.0029
+cd /research/dlm_v0.0030
 PYTHONPATH=. python experiments/lisp/run.py            # all six seams
 PYTHONPATH=. python experiments/lisp/run.py --quick    # 6-node smoke run
 ```
@@ -445,10 +472,43 @@ function-free — and the tree still is not readable as logic (`form_to_atom` ra
 on a nested tree). What it *does* make possible is a loop that reads and rewrites
 its own source, and a certificate that travels as data and re-verifies.
 
+## Run the explanation / abstraction experiment
+
+```
+cd /research/dlm_v0.0030
+PYTHONPATH=. python experiments/explain/run.py           # learned theory + lemma library
+PYTHONPATH=. python experiments/explain/run.py --quick   # 24-node smoke run
+```
+
+**A · a learned theory.** The selfsup loop grows a composition theory (`t1 =
+distance 2`, `t2 = t1∘t1`, …); `certify_from_tasks` then witnesses every clause
+from its kernel-computed marginal contribution (each of the four clauses gets 20
+train witnesses), and a held goal `t4(n0,n16)` is answered with a re-checkable
+proof of 31 steps over all four clauses, with a counterfactual confirming each
+used clause is load-bearing and a minimal proof that is smaller and still sound.
+
+**B · an exact compression.** A lemma library `{cdirect, crec, ctwo, cthree}`
+contains two genuinely derivable lemmas. Exact compression drops exactly them:
+
+| quantity | before | after |
+| --- | --- | --- |
+| clauses | 4 | 2 (`cdirect`, `crec`) |
+| description length | 16 | 7 |
+| review budget | 17 | 8 |
+| held coverage (distance-3 `anc`) | 5/5 | 5/5 |
+| kernel closure | unchanged (verified) | |
+
+Control: of all **6** ways to remove the same *number* of clauses, only **1**
+leaves the closure unchanged — and it is exactly the subset compression found.
+Honest reading: this is **not** a proof of logical equivalence in all models and
+not new reasoning power; it is a behaviour-preserving reduction *on the given KB*,
+decided entirely by the kernel. The value is a smaller thing to trust: fewer
+clauses, a named module, and a proof that still re-checks.
+
 ## Run the execution-control experiment
 
 ```
-cd /research/dlm_v0.0029
+cd /research/dlm_v0.0030
 PYTHONPATH=. python experiments/execution/run.py           # 64-node chain, budget 400
 PYTHONPATH=. python experiments/execution/run.py --quick   # smoke run
 ```
@@ -485,7 +545,7 @@ run under a budget, while the kernel still decides what is true.**
 ## Run the self-supervised loop experiment
 
 ```
-cd /research/dlm_v0.0029
+cd /research/dlm_v0.0030
 PYTHONPATH=. python experiments/selfsup/run.py           # 80-node chain, 5 rounds
 PYTHONPATH=. python experiments/selfsup/run.py --quick   # 40-node smoke run
 ```
@@ -523,7 +583,7 @@ the next work is exploration for genuinely new programs.
 ## Run the random-web dual-ability experiment
 
 ```
-cd /research/dlm_v0.0029
+cd /research/dlm_v0.0030
 PYTHONPATH=. python -m experiments.webloop.run --offline          # uses experiments/webloop/cache
 PYTHONPATH=. python -m experiments.webloop.run --quick            # fast smoke test
 PYTHONPATH=. python -m experiments.webloop.run --online --docs 120 --seed 3   # fetch more
@@ -532,7 +592,7 @@ PYTHONPATH=. python -m experiments.webloop.run --online --docs 120 --seed 3   # 
 Per-ability wrappers (offline by default, timestamped report in `reports/`):
 
 ```
-cd /research/dlm_v0.0029/experiments/webloop
+cd /research/dlm_v0.0030/experiments/webloop
 ./A_deduction.sh --quick          # ability A: induce the subclass law
 ./B_conversation.sh --quick       # ability B: sentence <-> relation
 ./A_deduction.sh --online --docs 120 --seed 3
@@ -586,7 +646,7 @@ back as the same relation.
 ## Run the IO boundary demo
 
 ```
-cd /research/dlm_v0.0029
+cd /research/dlm_v0.0030
 PYTHONPATH=. python -m experiments.io_demo.run
 ```
 
@@ -597,11 +657,11 @@ CSV/JSON/DLM forms.
 ## Run the tests
 
 ```
-cd /research/dlm_v0.0029
+cd /research/dlm_v0.0030
 ./test.sh           # or: PYTHONPATH=. python -m pytest -q
 ```
 
-192 tests.
+217 tests (192 through v0.0029, plus 25 for `dlm/explain.py`).
 
 ## What was removed (and why)
 
@@ -731,3 +791,33 @@ the kernel can prove about. Only `query` reaches the kernel, and only through
 two meet only at `form_to_atom`/`tree_atoms`. The experiment's eight checks pass
 deterministically. The trusted two-file core is unchanged except its version
 banner; all new code is untrusted and imports `dlm` one way.
+
+v0.0030 adds **the explanation / abstraction layer** (`dlm/explain.py`) as the
+eighth *untrusted* layer — the second half of "extreme interpretability". v0.0029
+made the substrate read and write itself, but a grown theory was still only
+inspectable one clause at a time, and a million readable clauses are as opaque as
+a black box. The new layer adds: (1) an explicit **description length** and
+**review budget** (`profile`, `TheoryProfile`); (2) **proof-carrying hypotheses**
+(`certify`, `certify_from_tasks`) — a `Provenance` registry records *why* each
+learned clause is believed, with kernel-computed witnesses, its round and parent,
+so a belief answers "why?" with a term, not a scalar; (3) **abstraction**
+(`abstract_theory`, `summarize`) grouping clauses into named modules so a large KB
+is reviewed by hierarchy; (4) **exact compression** (`compress`, `redundant`,
+`closure_preserved`) that drops a clause only after re-computing the kernel
+closure without it and finding it unchanged — decided operationally because the
+structural `subsumes` proxy is *not* logical strength; and (5) **explanations**
+(`explain`, `counterfactual`, `minimal_explanation`, `verify_explanation`) — a goal
+answered with its re-checkable proof, the clauses it used, their provenance, and
+which clause is load-bearing. The experiment grows a composition theory with the
+selfsup loop, witnesses all four clauses (20 witnesses each) and explains a
+31-step held proof, then compresses a lemma library from 4 clauses / DL 16 to the
+minimal `{cdirect, crec}` / DL 7 with the closure verified unchanged and held
+coverage intact, while a control shows only **1 of 6** random removals of the same
+size preserves the closure (exactly the subset compression found). All ten checks
+pass deterministically (JSON byte-identical across runs). Honest limit:
+compression is behaviour-preserving *on the given KB*, not a proof of logical
+equivalence in all models, and the layer adds no new reasoning power — it is
+read-only over the core, every verdict comes from the kernel (`closure` /
+`verify`), and the kernel stays function-free. The trusted two-file core is
+unchanged except its version banner; all new code is untrusted and imports `dlm`
+one way.

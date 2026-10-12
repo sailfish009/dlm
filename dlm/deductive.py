@@ -1,4 +1,4 @@
-"""DLM v0.0029 -- the fused core: a weighted clause set *is* the whole model.
+"""DLM v0.0030 -- the fused core: a weighted clause set *is* the whole model.
 
 (Unchanged since v0.0018/v0.0019.  v0.0020-v0.0028 add no core code; they add
 separate, untrusted work -- :mod:`dlm.ssl` (IR self-supervision), :mod:`dlm.io`

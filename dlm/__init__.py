@@ -1,4 +1,4 @@
-"""DLM v0.0029 -- trusted substrate and public surface (see :mod:`dlm.deductive`).
+"""DLM v0.0030 -- trusted substrate and public surface (see :mod:`dlm.deductive`).
 
 The minimal DLM base is split into exactly two files:
 
@@ -35,7 +35,10 @@ and last for the one it cannot -- learned from the execution trace, still only a
 order) and :mod:`dlm.lisp` (the Lisp seam: one evaluator over forms, code-level
 pattern matching, macros that write code, proofs as terms, source round-trips and
 tree reification -- the S-expr substrate finally reads and writes itself, while
-the kernel stays function-free)."""
+the kernel stays function-free) and :mod:`dlm.explain` (the explanation /
+abstraction layer: description length, proof-carrying hypotheses, named modules,
+exact kernel-checked compression and re-checkable explanations -- at-scale
+self-interpretation that is read-only over the core and never asserts)."""
 
 from __future__ import annotations
 
@@ -52,7 +55,7 @@ from typing import (
     Union,
 )
 
-__version__ = "0.0.29"
+__version__ = "0.0.30"
 
 __all__ = [
     # -- logic -------------------------------------------------------
