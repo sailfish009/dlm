@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlm-deductive-logic-model"
-version = "0.0.9"
-description = "DLM v0.0009: a first-class question IR (yes/no + wh) resolved by kernel closure, with one unified NL boundary pipeline."
+version = "0.0.24"
+description = "DLM v0.0024 (fused two-file core + untrusted IO/IR-SSL/self-supervised loop): a trusted substrate (dlm/__init__.py) plus one fused core (dlm/deductive.py) -- a weighted clause is at once a Horn rule (truth) and a weighted feature (order); Theory = rule set = feature set = model; only the kernel asserts. dlm/ssl.py self-supervises over an explicit intermediate representation whose canonical form is a plain symbol tree (a Form, the same type atoms/rules/theories serialise to); a frame is only a view of it. dlm/selfsup.py is the verifiable-reward self-supervised loop: propose a program (clauses = Lisp-like code), verify it with the kernel, and promote only programs that derive every positive and no negative -- with false_assert==0 as a hard gate. dlm/io.py is the heterogeneous-data boundary (text, datasets, image/audio/video metadata), rendering results back to natural language or structured output; the core stays unchanged."
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
@@ -22,8 +22,8 @@ test = ["pytest>=8.0"]
 
 [tool.setuptools.packages.find]
 include = ["dlm*"]
-exclude = ["tests*", "artifacts*"]
+exclude = ["tests*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-norecursedirs = ["artifacts", "__pycache__", "dist", "build", ".git"]
+norecursedirs = ["__pycache__", "dist", "build", ".git"]

@@ -1,8 +1,8 @@
 """Tests for unification (shared by the engine and the kernel)."""
 from __future__ import annotations
 
-from dlm.logic import Atom, Const, Var
-from dlm.unify import apply_atom, unify, walk
+from dlm import Atom, Const, Var
+from dlm import apply_atom, unify, walk
 
 
 def test_unify_ground_atoms_identical():

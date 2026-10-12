@@ -1,10 +1,10 @@
 """Tests for the deduction engine (module 5)."""
 from __future__ import annotations
 
-from dlm.engine import closure, entails, holds, prove
-from dlm.kb import KnowledgeBase
-from dlm.kernel import Proof, verify
-from dlm.logic import Atom, Const, Literal, Rule, Var
+from dlm import closure, entails, prove
+from dlm import KnowledgeBase
+from dlm import Proof, verify
+from dlm import Atom, Const, Rule, Var
 
 
 def A(pred, *names):
@@ -57,15 +57,6 @@ def test_prove_returns_a_verifiable_certificate():
 def test_prove_unknown_returns_none():
     assert prove(build_kb(), A("ancestor", "d", "a")) is None
 
-
-def test_holds_positive_and_negative():
-    kb = build_kb()
-    kb.add_negation(A("parent", "d", "a"))
-    assert holds(kb, Literal(A("ancestor", "a", "d")))
-    assert not holds(kb, Literal(A("ancestor", "d", "a")))
-    # a negative literal is only ever checked in the side table
-    assert holds(kb, Literal(A("parent", "d", "a"), negated=True))
-    assert not holds(kb, Literal(A("parent", "a", "b"), negated=True))
 
 
 def test_closure_terminates_on_a_recursive_rule():

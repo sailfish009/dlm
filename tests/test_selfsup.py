@@ -1,192 +1,182 @@
-"""Tests for module 10: DLM-native self-supervision (logic SSL, regime B)."""
+"""Tests for the verifiable-reward self-supervised loop (dlm/selfsup.py, v0.0024)."""
 from __future__ import annotations
 
 from random import Random
 
-import pytest
-
-from dlm.convert import Ingestor
-from dlm.engine import Retriever, closure, entails, prove
-from dlm.kb import KnowledgeBase
-from dlm.logic import Atom, Const, Literal, Rule, Schema, SchemaRegistry, Var
-from dlm.reader import AGENT, PATIENT, LexicalReader
+from dlm import Atom, Clause, Const, KnowledgeBase, Rule, Theory, Var, closure
 from dlm.selfsup import (
-    Example,
-    FeatureScorer,
-    Pair,
-    RejectionSelfTrainer,
-    ScorerRetriever,
-    closure_mask_examples,
-    compose_rules,
+    LoopResult,
+    StopPolicy,
+    Task,
+    decide_stop,
     evaluate,
-    features,
-    flip_labels,
-    minimal_pairs,
-    proof_cost,
-    proof_holes,
-    recall_at_k,
-    rule_composition_examples,
-    rule_removal_examples,
-    scramble_constants,
-    soundness,
-    ssl_l_examples,
-    train,
+    program_sexp,
+    promote,
+    propose,
+    random_program,
+    reweight,
+    run_loop,
+    scramble_task,
+    sloppy_program,
 )
 
 
-def fact(pred, *names):
-    return Atom(pred, tuple(Const(n) for n in names))
-
-
-def theory() -> KnowledgeBase:
+# -- a tiny controlled task: chain edges + a distance predicate ------------
+def _chain(n: int = 40):
     kb = KnowledgeBase()
-    for t in [("a", "b"), ("b", "c"), ("a", "d")]:
-        kb.add_fact(fact("parent", *t))
-    kb.add_rule(Rule(Atom("ancestor", (Var("x"), Var("y"))), (Atom("parent", (Var("x"), Var("y"))),)))
-    kb.add_rule(
-        Rule(
-            Atom("ancestor", (Var("x"), Var("z"))),
-            (Atom("parent", (Var("x"), Var("y"))), Atom("ancestor", (Var("y"), Var("z")))),
-        )
-    )
-    kb.add_rule(
-        Rule(Atom("ancestor", (Var("x"), Var("y"))), (Atom("ancestor", (Var("x"), Var("y"))),))
-    )
+    for i in range(n - 1):
+        kb.add_fact(Atom("e", (Const(f"n{i}"), Const(f"n{i + 1}"))))
     return kb
 
 
-# -- pretext 1: closure-mask -----------------------------------------------
-def test_closure_mask_positives_and_negatives_are_kernel_labeled():
-    kb = theory()
-    examples = closure_mask_examples(kb, negatives=8, rng=Random(0))
-    assert any(e.label is True for e in examples)
-    assert any(e.label is False for e in examples)
-    for e in examples:
-        assert isinstance(e.target, Literal) and isinstance(e.label, bool)
-        assert evaluate(kb, e.target) == e.label  # label is the kernel verdict
-    assert soundness(examples, kb)
+def _atom(pred: str, a: int, b: int) -> Atom:
+    return Atom(pred, (Const(f"n{a}"), Const(f"n{b}")))
 
 
-def test_closure_mask_leakage_guard_excludes_held_out():
-    kb = theory()
-    held = fact("ancestor", "a", "c")
-    examples = closure_mask_examples(kb, negatives=10, exclude=[held])
-    targets = {e.target.atom for e in examples}
-    assert held not in targets
+def _pairs(nodes, d):
+    ns = set(nodes)
+    return {(a, a + d) for a in nodes if a + d in ns}
 
 
-# -- pretext 2: minimal pairs ----------------------------------------------
-def test_minimal_pairs_change_entailment():
-    kb = theory()
-    pairs = minimal_pairs(kb)
-    assert pairs
-    for p in pairs:
-        assert isinstance(p, Pair)
-        assert evaluate(kb, p.positive) is True
-        assert evaluate(kb, p.negative) is False
-    sign = minimal_pairs(kb, mode="sign")
-    for p in sign:
-        assert p.positive.negated is False and p.negative.negated is True
+def _task(kb, r, d, train, test) -> Task:
+    pred = f"t{r}"
+    pos = sorted((_atom(pred, a, b) for a, b in _pairs(train, d)), key=str)
+    hit = _pairs(train, d)
+    allp = [(a, b) for a in train for b in train if a != b]
+    neg = sorted((_atom(pred, a, b) for a, b in allp if (a, b) not in hit), key=str)
+    hp = sorted((_atom(pred, a, b) for a, b in _pairs(test, d)), key=str)
+    hn = sorted((_atom(pred, a, b) for a, b in [(a, b) for a in test for b in test if a != b] if abs(a - b) != d), key=str)
+    return Task(pred, kb, tuple(pos), tuple(neg), tuple(hp), tuple(hn))
 
 
-# -- pretext 3: rule-removal redundancy ------------------------------------
-def test_rule_removal_detects_redundancy():
-    kb = theory()
-    examples = rule_removal_examples(kb)
-    by_rule = {e.target: e for e in examples}
-    identity = Rule(Atom("ancestor", (Var("x"), Var("y"))), (Atom("ancestor", (Var("x"), Var("y"))),))
-    transitive = next(r for r in kb.rules() if len(r.body) == 2)
-    assert by_rule[identity].label is True  # removing it changes nothing
-    assert by_rule[transitive].label is False  # removing it loses derivations
-    assert by_rule[transitive].meta[0]  # non-empty closure delta
+def _tasks(n: int = 32):
+    kb = _chain(n)
+    half = n // 2
+    train, test = list(range(half)), list(range(half, n))
+    rounds = 0
+    while 2 ** (rounds + 1) <= half - 1:
+        rounds += 1
+    return kb, [_task(kb, r, 2 ** r, train, test) for r in range(1, rounds + 1)]
 
 
-# -- pretext 4: rule composition -------------------------------------------
-def test_rule_composition_is_sound():
-    kb = theory()
-    r1 = Rule(Atom("ancestor", (Var("x"), Var("y"))), (Atom("parent", (Var("x"), Var("y"))),))
-    r2 = Rule(
-        Atom("ancestor", (Var("x"), Var("z"))),
-        (Atom("parent", (Var("x"), Var("y"))), Atom("ancestor", (Var("y"), Var("z")))),
-    )
-    composed = compose_rules(r1, r2)
-    assert composed
-    examples = rule_composition_examples(kb)
-    assert examples and all(e.label is True for e in examples)
+# -- the reward is exact and the gate is hard ------------------------------
+def test_evaluate_is_a_hard_kernel_gate():
+    kb = _chain(6)
+    x, y = Var("x"), Var("y")
+    sound = Clause(Rule(Atom("p", (x, y)), (Atom("e", (x, y)),), "p_direct"), 0.0)
+    good = evaluate(kb, [sound], [_atom("p", 0, 1)], [_atom("p", 1, 0)])
+    assert good.proved == 1 and good.false_assert == 0 and good.reward > 0
+    # a program that also derives a negative collapses to the hard -1
+    bad = evaluate(kb, [sound], [_atom("p", 0, 1)], [_atom("p", 0, 1)])
+    assert bad.false_assert == 1 and bad.reward == -1.0 and not bad.sound
 
 
-# -- pretext 5: proof holes ------------------------------------------------
-def test_proof_holes_and_cost():
-    kb = theory()
-    holes = proof_holes(kb, atoms=[fact("ancestor", "a", "c")])
-    assert holes and all(e.kind == "proof_hole" for e in holes)
-    assert all(isinstance(e.label, Atom) for e in holes)
-    assert proof_cost(prove(kb, fact("parent", "a", "b"))) == 1
-    assert proof_cost(prove(kb, fact("ancestor", "a", "c"))) > 1
+def test_evaluate_does_not_mutate_the_base_kb():
+    kb = _chain(6)
+    x, y, z = Var("x"), Var("y"), Var("z")
+    rule = Rule(Atom("p", (x, y)), (Atom("e", (x, z)), Atom("e", (z, y))), "p2")
+    before = len(kb.rules())
+    evaluate(kb, [Clause(rule, 0.0)], [_atom("p", 0, 2)], [])
+    assert len(kb.rules()) == before
+    assert not kb.has_rule(rule)
 
 
-# -- the learned arm + evaluation -----------------------------------------
-def _pool(kb):
-    positives = sorted(closure(kb), key=str)
-    negatives = [e.target.atom for e in closure_mask_examples(kb, negatives=None)]
-    return sorted(set(positives) | set(negatives), key=str), positives
+# -- promotion adds structure, never truth-to-weights ----------------------
+def test_promote_adds_structure_only_and_dedups():
+    t0 = Theory("t", ())
+    x, y, z = Var("x"), Var("y"), Var("z")
+    a = Clause(Rule(Atom("p", (x, y)), (Atom("e", (x, z)), Atom("e", (z, y))), "p2"), 0.5)
+    t1 = promote(t0, [a])
+    t2 = promote(t1, [a])  # same name -> not duplicated
+    assert t1.params == 1 and t2.params == 1
+    kb = t1.to_kb(_chain(6))
+    assert kb.has_rule(a.rule)  # structure installed
+    assert t1.weights()["p2"] == 0.5  # weight is order, kept out of the kernel
 
 
-def test_features_include_structure_and_argument_identity():
-    f = features(fact("ancestor", "a", "b"))
-    assert "pred=ancestor" in f and "arity=2" in f and "arg0=a" in f and "arg1=b" in f
+# -- the loop composes programs a single pass cannot ------------------------
+def test_loop_composes_beyond_single_shot():
+    kb, tasks = _tasks(32)
+    result = run_loop(tasks, mode="learn", policy=StopPolicy(max_rounds=len(tasks)), seed=0, budget=5000)
+    assert isinstance(result, LoopResult)
+    assert result.mean_held_coverage == 1.0
+    assert result.false_assert == 0
+    assert result.theory.params == len(tasks)
+    # the later clauses reuse the earlier predicate -- that is the composition
+    text = program_sexp(result.theory)
+    assert "(t2 ?G0 ?G1) (t1 " in text
+    assert "(t3 ?G0 ?G1) (t2 " in text
 
 
-def test_training_improves_recall_and_beats_controls():
-    kb = theory()
-    pool, truths = _pool(kb)
-    k = len(truths)
-
-    trained = train(FeatureScorer(lr=0.2), closure_mask_examples(kb, negatives=None), kb=kb, epochs=5)
-    assert trained.updates > 0
-    recall = recall_at_k(ScorerRetriever(trained), kb, pool, truths, k)
-    assert recall == 1.0
-
-    # surface-SSL control: inverted labels teach the wrong ordering
-    wrong = train(FeatureScorer(lr=0.2), flip_labels(closure_mask_examples(kb, negatives=None)), kb=kb, epochs=5)
-    recall_wrong = recall_at_k(ScorerRetriever(wrong), kb, pool, truths, k)
-    assert recall_wrong < recall
-
-    # shuffled-KB control: entity-level priors do not transfer
-    scrambled = scramble_constants(kb, rng=Random(1))
-    pool2, truths2 = _pool(scrambled)
-    recall_scrambled = recall_at_k(ScorerRetriever(trained), scrambled, pool2, truths2, len(truths2))
-    assert recall_scrambled <= recall
+def test_single_shot_cannot_find_the_composition():
+    # with no promoted theory, body length 2 on predicate e cannot express
+    # distance 8: the proposer finds nothing for the third task.
+    _, tasks = _tasks(32)
+    program = propose(tasks[2].kb, tasks[2].positives, tasks[2].negatives, max_body=2, budget=20000)
+    assert program == ()
 
 
-def test_soundness_catches_a_broken_label():
-    kb = theory()
-    good = closure_mask_examples(kb, negatives=4)
-    assert soundness(good, kb)
-    assert not soundness(flip_labels(good), kb)
+def test_loop_is_deterministic():
+    _, tasks = _tasks(32)
+    policy = StopPolicy(max_rounds=len(tasks))
+    a = run_loop(tasks, mode="learn", policy=policy, seed=0, budget=5000).to_dict()
+    b = run_loop(tasks, mode="learn", policy=policy, seed=0, budget=5000).to_dict()
+    assert a == b
 
 
-def test_scorer_retriever_is_a_retriever():
-    assert isinstance(ScorerRetriever(FeatureScorer()), Retriever)
+# -- the controls fail, and removing the gate fabricates -------------------
+def test_controls_stay_at_the_floor_and_gate_off_fabricates():
+    _, tasks = _tasks(32)
+    policy = StopPolicy(max_rounds=len(tasks), stop_on_no_proposal=False)
+    for mode in ("no_promote", "scramble", "random"):
+        r = run_loop(tasks, mode=mode, policy=policy, seed=0, budget=5000)
+        assert r.mean_held_coverage <= 0.05, mode
+        assert r.false_assert == 0, mode
+    hack = run_loop(tasks, mode="reward_hacking", policy=policy, seed=0, budget=5000)
+    assert hack.false_assert > 0  # no hard gate -> held-out negatives asserted
 
 
-# -- the two ledgers -------------------------------------------------------
-def test_ssl_l_examples_are_logic_only():
-    kb = theory()
-    examples = ssl_l_examples(kb, held_out=[fact("ancestor", "a", "c")])
-    assert examples
-    for e in examples:
-        assert isinstance(e.target, (Atom, Literal, Rule))  # never a sentence
-    assert soundness(examples, kb)
+def test_scramble_task_preserves_sizes():
+    _, tasks = _tasks(32)
+    scrambled = scramble_task(tasks[0], Random(0))
+    assert len(scrambled.positives) == len(tasks[0].positives)
+    assert len(scrambled.negatives) == len(tasks[0].negatives)
+    assert set(scrambled.positives) | set(scrambled.negatives) == set(tasks[0].positives) | set(tasks[0].negatives)
 
 
-def test_rejection_self_trainer_accepts_only_provable_pairs():
-    kb = KnowledgeBase().add_fact(fact("calls", "alice", "bob"))
-    registry = SchemaRegistry([Schema("calls", (AGENT, PATIENT))])
-    ingestor = Ingestor(LexicalReader(predicates={"calls"}), registry)
-    trainer = RejectionSelfTrainer(ingestor, kb)
+# -- proposers only propose; they never assert ------------------------------
+def test_proposers_are_only_proposals():
+    kb, tasks = _tasks(32)
+    assert propose(kb, (), ()) == ()
+    rng_prog = random_program(kb, tasks[0].positives, rng=Random(0))
+    sloppy = sloppy_program(kb, tasks[1].positives)
+    for program in (rng_prog, sloppy):
+        assert all(isinstance(c, Clause) for c in program)
+    # neither proposer has changed the base KB
+    assert kb.rules() == ()
+    # the base facts alone prove none of the target predicates
+    closed = closure(kb)
+    assert not any(a.pred == "t1" for a in closed)
 
-    assert trainer.offer("Alice calls Bob") == Literal(fact("calls", "alice", "bob"))
-    assert trainer.offer("Bob calls Alice") is None  # not provable -> rejected
-    assert trainer.offer("Alice flies") is None  # not normalizable -> rejected
-    assert len(trainer.accepted) == 1 and len(trainer.rejected) == 2
+
+# -- the stopping rule -----------------------------------------------------
+def test_stop_policy_flags():
+    kb, tasks = _tasks(32)
+    policy = StopPolicy(max_rounds=2, stop_on_no_proposal=True)
+    result = run_loop(tasks, mode="learn", policy=policy, seed=0, budget=5000)
+    assert result.rounds == 2
+    assert result.stats[-1].stopped_reason == "round_budget"
+    policy2 = StopPolicy(max_rounds=len(tasks), stop_on_no_proposal=True)
+    empty = run_loop(tasks, mode="no_promote", policy=policy2, seed=0, budget=5000)
+    # no_promote still proposes (round-1 shape) so it runs on; the empty-proposal
+    # stop is exercised directly here:
+    assert decide_stop(empty.stats[:1], StopPolicy(max_rounds=9, stop_on_no_proposal=True)) is None
+
+
+# -- reweight is the fused learner over the grown program -------------------
+def test_reweight_orders_the_grown_clauses():
+    _, tasks = _tasks(32)
+    result = run_loop(tasks, mode="learn", policy=StopPolicy(max_rounds=len(tasks)), seed=0, budget=5000)
+    grown, updates = reweight(result.theory, [])
+    assert grown.params == result.theory.params
+    assert updates == 0

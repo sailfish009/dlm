@@ -1,120 +1,91 @@
-"""Tests for rule induction and lemma extraction (module 19)."""
-from __future__ import annotations
+"""Tests for the v0.0018 LGG induction: lgg / variate / space / covers / induce."""
+import pytest
 
-from dlm.engine import prove
-from dlm.kb import KnowledgeBase
-from dlm.logic import Atom, Const, Rule, Var
-from dlm.induce import (
-    InducedRule,
-    _index,
-    candidate_rules,
-    extract_lemmas,
-    ground_substitutions,
-    induce_rules,
-    lemma_from_proof,
-    measure_rule,
-    verify_rule,
+from dlm import (
+    Atom, Const, KnowledgeBase, Rule, Var,
+    Clause, lgg_atoms, variate, literal_space, covers, induce_clauses,
+    run_experiment,
 )
-
-
-def A(pred, *names):
-    return Atom(pred, tuple(Const(n) for n in names))
-
-
-def V(pred, *terms):
-    return Atom(pred, tuple(terms))
-
 
 X, Y, Z = Var("x"), Var("y"), Var("z")
 
 
-def transitive_kb() -> KnowledgeBase:
+def a(x, y):
+    return Atom("ancestor", (Const(x), Const(y)))
+
+
+def chain(n):
     kb = KnowledgeBase()
-    for a, b in [("a", "b"), ("b", "c"), ("c", "d"), ("a", "c"), ("b", "d"), ("a", "d")]:
-        kb.add_fact(A("anc", a, b))
+    for i in range(n - 1):
+        kb.add_fact(Atom("parent", (Const(f"n{i}"), Const(f"n{i + 1}"))))
     return kb
 
 
-def test_ground_substitutions_and_budget():
-    kb = transitive_kb()
-    index = _index(kb.facts())
-    subs = ground_substitutions((V("anc", X, Y), V("anc", Y, Z)), index)
-    assert subs is not None and len(subs) == 4
-    assert ground_substitutions((V("missing", X, Y),), index) == []
-    assert ground_substitutions((V("anc", X, Y), V("anc", Y, Z)), index, limit=1) is None
+# -- lgg / variate --------------------------------------------------------
+def test_lgg_shares_equal_columns():
+    g = lgg_atoms([a("x", "a"), a("x", "b")])
+    assert g.pred == "ancestor" and g.args[0] == Const("x") and isinstance(g.args[1], Var)
 
 
-def test_measure_rule_transitive_is_entailed_inverse_is_refuted():
-    kb = transitive_kb()
-    trans = measure_rule(kb, Rule(V("anc", X, Z), (V("anc", X, Y), V("anc", Y, Z)), "trans"))
-    assert trans.complete and trans.valid and trans.support == 4 and trans.counterexamples == 0
-    inv = measure_rule(kb, Rule(V("anc", X, Y), (V("anc", Y, X),), "inv"))
-    assert inv.complete and not inv.valid and inv.counterexamples == 6
+def test_lgg_rejects_mixed_predicates():
+    with pytest.raises(ValueError):
+        lgg_atoms([a("x", "y"), Atom("parent", (Const("x"), Const("y")))])
 
 
-def test_verify_rule_distinguishes_false_from_indeterminate():
-    kb = transitive_kb()
-    trans = Rule(V("anc", X, Z), (V("anc", X, Y), V("anc", Y, Z)), "trans")
-    assert verify_rule(kb, trans) is True
-    assert verify_rule(kb, Rule(V("anc", X, Y), (V("anc", Y, X),), "inv")) is False
-    # Budget too small -> indeterminate, which is neither True nor False.
-    assert verify_rule(kb, trans, max_instances=1) is None
+def test_variate_replaces_constants():
+    v = variate(a("x", "y"))
+    assert all(isinstance(t, Var) for t in v.args)
 
 
-def test_candidate_rules_are_bounded_by_vocabulary():
-    kb = transitive_kb()
-    rules = candidate_rules(kb)
-    names = {r.name for r in rules}
-    assert "anc_trans" in names
-    assert "anc_inv" in names
-    # a predicate absent from the facts never appears
-    assert not any("missing" in n for n in names)
-    assert len(rules) == len(set(rules))
+# -- literal space --------------------------------------------------------
+def test_literal_space_is_deterministic_and_deduped():
+    kb = chain(4)
+    space = literal_space(kb, a("n0", "n1"), [X, Y], max_arity=2)
+    assert space == literal_space(kb, a("n0", "n1"), [X, Y], max_arity=2)
+    assert len(space) == len(set(space)) > 0
 
 
-def test_induce_rules_keeps_supported_candidates_and_ranks_them():
-    kb = KnowledgeBase()
-    for a, b in [("a", "b"), ("b", "c"), ("c", "d"), ("a", "c")]:
-        kb.add_fact(A("p", a, b))
-    # p(a,b)&p(b,c) -> p(a,c) holds; p(b,c)&p(c,d) -> p(b,d) and
-    # p(a,c)&p(c,d) -> p(a,d) do not.
-    found = induce_rules(kb)
-    trans = [ir for ir in found if ir.rule.name == "p_trans"]
-    assert len(trans) == 1
-    assert isinstance(trans[0], InducedRule)
-    assert trans[0].support == 1 and trans[0].counterexamples == 2
-    assert not trans[0].sound
-    # With a zero-counterexample cap the refuted rule disappears.
-    assert all(ir.sound for ir in induce_rules(kb, max_counterexamples=0))
+# -- covers (kernel-checked) ---------------------------------------------
+def test_covers_respects_negatives():
+    kb = chain(4)
+    good = Rule(Atom("ancestor", (X, Y)), (Atom("parent", (X, Y)),), "base")
+    pos = [a("n0", "n1"), a("n1", "n2")]
+    neg = [a("n1", "n0")]
+    assert covers(kb, [good], pos, neg)
+    bad = Rule(Atom("ancestor", (X, Y)), (Atom("parent", (Y, X)),), "rev")
+    assert not covers(kb, [bad], pos, neg)
 
 
-def test_lemma_from_proof_and_extract_lemmas():
-    kb = KnowledgeBase()
-    kb.add_fact(A("parent", "a", "b"))
-    kb.add_fact(A("parent", "b", "c"))
-    kb.add_rule(Rule(V("ancestor", X, Y), (V("parent", X, Y),), name="anc-base"))
-    kb.add_rule(
-        Rule(
-            V("ancestor", X, Z),
-            (V("parent", X, Y), V("ancestor", Y, Z)),
-            name="anc-step",
-        )
-    )
-    proof = prove(kb, A("ancestor", "a", "c"))
-    assert proof is not None
-    lemma = lemma_from_proof(proof, kb)
-    assert isinstance(lemma, Rule)
-    assert lemma not in kb.rules()
-    assert verify_rule(kb, lemma) is True
-
-    lemmas = extract_lemmas(kb)
-    assert lemmas and all(verify_rule(kb, r) is True for r in lemmas)
-    assert all(r not in kb.rules() for r in lemmas)
+# -- induce_clauses -------------------------------------------------------
+def test_induce_writes_recursive_and_base_clauses():
+    kb = chain(8)
+    pos = [a(f"n{i}", f"n{j}") for i in range(6) for j in range(i + 1, 6)]
+    neg = [a(f"n{i}", f"n{j}") for i in range(6) for j in range(6) if j <= i]
+    clauses = induce_clauses(kb, pos, neg, budget=20000)
+    bodies = sorted(len(c.rule.body) for c in clauses)
+    assert bodies == [1, 2]
+    assert all(isinstance(c, Clause) for c in clauses)
+    assert all(0.0 < c.weight <= 1.0 for c in clauses)
 
 
-def test_lemma_from_fact_proof_is_none():
-    kb = KnowledgeBase()
-    kb.add_fact(A("p", "a", "b"))
-    proof = prove(kb, A("p", "a", "b"))
-    assert proof is not None
-    assert lemma_from_proof(proof, kb) is None
+def test_induce_is_deterministic():
+    kb = chain(8)
+    pos = [a(f"n{i}", f"n{j}") for i in range(6) for j in range(i + 1, 6)]
+    neg = [a(f"n{i}", f"n{j}") for i in range(6) for j in range(6) if j <= i]
+    assert induce_clauses(kb, pos, neg) == induce_clauses(kb, pos, neg)
+
+
+# -- run_experiment -------------------------------------------------------
+def test_run_experiment_reports_ability_and_order():
+    r = run_experiment()
+    assert r["heldout_positives_proved"] == r["heldout_positives_total"]
+    assert r["heldout_negatives_false_assert"] == 0
+    assert r["order"]["separated"] is True
+    assert r["gate"]["proved"] is True
+    assert all(r["theory_roundtrip"].values())
+
+
+def test_run_experiment_is_deterministic_and_stdlib_only():
+    import sys
+    assert "torch" not in sys.modules and "numpy" not in sys.modules
+    assert run_experiment() == run_experiment()

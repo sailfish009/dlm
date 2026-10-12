@@ -3,17 +3,14 @@ from __future__ import annotations
 
 import pytest
 
-from dlm.logic import Atom, Const, Literal, Rule, Var
-from dlm.sexp import (
+from dlm import Atom, Const, Rule, Var
+from dlm import (
     SexpError,
     Sym,
     atom_to_form,
     dump,
-    dump_all,
     form_to_atom,
-    form_to_literal,
     form_to_rule,
-    literal_to_form,
     parse,
     rule_to_form,
 )
@@ -77,7 +74,7 @@ def test_dump_quotes_string_literals():
 
 def test_round_trip():
     text = "(rule (ancestor ?x ?y) (parent ?x ?y))\n(proof (a b) (c))"
-    assert parse(dump_all(parse(text))) == parse(text)
+    assert parse("\n".join(dump(f) for f in parse(text))) == parse(text)
 
 
 # -- logic bridge ----------------------------------------------------------
@@ -87,15 +84,6 @@ def test_atom_form_round_trip():
     assert form_to_atom(atom_to_form(a)) == a
 
 
-def test_literal_not_form():
-    lit = Literal(Atom("charges", (Const("c1"), Const("c2"))), negated=True)
-    assert literal_to_form(lit) == (Sym("not"), (Sym("charges"), Sym("c1"), Sym("c2")))
-    assert form_to_literal(literal_to_form(lit)) == lit
-
-
-def test_positive_literal_form_has_no_not():
-    lit = Literal(Atom("p", (Const("a"),)))
-    assert literal_to_form(lit) == (Sym("p"), Sym("a"))
 
 
 def test_atom_str_is_sexp():

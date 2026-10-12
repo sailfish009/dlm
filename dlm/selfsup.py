@@ -1,459 +1,462 @@
-"""Module 10: DLM-native self-supervision (regime B: logic SSL).
+"""DLM v0.0024 -- the verifiable-reward self-supervised loop (untrusted layer).
 
-This is **not** a module of surface pretexts.  The unlabeled resource is the
-theory itself (KB / rules / proofs), and the **trusted kernel (C) is the
-correctness criterion**.  Following the design (NOTE.md Part IV), the target of
-every pretext is the **evaluation result**, never the original text -- so the
-learned object is *logic*, not *form*.
+The fused core (:mod:`dlm.deductive`) already turns kernel verdicts into labels
+and reweights clauses.  What was *missing* is the loop that closes the circle:
 
-Two ledgers are deliberately kept apart:
+    propose a program  ->  the kernel verifies it  ->  reward filters it
+          ^                                                   |
+          |                                                   v
+          +----  only verified programs are promoted  <--------
+                 (the theory becomes the next round's environment)
 
-* **SSL-L** (logic side): ``closure_mask_examples`` (derive-or-not),
-  ``minimal_pairs`` (schema-violating permutation / sign flip -- logical edits
-  that change entailment), ``rule_removal_examples`` (redundancy delta),
-  ``rule_composition_examples`` (a composed rule must not extend the closure),
-  ``proof_holes`` (reconstruct a proof's hidden premise).  All labels come from
-  the kernel.  **This does not fix NL grounding.**
-* **SSL-NL** (language side): :class:`RejectionSelfTrainer` -- needs sentence
-  pairs, and accepts a pair only if the kernel already proves it, so it can only
-  reinforce what the KB entails and cannot invent vocabulary grounding.
+A "program" here is a set of :class:`~dlm.Clause` -- i.e. Lisp-like code
+(``(clause <name> <weight> (head) (body)...)``).  The proposer is
+:func:`~dlm.induce_clauses` (LGG + greedy covering); the verifier/reward is the
+kernel's :func:`~dlm.closure`; the learner is :func:`~dlm.learn`; the growing
+program is a :class:`~dlm.Theory`.  Fusing them gives one self-supervised loop,
+driven by **zero human labels** -- the reward is exactly "did the kernel derive
+every positive and no negative".
 
-What is learned here is an **untrusted proposer** (seam B'/D): a dependency-free
-``FeatureScorer`` over structural features (predicate, arity, argument equality
-pattern).  It ranks candidates; it never asserts.  The evaluation protocol is
-fixed (NOTE.md Sec.22): soundness first, then held-out derivation completeness,
-then proof cost, against no-SSL / surface-SSL / shuffled-KB controls.
+Trust invariant (unchanged): promotion adds *structure* (rules) only.  A clause
+weight is order and never reaches the kernel; the proposer never asserts.  The
+reward is a *hard* gate: any false assertion makes a program worthless.
+
+Controls, so a gain can be attributed to the reward and not to the loop itself:
+
+* ``learn``       -- propose, verify, promote verified programs (the method);
+* ``no_promote``  -- propose and verify but never feed back (no loop);
+* ``scramble``    -- the label source is shuffled, so the reward is misaligned;
+* ``random``      -- promote a random program regardless of the reward.
+
+This is expert iteration / rejection sampling over programs, not policy
+gradient: when the verifier is exact and free, filtering verified programs is
+cheaper and more stable than a gradient.  Exploration for genuinely *new*
+programs is a separate, later problem.
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
-from itertools import permutations
+from dataclasses import dataclass, replace
 from random import Random
-from typing import Any, Iterable, List, Optional, Tuple
+from typing import Optional, Sequence, Tuple
 
-from .convert import Ingestor
-from .engine import Retriever, closure, entails, holds, prove
-from .kb import KnowledgeBase
-from .kernel import Proof
-from .logic import Atom, Const, Literal, Rule, Var
-from .unify import Subst, apply_atom, unify
+from . import (
+    Atom,
+    Clause,
+    KnowledgeBase,
+    Rule,
+    Theory,
+    Var,
+    closure,
+    induce_clauses,
+    learn,
+    lgg_atoms,
+    literal_space,
+    theory_sexp,
+    variate,
+)
+
 
 __all__ = [
-    "Example",
-    "Pair",
+    "Verdict",
+    "Task",
+    "RoundStats",
+    "StopPolicy",
+    "LoopResult",
     "evaluate",
-    "closure_mask_examples",
-    "minimal_pairs",
-    "rule_removal_examples",
-    "compose_rules",
-    "rule_composition_examples",
-    "proof_holes",
-    "features",
-    "FeatureScorer",
-    "train",
-    "ScorerRetriever",
-    "proof_cost",
-    "recall_at_k",
-    "soundness",
-    "flip_labels",
-    "scramble_constants",
-    "ssl_l_examples",
-    "RejectionSelfTrainer",
+    "propose",
+    "promote",
+    "random_program",
+    "sloppy_program",
+    "scramble_task",
+    "decide_stop",
+    "run_loop",
+    "reweight",
+    "program_sexp",
+    "MODES",
 ]
 
+MODES = ("learn", "no_promote", "scramble", "random", "reward_hacking")
 
-# -- the label: a kernel verdict, never the source text --------------------
+
+# ============================================================================
+# 1. the reward: an exact, hard kernel verdict
+# ============================================================================
 @dataclass(frozen=True)
-class Example:
-    """One pretext item.  ``label`` is what the trusted kernel says, not text."""
+class Verdict:
+    """What the kernel says about one proposed program."""
 
-    kind: str
-    target: object
-    label: object
-    meta: Tuple[Any, ...] = ()
+    proved: int
+    total: int
+    false_assert: int
+    size: int
+    reward: float
+
+    @property
+    def sound(self) -> bool:
+        return self.false_assert == 0
+
+    @property
+    def coverage(self) -> float:
+        return self.proved / self.total if self.total else 0.0
+
+    def to_dict(self) -> dict:
+        return {
+            "proved": self.proved,
+            "total": self.total,
+            "false_assert": self.false_assert,
+            "size": self.size,
+            "reward": round(self.reward, 6),
+            "sound": self.sound,
+            "coverage": round(self.coverage, 6),
+        }
+
+
+def evaluate(
+    kb: KnowledgeBase,
+    program: Sequence[Clause],
+    positives: Sequence[Atom],
+    negatives: Sequence[Atom],
+    *,
+    cost: float = 0.02,
+) -> Verdict:
+    """The verifiable reward: kernel closure of ``kb + program`` vs pos/neg.
+
+    ``false_assert`` is a hard gate -- a single derived negative collapses the
+    reward to ``-1`` regardless of coverage.  Otherwise reward is coverage minus
+    an Occam cost per clause, so the loop prefers the shortest sound program.
+    """
+    program = tuple(program)
+    trial = kb.copy()
+    for clause in program:
+        trial.add_rule(clause.rule)  # idempotent; structure only
+    closed = closure(trial)
+    pos = set(positives)
+    neg = set(negatives)
+    proved = len(pos & closed)
+    false = len(neg & closed)
+    total = len(pos)
+    if false:
+        reward = -1.0
+    else:
+        reward = (proved / total if total else 0.0) - cost * len(program)
+    return Verdict(proved, total, false, len(program), reward)
+
+
+# ============================================================================
+# 2. one round of evidence (a task) and its statistics
+# ============================================================================
+@dataclass(frozen=True)
+class Task:
+    """One round's evidence: a base KB, train pos/neg and a held-out probe set."""
+
+    name: str
+    kb: KnowledgeBase
+    positives: Tuple[Atom, ...]
+    negatives: Tuple[Atom, ...]
+    held_pos: Tuple[Atom, ...] = ()
+    held_neg: Tuple[Atom, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "positives", tuple(self.positives))
+        object.__setattr__(self, "negatives", tuple(self.negatives))
+        object.__setattr__(self, "held_pos", tuple(self.held_pos))
+        object.__setattr__(self, "held_neg", tuple(self.held_neg))
 
 
 @dataclass(frozen=True)
-class Pair:
-    """A positive and a kernel-inequivalent negative (a *logical* minimal pair)."""
+class RoundStats:
+    """Everything one round did (reward, decision, promotion, held-out result)."""
 
-    positive: Literal
-    negative: Literal
-    mode: str
+    round: int
+    name: str
+    proposed: int
+    accepted: bool
+    verdict: Verdict
+    held_proved: int
+    held_total: int
+    held_false: int
+    promoted: Tuple[str, ...] = ()
+    stopped_reason: Optional[str] = None
 
-    def as_examples(self) -> Tuple[Example, ...]:
-        return (
-            Example("minimal_pair", self.positive, True, (self.mode, "positive")),
-            Example("minimal_pair", self.negative, False, (self.mode, "negative")),
-        )
+    @property
+    def held_coverage(self) -> float:
+        return self.held_proved / self.held_total if self.held_total else 0.0
+
+    def to_dict(self) -> dict:
+        return {
+            "round": self.round,
+            "name": self.name,
+            "proposed": self.proposed,
+            "accepted": self.accepted,
+            "verdict": self.verdict.to_dict(),
+            "held_proved": self.held_proved,
+            "held_total": self.held_total,
+            "held_false": self.held_false,
+            "held_coverage": round(self.held_coverage, 6),
+            "promoted": list(self.promoted),
+            "stopped_reason": self.stopped_reason,
+        }
 
 
-def evaluate(kb: KnowledgeBase, literal: Literal) -> bool:
-    """The trusted correctness criterion for a literal (kernel C)."""
-    return holds(kb, literal)
+@dataclass(frozen=True)
+class LoopResult:
+    """The whole run: the grown theory and the per-round trace."""
+
+    theory: Theory
+    stats: Tuple[RoundStats, ...]
+
+    @property
+    def rounds(self) -> int:
+        return len(self.stats)
+
+    @property
+    def promoted(self) -> Tuple[str, ...]:
+        return tuple(n for s in self.stats for n in s.promoted)
+
+    @property
+    def false_assert(self) -> int:
+        return sum(s.held_false for s in self.stats)
+
+    @property
+    def mean_held_coverage(self) -> float:
+        tot = sum(s.held_total for s in self.stats)
+        return sum(s.held_proved for s in self.stats) / tot if tot else 0.0
+
+    def to_dict(self) -> dict:
+        return {
+            "rounds": self.rounds,
+            "params": self.theory.params,
+            "promoted": list(self.promoted),
+            "false_assert": self.false_assert,
+            "mean_held_coverage": round(self.mean_held_coverage, 6),
+            "theory_sexp": theory_sexp(self.theory),
+            "trace": [s.to_dict() for s in self.stats],
+        }
 
 
-# -- pretext 1: closure-mask (derive-or-not) -------------------------------
-def closure_mask_examples(
+# ============================================================================
+# 3. the stopping rule
+# ============================================================================
+@dataclass(frozen=True)
+class StopPolicy:
+    """When the self-supervised loop should stop."""
+
+    max_rounds: int = 8
+    min_reward: float = 0.0
+    stop_on_unsound: bool = False
+    stop_on_no_proposal: bool = True
+
+
+def decide_stop(stats: Sequence[RoundStats], policy: StopPolicy) -> Optional[str]:
+    """Return a stop reason, or ``None`` to keep looping."""
+    last = stats[-1]
+    if policy.stop_on_unsound and last.held_false > 0:
+        return "unsound"
+    if policy.stop_on_no_proposal and last.proposed == 0:
+        return "no_proposal"
+    if len(stats) >= policy.max_rounds:
+        return "round_budget"
+    return None
+
+
+# ============================================================================
+# 4. the proposer (untrusted) -- it may only *suggest* programs
+# ============================================================================
+def propose(
     kb: KnowledgeBase,
+    positives: Sequence[Atom],
+    negatives: Sequence[Atom],
     *,
-    negatives: Optional[int] = None,
-    exclude: Iterable[Atom] = (),
-    rng: Optional[Random] = None,
-) -> Tuple[Example, ...]:
-    """Positive = atoms in the closure; negative = schema-violating permutations.
-
-    ``exclude`` is the **leakage guard**: held-out evaluation atoms must not
-    appear in the training pretext (NOTE.md Sec.22.5).
-    """
-    held = set(exclude)
-    positives = [
-        Example("closure_mask", Literal(a), True, ("positive",))
-        for a in sorted(closure(kb), key=str)
-        if a not in held
-    ]
-    pool: List[Atom] = []
-    for a in sorted(closure(kb), key=str):
-        if a.arity < 2:
-            continue
-        for perm in permutations(a.args):
-            if perm == a.args:
-                continue
-            cand = Atom(a.pred, tuple(perm))
-            if cand not in held and not entails(kb, cand):
-                pool.append(cand)
-    pool = sorted(set(pool), key=str)
-    if rng is not None:
-        rng.shuffle(pool)
-    if negatives is not None:
-        pool = pool[:negatives]
-    negatives_ex = [
-        Example("closure_mask", Literal(a), False, ("negative",)) for a in pool
-    ]
-    return tuple(positives + negatives_ex)
-
-
-# -- pretext 2: logical minimal pairs --------------------------------------
-def minimal_pairs(
-    kb: KnowledgeBase,
-    *,
-    mode: str = "permutation",
-    atoms: Optional[Iterable[Atom]] = None,
-) -> Tuple[Pair, ...]:
-    """Logical (not surface) minimal pairs whose entailment actually changes.
-
-    ``permutation`` reorders arguments without a schema (changes entailment);
-    ``sign`` flips the sign of a literal.  A candidate that stays entailed is
-    dropped -- it is not a valid negative.
-    """
-    src = list(atoms) if atoms is not None else sorted(closure(kb), key=str)
-    out: List[Pair] = []
-    seen = set()
-    for a in src:
-        if mode == "permutation":
-            if a.arity < 2:
-                continue
-            for perm in permutations(a.args):
-                if perm == a.args:
-                    continue
-                cand = Literal(Atom(a.pred, tuple(perm)))
-                if not holds(kb, cand) and cand not in seen:
-                    seen.add(cand)
-                    out.append(Pair(Literal(a), cand, "permutation"))
-        elif mode == "sign":
-            neg = Literal(a, negated=True)
-            if not kb.is_negated(a) and neg not in seen:
-                seen.add(neg)
-                out.append(Pair(Literal(a), neg, "sign"))
-        else:
-            raise ValueError(f"unknown minimal-pair mode {mode!r}")
-    return tuple(out)
-
-
-# -- pretext 3: rule-removal redundancy ------------------------------------
-def rule_removal_examples(kb: KnowledgeBase) -> Tuple[Example, ...]:
-    """Removing a rule: does the closure stay the same?  (redundancy delta)."""
-    before = closure(kb)
-    out: List[Example] = []
-    for rule in kb.rules():
-        after = closure(kb.copy().remove_rule(rule))
-        delta = frozenset(before - after)
-        out.append(Example("rule_removal", rule, len(delta) == 0, (delta,)))
-    return tuple(out)
-
-
-# -- pretext 4: rule composition (soundness of a proposed rule) ------------
-def _rename(rule: Rule, tag: str) -> Rule:
-    mapping: Subst = {v: Var(f"{tag}{v.name}") for v in rule.variables()}
-    if not mapping:
-        return rule
-    return Rule(
-        apply_atom(rule.head, mapping),
-        tuple(apply_atom(b, mapping) for b in rule.body),
+    max_body: int = 2,
+    extra_vars: int = 1,
+    max_arity: int = 3,
+    budget: int = 20000,
+) -> Tuple[Clause, ...]:
+    """Propose clauses with LGG + greedy covering; labels never come from here."""
+    positives = tuple(positives)
+    if not positives:
+        return ()
+    return induce_clauses(
+        kb,
+        positives,
+        negatives,
+        max_body=max_body,
+        extra_vars=extra_vars,
+        max_arity=max_arity,
+        budget=budget,
     )
 
 
-def compose_rules(r1: Rule, r2: Rule) -> Tuple[Rule, ...]:
-    """Resolve a body atom of ``r2`` against ``r1``'s head (bounded resolution)."""
-    r2r = _rename(r2, "c")
-    out: List[Rule] = []
-    for i, body_atom in enumerate(r2r.body):
-        if body_atom.pred != r1.head.pred or body_atom.arity != r1.head.arity:
-            continue
-        s = unify(body_atom, r1.head, {})
-        if s is None:
-            continue
-        body = tuple(
-            apply_atom(x, s) for j, x in enumerate(r2r.body) if j != i
-        ) + tuple(apply_atom(x, s) for x in r1.body)
-        if not body:
-            continue
+def random_program(
+    kb: KnowledgeBase,
+    positives: Sequence[Atom],
+    *,
+    rng: Random,
+    max_body: int = 2,
+    max_arity: int = 3,
+) -> Tuple[Clause, ...]:
+    """A random (usually unsound) program -- the reward-blind control arm."""
+    positives = tuple(sorted(positives, key=str))
+    if not positives:
+        return ()
+    head = lgg_atoms(positives) if len(positives) > 1 else variate(positives[0])
+    variables = list(head.variables()) + [Var("E0")]
+    universe = literal_space(kb, positives[0], variables, max_arity=max_arity)
+    if not universe:
+        return ()
+    for _ in range(30):
+        length = 1 if max_body < 2 else rng.choice((1, 2))
+        body = tuple(rng.choice(universe) for _ in range(length))
         try:
-            rule = Rule(apply_atom(r2r.head, s), body)
-        except (TypeError, ValueError):
+            rule = Rule(head, body, f"random_{head.pred}")
+        except ValueError:
             continue
-        if rule not in out:
-            out.append(rule)
-    return tuple(out)
+        return (Clause(rule, 0.0),)
+    return ()
 
 
-def rule_composition_examples(kb: KnowledgeBase) -> Tuple[Example, ...]:
-    """A composed rule is *sound* iff adding it does not extend the closure."""
-    before = closure(kb)
-    out: List[Example] = []
-    for r1 in kb.rules():
-        for r2 in kb.rules():
-            for composed in compose_rules(r1, r2):
-                bigger = kb.copy().add_rule(composed)
-                out.append(
-                    Example(
-                        "rule_composition",
-                        composed,
-                        closure(bigger) == before,
-                        (r1, r2),
-                    )
-                )
-    return tuple(out)
+# ============================================================================
+# 5. promotion -- structure only, and the loop itself
+# ============================================================================
+def sloppy_program(kb: KnowledgeBase, positives: Sequence[Atom]) -> Tuple[Clause, ...]:
+    """Reuse the round-1 shape (``e(x,z),e(z,y)``) for *any* target predicate.
 
-
-# -- pretext 5: proof-hole (reconstruct a hidden premise) ------------------
-def _holes(proof: Proof) -> List[Example]:
-    out: List[Example] = []
-    for premise in proof.premises:
-        out.extend(_holes(premise))
-    if proof.rule is not None and proof.premises:
-        for i, hidden in enumerate(proof.premises):
-            given = tuple(str(p.atom) for j, p in enumerate(proof.premises) if j != i)
-            out.append(Example("proof_hole", proof.atom, hidden.atom, (given, i)))
-    return out
-
-
-def proof_holes(
-    kb: KnowledgeBase, *, atoms: Optional[Iterable[Atom]] = None
-) -> Tuple[Example, ...]:
-    """For each proof node, hide one premise; the kernel supplies the answer."""
-    src = list(atoms) if atoms is not None else sorted(closure(kb), key=str)
-    out: List[Example] = []
-    for a in src:
-        proof = prove(kb, a)
-        if proof is not None:
-            out.extend(_holes(proof))
-    return tuple(out)
-
-
-# -- the learned arm: an untrusted structural scorer (seam B'/D) -----------
-def features(atom: Atom) -> Tuple[str, ...]:
-    """Structural features plus per-position *symbol* identity.
-
-    Predicate, arity and argument-equality pattern are the general part; the
-    ``arg{i}=<symbol>`` features are entity-level priors (they do not transfer to
-    unseen individuals -- the shuffled-KB control exposes exactly that).  This is
-    an untrusted proposer, so overfitting here is contained at the seam.
+    A plausible-but-wrong program: it fits the round-1 positives and, with the
+    hard gate removed, is promoted -- and then asserts held-out negatives.  This
+    is the reward-hacking arm's proposal.
     """
-    feats = [f"pred={atom.pred}", f"arity={atom.arity}"]
-    for i, arg in enumerate(atom.args):
-        feats.append(f"arg{i}={arg}" if isinstance(arg, Const) else f"arg{i}=var")
-    for i in range(atom.arity):
-        for j in range(i + 1, atom.arity):
-            feats.append(f"eq{i}{j}" if atom.args[i] == atom.args[j] else f"neq{i}{j}")
-    return tuple(feats)
+    positives = tuple(sorted(positives, key=str))
+    if not positives or positives[0].arity != 2:
+        return ()
+    head = lgg_atoms(positives) if len(positives) > 1 else variate(positives[0])
+    if head.arity != 2 or not all(isinstance(a, Var) for a in head.args):
+        return ()
+    x, y = head.args
+    z = Var("E0")
+    body = (Atom("e", (x, z)), Atom("e", (z, y)))
+    return (Clause(Rule(head, body, f"sloppy_{head.pred}"), 0.0),)
 
 
-class FeatureScorer:
-    """A perceptron over :func:`features`.  Untrusted: it only ranks candidates."""
-
-    def __init__(self, weights: Optional[dict] = None, *, lr: float = 0.1) -> None:
-        self.weights: dict = dict(weights or {})
-        self.lr = float(lr)
-        self.updates = 0
-
-    def score(self, atom: Atom, kb: Optional[KnowledgeBase] = None) -> float:
-        return sum(self.weights.get(f, 0.0) for f in features(atom))
-
-    def predict(self, atom: Atom, kb: Optional[KnowledgeBase] = None) -> bool:
-        return self.score(atom, kb) > 0.0
-
-    def update(self, atom: Atom, label: bool, kb: Optional[KnowledgeBase] = None) -> "FeatureScorer":
-        y = 1.0 if label else -1.0
-        if y * self.score(atom, kb) <= 0.0:
-            for f in features(atom):
-                self.weights[f] = self.weights.get(f, 0.0) + self.lr * y
-            self.updates += 1
-        return self
-
-
-def train(
-    scorer: FeatureScorer,
-    examples: Iterable[Example],
-    *,
-    kb: Optional[KnowledgeBase] = None,
-    epochs: int = 1,
-) -> FeatureScorer:
-    """Train the scorer on atom-labelled examples (labels already from C).
-
-    The scorer ranks *atoms*, so a positive literal contributes its atom and a
-    negative literal is skipped (its sign is not an atom property).
-    """
-    atom_examples: List[Tuple[Atom, bool]] = []
-    for e in examples:
-        if not isinstance(e.label, bool):
+def promote(theory: Theory, program: Sequence[Clause]) -> Theory:
+    """Append verified clauses to the theory (deduped); weights stay order."""
+    seen = set(theory.names())
+    clauses = list(theory.clauses)
+    for clause in program:
+        if clause.name in seen:
             continue
-        if isinstance(e.target, Atom):
-            atom_examples.append((e.target, bool(e.label)))
-        elif isinstance(e.target, Literal) and not e.target.negated:
-            atom_examples.append((e.target.atom, bool(e.label)))
-    for _ in range(epochs):
-        for atom, label in atom_examples:
-            scorer.update(atom, label, kb)
-    return scorer
+        seen.add(clause.name)
+        clauses.append(clause)
+    return Theory(theory.name, tuple(clauses))
 
 
-class ScorerRetriever:
-    """Seam B': rank candidate atoms by a learned scorer (untrusted ordering)."""
-
-    def __init__(self, scorer: FeatureScorer) -> None:
-        self.scorer = scorer
-
-    def retrieve(
-        self,
-        kb: KnowledgeBase,
-        candidates: Iterable[Atom],
-        *,
-        limit: Optional[int] = None,
-    ) -> Tuple[Atom, ...]:
-        ranked = sorted(candidates, key=lambda a: (-self.scorer.score(a, kb), str(a)))
-        return tuple(ranked[:limit]) if limit is not None else tuple(ranked)
-
-
-# -- evaluation protocol (NOTE.md Sec.22) -----------------------------------
-def proof_cost(proof: Proof) -> int:
-    """Number of nodes in a certificate (smaller = cheaper derivation)."""
-    return 1 + sum(proof_cost(p) for p in proof.premises)
-
-
-def recall_at_k(
-    retriever: Retriever,
-    kb: KnowledgeBase,
-    candidates: Iterable[Atom],
-    truths: Iterable[Atom],
-    k: int,
-) -> float:
-    """Held-out derivation completeness: fraction of truths in the top ``k``."""
-    truths = list(truths)
-    if not truths:
-        return 1.0
-    got = set(retriever.retrieve(kb, candidates, limit=k))
-    return len(got & set(truths)) / len(truths)
-
-
-def soundness(examples: Iterable[Example], kb: KnowledgeBase) -> bool:
-    """Every atom/literal label must equal the kernel verdict (soundness first)."""
-    for e in examples:
-        if isinstance(e.target, Atom) and isinstance(e.label, bool):
-            if entails(kb, e.target) != e.label:
-                return False
-        elif isinstance(e.target, Literal) and isinstance(e.label, bool):
-            if evaluate(kb, e.target) != e.label:
-                return False
-    return True
-
-
-# -- controls (NOTE.md Sec.21) ---------------------------------------------
-def flip_labels(examples: Iterable[Example]) -> Tuple[Example, ...]:
-    """Surface-SSL control: ignore the kernel and invert every boolean label."""
-    return tuple(
-        Example(e.kind, e.target, not e.label, e.meta)
-        if isinstance(e.label, bool)
-        else e
-        for e in examples
+def scramble_task(task: Task, rng: Random) -> Task:
+    """Shuffle the pos/neg labels of a task -- the misaligned-reward control."""
+    pool = list(task.positives) + list(task.negatives)
+    order = list(range(len(pool)))
+    rng.shuffle(order)
+    shuffled = [pool[i] for i in order]
+    n = len(task.positives)
+    return Task(
+        task.name, task.kb, tuple(shuffled[:n]), tuple(shuffled[n:]), task.held_pos, task.held_neg
     )
 
 
-def scramble_constants(kb: KnowledgeBase, *, rng: Optional[Random] = None) -> KnowledgeBase:
-    """Shuffled-KB control: same shape, different individuals (structure broken)."""
-    rng = rng or Random(0)
-    names = sorted({a.name for f in kb.facts() for a in f.args if isinstance(a, Const)})
-    shuffled = names[:]
-    rng.shuffle(shuffled)
-    ren = dict(zip(names, shuffled))
+def run_loop(
+    tasks: Sequence[Task],
+    *,
+    mode: str = "learn",
+    policy: Optional[StopPolicy] = None,
+    name: str = "selfsup",
+    max_body: int = 2,
+    extra_vars: int = 1,
+    max_arity: int = 3,
+    budget: int = 20000,
+    cost: float = 0.02,
+    seed: int = 0,
+) -> LoopResult:
+    """Run the self-supervised loop over a sequence of tasks.
 
-    def relabel(atom: Atom) -> Atom:
-        return Atom(
-            atom.pred,
-            tuple(Const(ren[a.name]) if isinstance(a, Const) else a for a in atom.args),
+    Each round: install the grown theory on the task's base KB, propose a
+    program, score it with the kernel reward, and (unless ``no_promote``) promote
+    it when it is sound, non-empty and meets ``min_reward``.  Held-out probes are
+    always scored against the *true* task, so a scrambled reward is caught.
+    """
+    if mode not in MODES:
+        raise ValueError(f"unknown mode {mode!r}; expected one of {MODES}")
+    tasks = tuple(tasks)
+    if policy is None:
+        policy = StopPolicy(max_rounds=len(tasks))
+    theory = Theory(name, ())
+    rng = Random(seed)
+    stats = []
+    for index, task in enumerate(tasks):
+        evidence = scramble_task(task, rng) if mode == "scramble" else task
+        kb = theory.to_kb(evidence.kb)
+        program = propose(
+            kb,
+            evidence.positives,
+            evidence.negatives,
+            max_body=max_body,
+            extra_vars=extra_vars,
+            max_arity=max_arity,
+            budget=budget,
         )
+        if mode == "random":
+            program = random_program(kb, evidence.positives, rng=rng, max_body=max_body, max_arity=max_arity)
+        elif mode == "reward_hacking":
+            program = sloppy_program(kb, evidence.positives)
+        verdict = evaluate(kb, program, evidence.positives, evidence.negatives, cost=cost)
+        if mode == "reward_hacking":
+            # the hard gate is removed: promote any non-empty proposal.  This is
+            # the reward-hacking arm -- it shows why false_assert==0 is the anchor.
+            accepted = bool(program)
+        else:
+            accepted = (
+                mode != "no_promote"
+                and verdict.sound
+                and verdict.coverage > 0.0
+                and verdict.reward >= policy.min_reward
+            )
+        promoted: Tuple[str, ...] = ()
+        if accepted and program:
+            before = set(theory.names())
+            theory = promote(theory, program)
+            promoted = tuple(n for n in theory.names() if n not in before)
+        held = closure(theory.to_kb(task.kb))
+        held_proved = len(set(task.held_pos) & held)
+        held_false = len(set(task.held_neg) & held)
+        stats.append(
+            RoundStats(
+                round=index,
+                name=task.name,
+                proposed=len(program),
+                accepted=bool(accepted),
+                verdict=verdict,
+                held_proved=held_proved,
+                held_total=len(task.held_pos),
+                held_false=held_false,
+                promoted=promoted,
+            )
+        )
+        reason = decide_stop(stats, policy)
+        if reason is not None:
+            stats[-1] = replace(stats[-1], stopped_reason=reason)
+            break
+    return LoopResult(theory, tuple(stats))
 
-    other = KnowledgeBase()
-    for f in kb.facts():
-        other.add_fact(relabel(f))
-    for r in kb.rules():
-        other.add_rule(r)
-    for n in kb.negations():
-        other.add_negation(relabel(n))
-    return other
 
-
-# -- the two ledgers -------------------------------------------------------
-def ssl_l_examples(
-    kb: KnowledgeBase,
+def reweight(
+    theory: Theory,
+    pairs: Sequence[Tuple[object, object]],
     *,
-    held_out: Iterable[Atom] = (),
-    negatives: Optional[int] = None,
-    rng: Optional[Random] = None,
-) -> Tuple[Example, ...]:
-    """The **logic-side** ledger: only atoms/rules, labelled by the kernel.
-
-    No sentence ever enters here, so it cannot fix NL grounding (NOTE.md Sec.20).
-    """
-    out: List[Example] = list(
-        closure_mask_examples(kb, negatives=negatives, exclude=held_out, rng=rng)
-    )
-    for pair in minimal_pairs(kb):
-        out.extend(pair.as_examples())
-    out.extend(rule_removal_examples(kb))
-    return tuple(out)
+    epochs: int = 1,
+    lr: float = 0.1,
+) -> Tuple[Theory, int]:
+    """Order the grown clauses with the fused hard-negative perceptron."""
+    return learn(theory, pairs, epochs=epochs, lr=lr)
 
 
-class RejectionSelfTrainer:
-    """The **language-side** ledger (separate!).
-
-    Needs ``(sentence, Literal)`` pairs and keeps only those the trusted kernel
-    already proves; everything else is rejected.  It therefore only reinforces
-    what the KB entails and **cannot invent new vocabulary grounding** -- coverage
-    is bounded by the KB and by abstain.  Pairs are held externally as a corpus;
-    nothing textual is retained inside the model.
-    """
-
-    def __init__(self, ingestor: Ingestor, kb: KnowledgeBase) -> None:
-        self.ingestor = ingestor
-        self.kb = kb
-        self.accepted: List[Tuple[str, Literal]] = []
-        self.rejected: List[str] = []
-
-    def offer(self, sentence: str) -> Optional[Literal]:
-        literal = self.ingestor.literal(sentence)
-        if literal is None or not holds(self.kb, literal):
-            self.rejected.append(sentence)
-            return None
-        self.accepted.append((sentence, literal))
-        return literal
+def program_sexp(theory: Theory) -> str:
+    """The grown theory as Lisp-like code -- the loop literally writes a program."""
+    return theory_sexp(theory)

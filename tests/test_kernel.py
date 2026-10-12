@@ -1,10 +1,10 @@
 """Tests for the re-checkable certificate / trusted kernel (module 6)."""
 from __future__ import annotations
 
-from dlm.engine import prove
-from dlm.kb import KnowledgeBase
-from dlm.kernel import Proof, verify
-from dlm.logic import Atom, Const, Rule, Var
+from dlm import prove
+from dlm import KnowledgeBase
+from dlm import Proof, verify
+from dlm import Atom, Const, Rule, Var
 
 
 def A(pred, *names):

@@ -1,446 +1,383 @@
-# DLM v0.0009
+# DLM v0.0024 — the fused two-file core + tree-native IR + verifiable-reward self-supervision + IO boundary
 
-Continues v0.0008. v0.0009 settles the **question side of the deductive
-structure**, which was the missing piece: a first-class question IR, an
-interrogative grammar-as-data, and a resolver that answers only from kernel
-closure — behind **one** natural-language pipeline instead of two.
+A restart from the smallest possible base. The **trusted** part is exactly two
+files. DLM is a **deductive logic model**: knowledge lives in an external KB, and
+answers come from *proof*, abstaining when it cannot. Its attention analogue is
+one learned order over an exact interaction (unification):
 
-Continues v0.0007. v0.0008 adds the **Lisp layer** on both sides of the trust
-boundary without moving it: reading becomes verifiable rewrite-rule *data*, and
-axioms are acquired into **tiers** where only the kernel (or an explicit evidence
-policy) may promote a candidate to usable knowledge.
+    propose  ->  unify  ->  verify
 
-Continues v0.0006, which was rebuilt from the first principle. v0.0005 is kept
-frozen as a reference for the overall skeleton; v0.0006 starts from nothing and
-implements only the core idea:
+Attention routes *content* by a learned bilinear score; DLM routes *inference* by
+a learned order while the interaction itself stays **exact**.
 
-> **Recognize the general logic a natural-language sentence instantiates, make
-> it explicit as a function-free Horn atom, and abstain when it cannot.**
+## The fusion
 
-"Decomposition" is only the surface trace of that recognition.
+The whole point of the fused core is that there is **one object**, not several:
 
-## Why a fresh start
+* a **`Clause`** is a Horn rule the kernel uses (**truth**) *and* the same
+  clause is a weighted feature the scorer uses (**order**);
+* a **`Theory`** is an ordered set of clauses — it is the rule set, the feature
+  set and the model at once;
+* matching is one-way **subsumption** (a clause pattern's variables bind, the
+  matched rule/atom's variables stay opaque), so the scorer is a weighted
+  unification pattern matcher sharing the engine's term machinery;
+* induction (LGG) **adds** clauses, `learn` **reweights** them, and inference is
+  the kernel's `prove`.
 
-The v0.0005 front-end converts language to atoms by *template lookup* over a
-closed vocabulary: the predicate name is hard-coded in the phrase pattern, so
-the same logical form cannot be recognized under a different vocabulary. The
-target normal form, the role/schema convention, and state -> facts grounding are
-absent. v0.0006 rebuilds those from the ground up.
-
-## Module 1 — `dlm/logic.py` (semantic normal form)
-
-The **target** of the conversion:
-
-- `Const`, `Var`, `Term` — function-free terms.
-- `Atom` — a predicate applied to ordered terms.
-- `Literal` — an atom with a sign (negation is metadata, never a predicate).
-- `Schema` — a predicate's arity and **role order**: the general, transferable part.
-- `Frame` — the surface `role -> filler` read from a sentence (unordered).
-- `SchemaRegistry.normalize(frame) -> Literal | None` — order fillers by schema,
-  or **abstain** (unknown predicate / role mismatch).
+Everything serialises to one form:
 
 ```
-sentence --(reader, module 3)--> Frame --(normalize)--> Literal
+(theory ancestor
+  (clause lgg_ancestor_0 +0.333 (ancestor ?G0 ?G1) (parent ?G0 ?G1))
+  (clause lgg_ancestor_1 +0.667 (ancestor ?G0 ?G1) (ancestor ?G0 ?E0) (parent ?E0 ?G1)))
 ```
 
-## Module 2 — `dlm/sexp.py` (canonical concrete syntax)
+**Trust invariant (structural).** A clause's *structure* is truth; its *weight*
+is order. A weight never reaches the kernel and can never make an unprovable atom
+provable. The substrate is **positive Horn** (v0.0019 removed the negative-literal
+side table); an unnormalisable input abstains.
 
-S-expr is the **surface notation** for every logic unit (atom / literal / rule /
-proof all share it). It is *not* a semantic engine: the logic stays function-free
-Horn, and "abstain, never guess" still applies.
+## IR-SSL — language self-supervision over an intermediate representation
 
-- `parse(text)` — general, read-only S-expr reader; **never `eval`** (trust boundary).
-- `dump` / `dump_all` — the matching writer.
-- `atom_to_form` / `form_to_atom` / `literal_to_form` / `form_to_literal` — the
-  bridge to module 1.
-- The parser accepts nesting; the function-free core still **rejects** it at
-  `Atom` construction. Syntax is general, semantics abstains.
-
-`logic.py.__str__` now also emits canonical S-expr, e.g. `(parent alice bob)`,
-`(not (charges c1 c2))`.
-
-## Module 3 — `dlm/reader.py` (sentence -> Frame, seam B)
-
-The **conversion** itself, as an untrusted proposer (protocol `Reader`). A
-learned reader (CLM action head / seq2seq) can replace `LexicalReader` behind
-the same method.
-
-- Closed, role-labelled subset, **full match only**: `E V` -> `V(agent=E)`;
-  `E V E` -> `V(agent=E, patient=E)`; `E COP P E` -> `P(figure=E, ground=E)`;
-  `E COP V` -> `V(subject=E)`.
-- Deterministic preprocessing: lowercase, expand `n't`, drop possessives /
-  determiners / punctuation / auxiliaries; a negation word sets the frame sign.
-- `read(sentence) -> tuple[Frame, ...]`: **all** distinct readings are returned
-  (ambiguity preserved, not resolved); `()` means **abstain**. An unknown
-  predicate word or an unconsumed token makes the sentence unreadable.
+`dlm/ssl.py` (v0.0020) is a **separate, untrusted** layer. Text and logic never
+touch each other directly; they meet at an explicit **intermediate
+representation** whose canonical form is a plain **symbol tree** — a `Form`, the
+same type atoms, rules and theories serialise to:
 
 ```
-"Alice calls Bob"        -> calls(agent=alice, patient=bob)
-"The cat is on the mat"  -> on(figure=cat, ground=mat)
-"Alice flies to Rome"    -> ()   # 'flies' not in the lexicon -> abstain
+(ir <name> (rel <cue>...) (subj <tok>...) (obj <tok>...) <order> <head>...)
+
+sentence --frame_of/ir_of--> IR tree --rank--> Atom   (reading,  NL -> logic)
+Atom --rank--> IR tree --render--> sentence           (realizing, logic -> NL)
 ```
 
-## Module 4-6 — `kb.py`, `engine.py`, `kernel.py` (kernel C)
+The `Frame` dataclass `(rel, subject, obj, order)` is only a *view* of that tree
+(`ir_from_form`); a reader can learn straight off the tree
+(`reader_tree_features`), so adding a head to the grammar adds features without
+editing a feature table. In the tree, `rel` are the relational *cue* tokens (the
+wording that selects the predicate), `subj`/`obj` are argument-name tokens or
+`probe` in a masked / de-identified view, and `order` records which mention came
+first. Because the cue and the arguments are separated in the IR, a reader can be
+trained on *wording* alone — which is what stops it collapsing onto an entity's
+majority predicate.
 
-The trusted deduction core that logic self-supervision (B) uses as its
-correctness criterion.
+Both directions are one dependency-free `LinearRanker`. Self-supervision has two
+label sources and neither is human:
 
-- `KnowledgeBase` (`kb.py`) — ground facts + definite Horn `Rule`s (now in
-  `logic.py`) + a negation side table. Facts are indexed by predicate. It also
-  hosts **seam A**: `StateGrounder` (protocol) + `StateBinding` +
-  `DictStateGrounder`, which ground a structured `state` dict into role-labelled
-  `Frame`s (see Module 7); `add_facts` bulk-loads the result.
-- `engine.py` — `closure` (forward chaining to the least fixpoint = derivation
-  set), `prove` (rebuilds a re-checkable `Proof` from the closure's support, so
-  it is **complete by construction** and never disagrees with `entails`),
-  `holds` (positive by closure, negative only by the side table).
-- `kernel.py` — `Proof` + `verify`: re-check a certificate against the KB with
-  **no search**; it must bottom out only in known facts and known rules.
-- `unify.py` — function-free unification shared by engine and kernel.
+* **reading** — distant supervision + the kernel: a frame is anchored to a web
+  fact, the candidate atom is positive iff the kernel entails it, every sibling
+  is a negative;
+* **realizing** — bidirectional consistency: a frame for an atom is positive iff
+  the *current reader* reads it back to the same predicate.
 
-```
-(rule (ancestor ?x ?y) (parent ?x ?y))
-(rule (ancestor ?x ?z) (parent ?x ?y) (ancestor ?y ?z))
+Neither head asserts. The kernel still decides; IR-SSL only orders.
 
-closure(ancestor) = (ancestor a b) (ancestor a c) (ancestor a d) ...
-prove(ancestor a d) -> (proof ...)      verify(proof, kb) == True
-```
+## The self-supervised loop — a kernel verdict is a verifiable reward
 
-## Module 7 — `dlm/convert.py` (input ingress, the firewall)
-
-Standing decision (NOTE.md §27): natural language exists **only at the input
-boundary**. User input and external data are all text, so text is converted to
-logic **immediately at ingress** and no sentence is retained inside the model.
-After this module the only strings are *symbols* (predicate / role / constant
-names), never phrases.
-
-- `Ingestor(reader, registry)` — the single entry point. `literals(sentence)`
-  returns every normalized reading; `literal(sentence)` is the strict gate that
-  **abstains on 0 or >1** readings. `logic(text)` / `form(form)` accept
-  already-symbolic S-expr and skip the reader.
-- `sentence_to_literals` / `sentence_to_literal` / `form_to_logic` — the pieces.
-- Two paths: (a) text → reader (untrusted) → normalize (trust boundary) →
-  `Literal | abstain`; (b) symbolic form → function-free check →
-  `Atom | Literal | Rule`. A third path grounds structured state:
-  (c) `state` dict → `StateGrounder` (seam A) → normalize → facts,
-  via `Ingestor.facts(state)` / `state_to_facts`.
-- **Nothing textual leaves this module.** Downstream (judge, engine) receives
-  logic only.
+RLVR-style training uses a verifiable checker as the reward. DLM's checker is the
+kernel itself, and it is exact and free, so the loop needs no policy gradient: it
+is **expert iteration / rejection sampling over programs**. `dlm/selfsup.py`
+(v0.0024) is a third **untrusted** layer that fuses the pieces into one loop:
 
 ```
-Ingestor.literal("Alice calls Bob")  -> (calls alice bob)
-Ingestor.literal("Alice flies")      -> None            # abstain
-Ingestor.logic("(rule (r ?x) (calls ?x bob))") -> Rule
-Ingestor.facts({"edge": ["alice", "bob"]}) -> (parent alice bob)    # seam A
+propose a program (clauses = Lisp-like code)
+      -> the kernel verifies it   (closure of kb + program)
+      -> the reward filters it    (false_assert is a HARD gate)
+      -> only verified programs are promoted into the theory
+      -> the grown theory is the next round's environment
 ```
 
-## Module 8 — `dlm/judge.py` (judgment, seam D)
+A program is a set of `Clause`s; a promoted clause is *structure* only (its
+weight stays order and never reaches the kernel), so the proposer can never
+assert. The reward is `coverage − cost·size`, collapsed to `−1` by any false
+assertion. Arms: `learn` (the method), `no_promote` (no feedback), `scramble`
+(misaligned labels), `random` (reward-blind), `reward_hacking` (gate removed).
 
-The first-class judgment protocol. It keeps the two kinds of signal structurally
-separate:
+## IO — the data boundary (text, datasets, media)
 
-- **trusted verdict** — a re-checkable proof (seam C) that a ground `Literal` is
-  entailed, or an explicit negative in the side table. **Only this asserts.**
-- **untrusted score** — a number a `Proposer` attaches to a candidate (CLM
-  cosine, strands logit, a learned reader, retrieval). It may only *choose what
-  to try* or *annotate confidence*.
-
-- `Verdict` — `ASSERTED` / `REFUTED` / `ABSTAIN`.
-- `Judgement` — `literal`, `verdict`, `proof`, `score`, `confidence`, `source`.
-- `Proposal` — an untrusted candidate `literal` + `score`.
-- `Judge` protocol (trusted) and `Proposer` protocol (untrusted).
-- `ProofJudge` — asserts iff `prove -> verify` succeeds; a ground negative is
-  refuted only by the side table; non-ground literals abstain.
-- `StaticProposer` / `KbProposer` — untrusted arms (fixed fixtures / KB facts).
-- `Adjudicator` — fuses a `Judge` with proposals under `Policy.GATE` (P1) or
-  `Policy.TWO_AXIS` (P3).
-
-```python
-adj = Adjudicator()
-lie = Proposal(Literal(Atom("steals", (Const("alice"),))), score=1.0, source="evil")
-adj.decide(kb, query=lie.literal, proposals=[lie])   # -> ABSTAIN (never asserted)
-adj.decide(kb, query=legal_literal)                  # -> ASSERTED if provable
-```
-
-The invariant is structural: the `Adjudicator` never reads a proposer's verdict,
-only its `Literal` and `score`, so a high score cannot manufacture an assertion.
-`GATE` drops the learned signal when the proof abstains; `TWO_AXIS` keeps it as
-display-only confidence (the verdict is still `ABSTAIN`).
-
-## Module 9 — `dlm/wire.py` (System-One boundary)
-
-DLM behind the **same JSON interface** as CLM / strands-decider / TypeSafe:
-`{state, questions} -> {model, answers, usage}` with `noul` / `choice` / `score`
-questions. Anything with `answer(request) -> response` satisfies `WireService`,
-so the services are interchangeable by construction.
-
-- **NL only at the boundary**: `state` is grounded to facts (seam A) and every
-  question text becomes a `Literal` (seam B) immediately.
-- **Egress is template-only**: a DLM answer *renders* a proof-backed verdict; it
-  never generates prose. Where the schema has no way to say "I cannot", DLM adds
-  honest fields (`abstain`, `literal`, `proof`, `verdict`, `reason`). Consumers
-  must check `abstain` — DLM never guesses to fill a slot.
-- **DLM extension**: an optional `theory` list of S-expr strings (rules / facts /
-  explicit negatives) makes deduction possible. `state` gives the situation,
-  `theory` the laws; each request runs on a copy of the base KB.
-
-Honest answers per type: a `noul` is true iff proved, false iff its **opposite**
-is on record, otherwise it abstains (absence is not refutation). A `choice`
-picks its key only when exactly one option is provable; 0 or >1 provable options
-abstain. A `score` question is outside the Horn fragment and always abstains.
-
-```python
-svc = DlmService(Ingestor(reader, registry, grounder))
-svc.answer({
-    "state": {"edge": ["alice", "bob"]},
-    "theory": ["(rule (knows ?x ?y) (calls ?x ?y))"],
-    "questions": {"q": {"type": "noul", "instructions": "Alice knows Bob"}},
-})
-# -> answers.q = {noul: 1.0, abstain: False, verdict: "asserted",
-#                 proof: "(proof (knows alice bob) rule (calls alice bob))"}
-```
-
-## Module 10 — `dlm/selfsup.py` (DLM-native self-supervision)
-
-Not surface pretexts. The unlabeled resource is the **theory itself**, and the
-**trusted kernel (C) is the correctness criterion**; the target of every pretext
-is the *evaluation result*, so what is learned is logic, not form (decision B).
-
-Kernel-labeled pretexts: `closure_mask_examples` (derive-or-not),
-`minimal_pairs` (schema-violating permutation / sign flip — logical edits that
-change entailment), `rule_removal_examples` (redundancy delta),
-`compose_rules` / `rule_composition_examples` (a composed rule must not extend
-the closure), `proof_holes` (reconstruct a hidden premise). `ssl_l_examples`
-bundles the **SSL-L** (logic-side) ledger.
-
-The learned object is an **untrusted proposer** (seam B'/D): a dependency-free
-`FeatureScorer` over structural + symbol-identity features, wrapped as a
-`ScorerRetriever` (`Retriever` protocol). It only *ranks*; the kernel still
-decides.
-
-Evaluation is the fixed protocol: `soundness` first, then `recall_at_k`
-(held-out derivation completeness), then `proof_cost`; controls are `flip_labels`
-(surface-SSL) and `scramble_constants` (shuffled-KB).
+`dlm/io.py` (v0.0021) is the second **untrusted** layer: the single place where
+world data meets the logic, in both directions.
 
 ```
-recall@k  no-SSL=0.57   trained=1.00   surface(flip)=0.00   shuffled-KB=0.71
-soundness = True
+bytes/str --decode--> Block --(caller)--> atoms / frames / KB
+DLM result --encode--> bytes/str, incl. natural-language sentences
 ```
 
-The **SSL-NL** ledger is separate: `RejectionSelfTrainer` accepts a
-`(sentence, Literal)` pair only if the kernel already proves it, so it can only
-reinforce what the KB entails and cannot invent vocabulary grounding (the
-NL↔logic problem stays open).
+A `Block` is a frozen, ordered, JSON-serialisable record carrying whichever of
+sentences, IR frames, logic atoms, `Rule`s, table rows, media metadata and raw
+bytes the payload has. Codecs are registered **per media type**, so a real
+vision/speech model can replace a default reader without touching callers:
 
-## Module 11 — `dlm/realize.py` (checked egress, seam E)
+| input | decoded into |
+| --- | --- |
+| `text/plain` | sentences + IR frames |
+| `text/csv`, `text/tab-separated-values` | columns/rows **+ ground atoms** (role columns) |
+| `application/json`, `application/x-ndjson` | atoms / sentences |
+| `application/x-dlm` | atoms + rules + frames (the one form) |
+| `image/png`, `image/gif`, `image/jpeg` | dimensions + bytes |
+| `audio/wav`, `video/mp4` | format metadata + bytes |
+| `application/octet-stream` | size + sha1 + bytes |
 
-Natural language is allowed at the output boundary too — but only from a
-kernel-authorized `Bundle` and only if it survives a trusted round-trip check.
-Generation is untrusted; the check is trusted.
+`media_atoms(block)` turns any media block into descriptor atoms
+(`(width map.png 1024)`) so metadata can enter the KB. On the way out,
+`encode(value, "text/plain")` renders atoms as natural-language sentences (an
+unknown predicate falls back to its own words), while `text/csv` /
+`application/json` / `application/x-dlm` emit structured data. **IO only proposes
+and renders; it never asserts — the kernel still decides.**
 
-The kernel asserts a literal; a `Realizer` *proposes* surface text; the
-`CheckedRealizer` re-parses that text with the **same deterministic `Ingestor`
-used at ingress** and accepts it only if it round-trips to exactly the asserted
-literal. A lying realizer cannot smuggle a claim the kernel did not make:
+## Layout
 
-```
-faithful: accepted=True  round_trip=True  source='realizer'
-liar    : text=None      reason="round-trip mismatch: 'bob calls alice' -> (calls bob alice)"
-```
+| File | Role |
+| --- | --- |
+| `dlm/__init__.py` | **trusted substrate** + public surface (logic, sexp, unify, kb, kernel, engine) |
+| `dlm/deductive.py` | **the fused core**: `Clause`, `Theory`, `subsumes`, induction, `learn`, `solve` |
+| `dlm/ssl.py` | **untrusted IR-SSL language layer** (tree-native IR, features, reader/realizer, forms) |
+| `dlm/io.py` | **untrusted data boundary** (codecs, `Block`, NL/structured output) |
+| `dlm/selfsup.py` | **untrusted verifiable-reward self-supervised loop** (propose → kernel verify → promote) |
+| `experiments/webssl/` | the web IR-SSL experiment (`web.py`, `bridge.py`, `run.py`) |
+| `experiments/webloop/` | random-web **dual-ability** loop (deduction + conversation), `run.py` |
+| `experiments/ir_tree/` | tree-as-IR reader comparison, `run.py` |
+| `experiments/selfsup/` | verifiable-reward self-supervised loop (program composition), `run.py` |
+| `experiments/io_demo/` | heterogeneous-in → kernel → NL/structured-out demo |
 
-`TemplateRealizer` is the deterministic inverse of the closed-subset reader
-(`agent`→"E V", `agent,patient`→"E V E", `subject`→"E is V",
-`figure,ground`→"E is P E", with `not` insertion). **Abstain bundles are never
-realized** — the honesty fields stay authoritative. `RealizedService` wraps a
-wire service so only decided answers get a checked `"text"` field. A learned
-realizer (e.g. a MeowLLM-style decoder) plugs in as the untrusted `Realizer`;
-the check is what makes it safe. This amends §27 (NL at both boundaries) and
-§28.1 (optional checked egress); the base egress stays template-only.
+The fused-core API is re-exported from `dlm`, so `from dlm import …` is unchanged.
+The core imports only the trusted substrate; `dlm.ssl`, `dlm.io` and
+`dlm.selfsup` import `dlm` and never the other way round.
 
-## Module 12 — `dlm/chat.py` (S-expression chatbot)
-
-The human-facing surface is a small **S-expression chatbot** with two channels
-that are never mixed (NOTE §35). The earlier **MeowLLM neural-renderer path is
-withdrawn** — a rule/pattern chatbot over the same S-expression substrate is
-enough, because the humans reading it are flexible.
-
-**Logic channel (trusted).** S-expression commands drive the kernel:
-
-```
-(assert (parent alice bob))                       ; learn a ground fact
-(rule (ancestor ?x ?y) (parent ?x ?y))            ; learn a Horn rule
-(ask (ancestor alice bob))                        ; kernel decides
-(why (ancestor alice bob))                        ; re-checkable proof
-(retract (parent alice bob))  (facts)  (rules)    ; inspect / retract
-(read "Alice calls Bob")                          ; run the ingress reader
-```
-
-Facts are learned and answers derived **only** by the kernel; a miss is
-`(answer <lit> (verdict abstain))`, and the side table refutes the opposite
-(NOTE §30):
+## Run the core experiment
 
 ```
-(assert (parent alice bob)) => (ok "learned" (parent alice bob))
-(ask (ancestor alice bob))  => (answer (ancestor alice bob) (verdict asserted)
-                                (proof (ancestor alice bob) rule (parent alice bob)))
-(assert (not (likes bob carol))) (ask (likes bob carol))
-                            => (answer (likes bob carol) (verdict refuted))
+PYTHONPATH=. python -c "import json, dlm; print(json.dumps(dlm.run_experiment(), indent=2))"
 ```
 
-**Chatter channel (untrusted, assertion-free).** An Eliza-style
-`pattern -> response` engine (uLisp Eliza / Weizenbaum / Norvig) reflects the
-human's words without asserting anything about the world — so it never violates
-*abstain, never guess*:
+It trains on the first half of a parent chain and holds out the rest. The LGG
+learner writes a base clause and a recursive clause; `learn` separates the
+recursive clause from a reversed decoy by shape alone; the kernel then proves
+**51/51** held-out positives with **0** held-out negatives falsely asserted, and
+the single `(theory …)` form round-trips (rules + weights).
+
+## Run the web IR-SSL experiment
 
 ```
-NL "i feel sad"   => (reply "why do you feel sad?")
-NL "alice calls bob" => (read (calls alice bob))     ; ingress first
-NL "meaning of life" => (abstain "i cannot read that")
+cd /research/dlm_v0.0024
+PYTHONPATH=. python experiments/webssl/run.py --offline          # uses experiments/webssl/cache
 ```
 
-Patterns are tiny S-expressions: `?x` binds one element, `*x` zero or more
-(with backtracking), `_` one unbound, nested lists match structurally. The
-substituted phrase is pronoun-swapped (`i`↔`you`, `my`↔`your`); the fixed
-template keeps its own pronouns. Every reply is a valid S-expression
-(`sexp.dump`), so the whole conversation is machine-readable. Natural language
-lives only at the two boundaries; the model sees symbols.
+Offline cache: 24 docs / 409 web facts / 939 hierarchy facts → 1 340 base atoms,
+kernel closure **19 918** (18 578 derived). Entity-level 4-fold; the only thing
+that changes between arms is the reader's features:
 
-## Module 17 — `dlm/oracle.py` (the web as *evidence*, never an oracle)
+| arm | recall@1 |
+| --- | --- |
+| untrained / surface (predicate-blind) | 0.000 |
+| majority baseline | 0.653 |
+| scrambled labels (control) | 0.333 |
+| **IR reader (cue-only)** | **0.747** |
+| IR reader (de-identified) | 0.720 |
+| IR reader, softmax objective | 0.747 |
 
-A tempting shortcut for axiom verification is "look it up on the web". That is a
-useful signal but **not soundness**: the web is noisy, incomplete, adversarial,
-sources are correlated, and absence is not falsity. So the web (or any lookup) is
-modelled as an `Evidence` channel:
+Cue ablation drops the reader to 0.507 (below the majority baseline), kernel
+`accept@1 = 0.747` with **0** false asserts, and a learned realizer reads held-out
+atoms back at round-trip@3 = 0.686. Honest reading: the language-side gain is
+real but modest — **+0.093 over the best baseline** on 75 aligned examples.
 
-```python
-Evidence(confirm=2, contradict=0, unknown=1, sources=("wikidata", "wikipedia"))
+## Run the tree-as-IR experiment
+
+```
+cd /research/dlm_v0.0024
+PYTHONPATH=. python experiments/ir_tree/run.py --offline            # mask=obj
+PYTHONPATH=. python experiments/ir_tree/run.py --offline --mask all
 ```
 
-One auditable policy decides what it licenses — any contradiction rejects, else
-`min_confirm` confirmations certify, else the item stays a **candidate**:
+Same data, same entity-level folds, same candidates and the same `IrReader`; only
+the feature source changes — `hand` uses the hand-written `reader_features` over
+a `Frame`, `tree` uses `reader_tree_features` straight off the symbol tree.
 
-```python
-evidence.decision(min_confirm=2)  # -> "certify" | "reject" | "candidate"
+| arm | recall@1 | macro | per-fold spread |
+| --- | --- | --- | --- |
+| untrained | 0.000 | 0.000 | — |
+| majority baseline | 0.653 | — | — |
+| **hand features** | **0.653** | **0.525** | 0.267 |
+| tree features | 0.573 | 0.240 | 0.690 |
+| scrambled (control) | 0.307 | 0.240 | — |
+
+Honest reading: the tree-as-IR mechanism works — a reader *does* fit the tree
+(0.987 train recall, 0.933 macro) and on one fold the tree beats hand (0.840 vs
+0.600). But across folds it is **high-variance and no better on average**: the
+generic walk exposes argument/entity *leaves* (`leaf=ir/subj=<entity>`), which
+leak across folds and crowd out the transferable cue features under hard-negative
+perceptron training. The hand table's value is exactly that it *abstracts
+arguments away* (`subj_seen`/`obj_seen`, never the tokens). So making the tree the
+IR is mechanically clean, but it does not by itself fix the feature design — the
+representation and the features have to be abstracted together.
+
+## Run the self-supervised loop experiment
+
+```
+cd /research/dlm_v0.0024
+PYTHONPATH=. python experiments/selfsup/run.py           # 80-node chain, 5 rounds
+PYTHONPATH=. python experiments/selfsup/run.py --quick   # 40-node smoke run
 ```
 
-`Oracle` is the protocol (`check(item) -> Evidence`); `StaticOracle` is the
-deterministic stand-in used by tests and ablations. Nothing here asserts; the
-sound gate stays in `axiom.py` / the kernel.
+A controlled, kernel-labelled program-composition task: a chain `e(n0,n1), …` is
+the only base fact, and round `r` asks for `t_r` = pairs at distance `2**r`. One
+induction pass may use body length ≤ 2, so it can express distance 2 but not
+4…32; the loop **composes** verified clauses (`t1(x,y):-e(x,z),e(z,y)`,
+`t2(x,y):-t1(x,z),t1(z,y)`, …). Zero human labels.
 
-## Module 18 — `dlm/axiom.py` (the trusted axiom store)
+| arm | held-out coverage | false asserts | params |
+| --- | --- | --- | --- |
+| `learn` | **1.000** | **0** | 5 |
+| oracle law (ceiling) | 1.000 | 0 | 5 |
+| `no_promote` (no loop) | 0.000 | 0 | 0 |
+| `scramble` (misaligned reward) | 0.000 | 0 | 0 |
+| `random` (reward-blind) | 0.000 | 0 | 0 |
+| `reward_hacking` (gate off) | 0.275 | **152** | 5 |
 
-DLM must *learn and store* axioms, but a proposer may not assert. `AxiomStore`
-splits knowledge into tiers, each with provenance:
+The loop writes a program it could not write in one shot:
 
-| tier | meaning | usable for deduction? |
-|------|---------|-----------------------|
-| `candidate` | proposed by a learner / reader / inducer | **never** |
-| `external`  | corroborated by an evidence channel | opt-in (`min_tier=`) |
-| `kernel`    | re-checked by the kernel (proof / entailment) | yes — sound |
-
-The boundary is structural: `propose()` only ever creates candidates, and
-`kb(min_tier=...)` refuses to emit candidates at all (asking for them raises).
-Promotion is an explicit, auditable act:
-
-```python
-store.promote_fact(atom, proof)                # re-checks the proof
-store.promote_rule(rule, lambda r: verify_rule(kb, r) is True)
-store.promote_external(atom, evidence)         # evidence policy, not proof
+```
+(theory selfsup
+  (clause lgg_t1_0 +1.0 (t1 ?G0 ?G1) (e  ?G0 ?E0) (e  ?E0 ?G1))
+  (clause lgg_t2_0 +1.0 (t2 ?G0 ?G1) (t1 ?G0 ?E0) (t1 ?E0 ?G1))
+  ...)
 ```
 
-## Module 19 — `dlm/induce.py` (rule induction + lemma extraction)
+Honest reading: on this controlled benchmark the loop generalises perfectly and
+the controls stay at the floor, which shows the *mechanism* (promote only
+verified programs) is what carries the gain. It is expert iteration, not policy
+gradient, and it does **not** invent predicates outside the given vocabulary —
+the next work is exploration for genuinely new programs.
 
-Two ways to obtain a rule the kernel can trust:
+## Run the random-web dual-ability experiment
 
-1. **Lemma from a proof** — resolving certified rules is valid *by construction*:
-   `extract_lemmas(kb)` composes rule pairs and keeps the new ones
-   `verify_rule` confirms. Self-certifying, no oracle.
-2. **Induction checked over the finite domain** — with finitely many constants, a
-   rule `head :- body` is *valid on the KB* iff no ground instance with a true
-   body has a false head. `measure_rule` counts `support` and `counterexamples`;
-   `verify_rule` returns `True` / `False` / `None` (indeterminate — abstain).
-
-`induce_rules` returns a **candidate pool** ranked by support. Only rules with
-zero counterexamples are entailed and safe to promote to kernel tier; rules with
-counterexamples stay candidates until an external channel corroborates them.
-
-## Module 20 — `dlm/grammar.py` (reading as data, parse as derivation)
-
-A `GrammarReader` replaces the hand-coded branches of `LexicalReader` with
-`RewriteRule` **data** (inspectable, enumerable, addable without code):
-
-```python
-RewriteRule("transitive", ("?e0:ent", "?v:pred", "?e1:ent"), "?v",
-             ((AGENT, "?e0"), (PATIENT, "?e1")))
+```
+cd /research/dlm_v0.0024
+PYTHONPATH=. python -m experiments.webloop.run --offline          # uses experiments/webloop/cache
+PYTHONPATH=. python -m experiments.webloop.run --quick            # fast smoke test
+PYTHONPATH=. python -m experiments.webloop.run --online --docs 120 --seed 3   # fetch more
 ```
 
-A reading carries its `Derivation`, and `verify_reading` **replays** it — the
-reader's analogue of kernel re-check. Unknown words abstain; ambiguity is
-preserved, never resolved by guessing. The default rules reproduce
-`LexicalReader` exactly, but coverage is now *data*: adding the passive rule
-`(E COP V by E)` lifts that construction from 0.00 to 1.00 coverage with no code
-change. Verification buys **traceability**, not truth — a wrong rule still
-replays — which is exactly why the kernel, not the reader, asserts.
+Per-ability wrappers (offline by default, timestamped report in `reports/`):
 
-## Module 21 — `dlm/lexicon.py` (predicate lemmatisation)
-
-One symbol for every surface form. A declarative `alice calls bob` and a question
-`does alice call bob?` denote the same atom only if the reader canonicalises
-`calls`/`called`/`calling` to the declared base form `call`. `PredicateLexicon`
-proposes candidate reductions and accepts only one that is **in the lexicon** —
-the same membership gate as `SchemaRegistry`. Without this, the interrogative
-layer can never address what the declarative layer stored.
-
-## Module 22 — `dlm/query.py` (the question IR)
-
-A `Query` is `YESNO(ground literal)` or `WH(patterns, answer slot)`. A wh question
-is a **finite disjunction of candidate goal atoms** enumerated from schema/lexicon
-data, with one designated answer: a term (`where is alice?` → the place) or the
-**predicate itself** (`what is alice?` → happy/tall). No predicate variables enter
-the kernel — enumeration is a proposer's job, entailment is the kernel's.
-
-## Module 23 — `dlm/question.py` (interrogative grammar as data)
-
-`QuestionRule` data covers do-support, subject/aux inversion, and wh-movement:
-
-```python
-QuestionRule("wh_where_cop", WH, ("where", "?c:cop", "?e0:ent"),
-             head=None, head_class="prep",
-             roles=((FIGURE, "?e0"), (GROUND, HOLE)), answer_role=GROUND)
+```
+cd /research/dlm_v0.0024/experiments/webloop
+./A_deduction.sh --quick          # ability A: induce the subclass law
+./B_conversation.sh --quick       # ability B: sentence <-> relation
+./A_deduction.sh --online --docs 120 --seed 3
 ```
 
-`head=None` means *enumerate the relation* from the schema registry —
-`where is alice?` becomes `in(alice, ?x) | at(alice, ?x) | ...`. Unmatched
-questions abstain; the reader proposes, it never decides truth.
+One pipeline, one label source (the kernel), **no human labels**:
 
-## Module 24 — `dlm/answer.py` (query resolution)
-
-`resolve(query, kb)` uses only the kernel closure and the negative side table:
-
-- yes/no → `yes` (entailed) / `no` (**explicit negative only**) / `unknown`;
-- wh → matched ground facts, or `unknown` when nothing matches;
-- **unknown is not no**, and a wh miss is never a fabricated filler.
-
-`render_answer` proposes text; the `CheckedRealizer` round-trip gate makes it safe.
-
-## Module 25 — `dlm/qa.py` (one NL pipeline)
-
-`QASession` replaces the old two-behaviour ambiguity (`chat.py` echoed a reading,
-`nl_talk.py` re-implemented assert/ask): question marker? → `QuestionReader` →
-`Query` → `resolve` → rendered/checked; else declarative → `Ingestor.literal` →
-assert; else chatter (assertion-free). See `experiments/qa_read.py`:
-B1 old pipeline yes/no 0.00, wh 0.00; B2 declarative-only + lemma 0.45/0.00;
-**v0.0009 1.00/1.00, false-assert 0**.
-
-## Run the tests (without disturbing the editable v0.0005 install)
-
-```bash
-cd /research/dlm_v0.0009
-PYTHONPATH=. python -m pytest -q
+```
+random Wikipedia article -> Wikidata claims + P279 hierarchy + prose
+      |                                       |
+      | (A) deduction  -> kernel-derived pairs -> induce the law
+      | (B) conversation -> sentence <-> relation (IR reader / realizer)
+      v                                       v
+held-out entities  <---- generalisation ----  kernel gate (abstain, never guess)
 ```
 
-Experiments: `PYTHONPATH=. python experiments/qa_read.py`,
-`experiments/grammar_read.py`, `experiments/webverify.py --offline`, plus the
-v0.0007 `experiments/trainability.py` and `experiments/webssl/run.py --offline`.
+Offline cache (`n=60, seed=1`): 60 docs / 139 web facts / 962 hierarchy edges /
+132 sentences. Entity-level folds, kernel = only label source.
 
-See `work.txt` for the module plan and resume point.
+**(A) deduction.** The transitivity law is never given. From ground facts plus
+the kernel's own derived pairs the learner rediscovers it, verbatim:
+
+```
+(rule lgg_subclass_of_1 (subclass_of ?G0 ?G1) (subclass_of ?G0 ?E0) (subclass_of ?E0 ?G1))
+```
+
+| arm | held-out recovery |
+| --- | --- |
+| facts only (floor) | 0.060 |
+| **law induced from kernel labels** | **1.000** |
+| oracle law (ceiling) | 1.000 |
+| shuffled labels (control) | 0.060 |
+
+**0** false derivations: a fabricated clause could never be *asserted* — weights
+never reach the kernel.
+
+**(B) conversation.** Sentence ↔ relation on 45 aligned examples: untrained 0.044 /
+surface 0.044 / scrambled 0.111 / **IR reader 0.378** / majority 0.444. Cue
+uablation 0.289, realizer round-trip@3 0.200, invented-predicate control
+(learned 0.378 vs untrained 0.044) confirms the harness has signal. Honest
+reading: on this small corpus the reader is still **below the majority baseline**
+and cue leakage remains — the deduction side generalises cleanly, the language
+side does not yet.
+
+**Unexpected behaviour.** The `--json` report keeps the invented rules verbatim,
+the raw web graph's contradictions (4 two-cycles, 7 self-loops), kernel abstention
+on an unprovable atom, and a deduction→sentence→deduction compositional
+round-trip (1.000): an atom the *deduction* side derived is verbalised and read
+back as the same relation.
+
+## Run the IO boundary demo
+
+```
+cd /research/dlm_v0.0024
+PYTHONPATH=. python -m experiments.io_demo.run
+```
+
+It decodes one text file, one CSV dataset, a PNG and a WAV; builds a KB from the
+atoms; proves a rule; and renders the closure back to natural language and to
+CSV/JSON/DLM forms.
+
+## Run the tests
+
+```
+cd /research/dlm_v0.0024
+./test.sh           # or: PYTHONPATH=. python -m pytest -q
+```
+
+133 tests.
+
+## What was removed (and why)
+
+v0.0017 had ~2 650 lines and seven parallel/duplicate stacks — evidence that the
+fusion had not been done. v0.0018 fused them into **~1 412 lines**; v0.0019 then
+slimmed the *trusted substrate* to exactly what the core needs (**~1 315 lines**):
+
+* the general negative-literal side table (`Literal`, `holds`, KB `add_negation` /
+  `is_negated` / `negations` / `remove_negation`, the `not` form bridge) is gone:
+  the Horn engine is positive and the fused core never used negation;
+* the stranded bulk-certificate API (`derivations`, `prove_from_support`) and the
+  unused `dump_all` / `_match` indirection are removed; `prove` now inlines the
+  support lookup it needs.
+
+v0.0018's fusion (kept): `model_*` / `WeightedRule` / `Theory` collapse into
+`Clause` + `Theory`; two feature mechanisms collapse into `Theory.matched`; the
+proposer registry and judge stack collapse into `solve`; the vestigial
+schema/frame/state grounder/retriever seams are gone; the two experiments merge
+into one `run_experiment`.
+
+v0.0020 adds back the *language* side, but not the old stacks: the v0.0014
+`nlssl.py` / `reader.py` / `grammar.py` / `selfsup.py` / `ssl_objectives.py`
+(≈1 800 lines of parallel readers, grammars, scorers and objectives) are replaced
+by **one** IR-SSL module that unifies reading and realizing on a single explicit
+intermediate representation. The trusted core is unchanged.
+
+v0.0021 adds the IO boundary (`dlm/io.py`) as another *untrusted* layer, again
+without touching the core — the fused two-file substrate and core are unchanged
+since v0.0018.
+
+v0.0023 makes the IR a **symbol tree**. `dlm/ssl.py` gains `ir_form` / `is_ir` /
+`ir_get` (a head-addressed, extensible `(ir ...)` grammar), a generic `tree_features`
+walk, `reader_tree_features`, and `aligned_tree_examples`; the `Frame` dataclass
+becomes a thin *view* (`ir_from_form`) and `frame_to_form`/`frame_from_form`
+delegate to the tree. The trusted core is untouched except its version banner —
+all new code is untrusted. The experiment (`experiments/ir_tree/`) shows the
+mechanism works but a naive structural walk does not beat the hand abstraction.
+
+All removed code is preserved in the earlier snapshots (`dlm_v0.0017` and before).
+
+v0.0024 adds the **self-supervised loop** (`dlm/selfsup.py`) as a third *untrusted*
+layer: the missing piece was never the reward (the kernel verdict already was
+one) but the *loop* that promotes only verified programs back into the theory.
+It fuses `induce_clauses` (propose) + `closure` (verify/reward) + `learn`
+(reweight) + `Theory` (the grown program) into expert iteration over Lisp-like
+clauses, with the `false_assert == 0` gate as a hard constraint. The controlled
+composition experiment shows the loop composes a program single-pass induction
+cannot, while four controls stay at the floor and a gate-off arm fabricates 152
+false facts — evidence that the gate, not the loop, is what keeps it sound. The
+trusted core stays byte-identical except its version banner.

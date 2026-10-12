@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from dlm.kb import KnowledgeBase
-from dlm.logic import Atom, Const, Rule, Var
+from dlm import KnowledgeBase
+from dlm import Atom, Const, Rule, Var
 
 
 def P(a, b):
@@ -33,13 +33,6 @@ def test_add_rule_and_index_by_head():
     assert kb.rules_by_head("parent") == ()
     assert kb.add_rule(r) is kb and len(kb.rules()) == 1  # idempotent
 
-
-def test_negation_side_table():
-    kb = KnowledgeBase().add_negation(P("a", "b"))
-    assert kb.is_negated(P("a", "b"))
-    assert not kb.is_negated(P("b", "c"))
-    with pytest.raises(ValueError):
-        kb.add_negation(Atom("parent", (Const("a"), Var("x"))))
 
 
 def test_predicates_lists_facts_and_rule_heads():
