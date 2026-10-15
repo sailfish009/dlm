@@ -6,6 +6,9 @@ into a module import graph, hold out **whole repos**, and let the kernel induce
 the transitivity law on the train repos. No human labels, no weak supervision —
 the repo is the oracle.
 
+> v0.0054: all HTTP/transport is the model's (`dlm.web.Web`); `code.py` here
+> keeps only the GIVEN query, cache policy and import-graph shaping.
+
 ## Pipeline
 
 ```

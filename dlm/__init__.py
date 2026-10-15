@@ -1,4 +1,4 @@
-"""DLM v0.0053 -- trusted kernel (function-free Horn substrate), plus the layers.
+"""DLM v0.0056 -- trusted kernel (function-free Horn substrate), plus the layers.
 
 Fresh minimal rebuild around one question: what is the learning signal for
 deduction?  The answer this version encodes: a general (pronominal,
@@ -41,13 +41,45 @@ acquired ``meaning`` + SEARCHED ``dataset_of`` + acquired ``api_effect`` + the
 D5/D7a closed-world absence layer.  Before, the body used a private flat realizer
 and the purpose sentence ("...to recognize handwritten digits") lived only in a
 side experiment; now the body emits it (``northstar_purpose``).  No kernel change.
+v0.0054 makes the MODEL the SUBJECT, not the harness: the automation that lets a
+deductive model improve without a human -- web access (:mod:`dlm.web`), generic
+search providers (:mod:`dlm.search`), the acquisition subject
+(:mod:`dlm.acquire`), and the autonomous reader/loop (:mod:`dlm.agent`) -- moves
+out of ``experiments/`` and INTO the model.  :class:`dlm.agent.Reader` owns
+perceive -> acquire -> search -> induce -> close -> read, and ``run_loop`` repeats
+that cycle over a sequence of sources, stopping on a named policy reason
+(``saturated`` / ``max_rounds``) with the kernel as the only judge.  The web,
+the search and the acquisition are still UNTRUSTED proposals -- the kernel
+consumes every acquired fact like any other and re-checks what it concludes -- but
+they are now the model's own senses, not the experiment's.  Experiments keep only
+the GIVEN, domain-specific pieces (a reducer, bridge/gist rules, cue lexicons, a
+signature builder) and the falsifier harnesses.  The measured north-star output
+is unchanged (239 facts / 87 closure / 615 atoms / 42 certified sentences / level
+N9).  v0.0055 adds RECURSIVE SELF-SUPERVISED LEARNING (:mod:`dlm.recursive`): the
+model feeds its own kernel-certified output back as the next round's input.  Each
+round closes the relation it currently has under two definitional level rules
+(inherit + self-join) and reifies the certified extension as a new predicate, so
+reachability is bootstrapped to arbitrary depth in O(log diameter) rounds with no
+labels and the kernel as the only judge; a round that adds nothing is the
+fixpoint and the model abstains.  It is NOT given the relational transitive rule --
+a single composition provably cannot reach the closure, which is the falsifier
+that recursion is required (``experiments/recursive``).  v0.0056 closes the loop
+with SELF-EVALUATION and a WEAKNESS-TARGETED CURRICULUM (:mod:`dlm.ability`,
+:mod:`dlm.curriculum`): the model reads its own ability off the kernel closure
+(the deduction targets its rules PROMISE but cannot yet conclude), identifies the
+missing premise only acquired knowledge can supply, asks the web for exactly that
+premise, re-closes through the kernel, re-assesses, and stops on a named reason
+(``saturated`` / ``no_actionable`` / ``acquire_empty`` / ``no_progress`` /
+``max_rounds``).  Targets are DISCOVERED from the theory, not a fixed goal list;
+improvement is scored at the TARGET level, so a scrambled fact improves nothing
+and a removed web abstains.  ``Reader.assess`` / ``Reader.self_improve`` own it.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Optional, Tuple
 
-__version__ = "0.0.53"
+__version__ = "0.0.56"
 __all__ = [
     "Const", "Var", "Term", "Atom", "NegAtom", "Rule", "KnowledgeBase",
     "closure", "entails", "unify", "strata", "description_length",

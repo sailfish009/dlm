@@ -30,15 +30,25 @@ ran last, so this body's own final output never reached the purpose sentence.
 Now the body and the falsifier experiment share **one pipeline** (`run.pipeline`)
 and the body's `narrative` IS the N1..N9 reading. `realize.py` is deleted.
 
+v0.0054 makes the **model own the loop**: `run.pipeline` now drives
+`dlm.agent.Reader` (perceive → acquire → search → induce → close → read), and the
+web/search/acquisition machinery lives in the model (`dlm.web`, `dlm.search`,
+`dlm.acquire`). `knowledge.py` and `domain.py` here are **vocabulary only** — the
+GIVEN PyTorch cue lexicons and the (back-compat) shims that delegate to
+`dlm.acquire`; this body supplies the reducer, bridge/gist rules, cue lexicons and
+signature builder, and nothing else. Measured output is unchanged (239 facts, 87
+closure, 615 atoms, 42 certified sentences, level N9).
+
 ## Pipeline
 
 ```
-acquire.py          fetch (or replay cache) main.py                          untrusted I/O
+acquire.py          fetch (or replay cache) main.py, via dlm.web.Web         untrusted I/O
 extract.py          Python ast -> function-free Horn facts (the REDUCTION)    untrusted
-knowledge.py        used symbols -> WEB lookup -> meaning(symbol, concept)     untrusted
+knowledge.py        GIVEN PyTorch cue vocab (+ delegate to dlm.acquire)       untrusted
+domain.py           GIVEN dataset cue vocab (+ delegate to dlm.acquire)       untrusted
 semantics.py        BRIDGE_FORMS: how a meaning makes a predicate true         given
-run.py              dlm.ground.learn + kernel closure -> understanding         kernel
-                    + dlm.narrative.reading -> N1..N9 reading (1 path)        untrusted
+run.py              READER = dlm.agent.Reader(perceive=extract, ...)          untrusted
+                    READER.run -> learn + closure + dlm.narrative.reading
 ```
 
 ### 1. Reduction (not a codec)

@@ -1,4 +1,4 @@
-# DLM v0.0053 — the reading is the body's final output
+# DLM v0.0056 — self-evaluation + weakness-targeted curriculum
 
 A **deductive logic model**: knowledge lives in an external knowledge base and
 answers come from *proof*, abstaining when it cannot prove. This is a **fresh,
@@ -7,7 +7,58 @@ single question:
 
 > **What is the learning structure for deduction?**
 
-v0.0053 **integrates** the leveled final reading into the north-star BODY. v0.0050
+v0.0056 closes the loop the model was still missing: **it evaluates its own
+ability and improves its own weak spots**. From the kernel closure alone it reads
+which deduction targets its rules promise but cannot yet conclude (`dlm/ability.py`),
+identifies the missing premise that only acquired knowledge can supply, asks the
+web for exactly that premise, re-closes through the kernel, re-assesses, and stops
+on a *named* reason (`dlm/curriculum.py`). The target set is **discovered from the
+theory**, not a fixed goal list: whatever the model's rules can conclude is the
+agenda. The north-star slice shows the reader proving `trains` but unable to prove
+`recognizes(<program>, <what>)` until it finds the `dataset_of` gap *itself* and
+searches for it; a synthetic multi-gap theory shows the loop iterating one weak
+spot per round; scramble / no-web controls prove the *content* (re-checked by the
+kernel) is what helps — a scrambled fact improves nothing, and with acquisition
+removed the model abstains. `Reader.self_improve` owns the loop inside the model.
+
+v0.0055 adds **recursive self-supervised learning** (`dlm.recursive`): the model
+feeds its own kernel-certified output back as the next round's input. Each round
+closes the relation it currently has (starting from the base edges) under two
+definitional level rules — inherit + self-join — and reifies the certified
+extension as a new predicate, so the model bootstraps reachability to arbitrary
+depth in **O(log diameter)** rounds with **no labels** and the kernel as the only
+judge. It is *not* given the relational transitive rule: a single composition
+provably cannot reach the closure, which is the falsifier that recursion is
+required (`experiments/recursive`). A round that adds nothing is the fixpoint, and
+the model abstains.
+
+v0.0054 makes the **model the subject, not the harness**. The automation that lets
+a deductive model improve without a human — web access (`dlm.web`), generic search
+providers (`dlm.search`), the acquisition subject (`dlm.acquire`), and the
+autonomous reader + self-supervised loop (`dlm.agent`) — moves out of
+`experiments/` and **into the model**:
+
+* `dlm.web.Web` is the model's one web primitive: a URL in, cached bytes out,
+  byte-for-byte replayable offline, abstaining (`None`) on any failure. The
+  internet is the model's *senses*, not its judgment;
+* `dlm.search` holds the generic providers (Sphinx object inventory, Wikipedia,
+  Wikidata/MediaWiki, Stack Exchange) — ways to *look things up*, never facts;
+* `dlm.acquire` is the acquisition subject: candidates → web search → reduce
+  evidence → `meaning`/`dataset_of` fact(+provenance) → cache. It names no
+  library and no dataset; the caller supplies only the GIVEN cue vocabulary;
+* `dlm.agent.Reader` owns the whole loop — perceive → acquire → search → induce →
+  close → read — and `run_loop` repeats it over a sequence of sources, stopping on
+  a named policy reason (`saturated` / `max_rounds`) with the **kernel as the only
+  judge**.
+
+Everything the web brings back is still **untrusted**: the kernel consumes every
+acquired fact like any other and re-checks whatever it concludes. Experiments keep
+only the GIVEN, domain-specific pieces (a reducer, bridge/gist rules, cue
+lexicons, a signature builder) and the falsifier harnesses — they no longer own
+the subject that reaches the web. The measured north-star output is unchanged
+(239 facts / 87-pair closure / 615 atoms / 42 certified sentences / level N9).
+
+v0.0053 **integrated** the leveled final reading into the north-star BODY. v0.0050
 built the N1..N9 realizer (`dlm/narrative.py`) and v0.0044–46 raised its level, but
 the body (`experiments/mnist/run.py`) still used its own private flat realizer
 (`realize.py`, now deleted) and emitted only ~32 structural sentences — while the
@@ -909,6 +960,71 @@ half:
    **strong non-integral baseline** on a large task, or that the MDL cost is the
    right prior. The falsifier stands and the controls are in place.
 
+### 5.19 Recursive self-supervised learning (`experiments/recursive`, v0.0055)
+
+The model's own kernel-certified output becomes the next round's **input**. Given a
+directed graph as `edge` facts and **not** the relational transitive rule, each
+round closes the relation it currently has under two GIVEN definitional level
+rules and reifies the certified extension as a new predicate:
+
+```
+r_{k+1}(X,Y) :- r_k(X,Y).                 -- inherit
+r_{k+1}(X,Z) :- r_k(X,Y), r_k(Y,Z).       -- compose (self-join)
+```
+
+Because a round doubles the path length the relation spans, the model reaches the
+**full transitive closure in O(log diameter)** rounds, then abstains when a round
+adds nothing (fixpoint). Nothing is invented: the kernel derives the extension and
+the model feeds its own conclusion back — recursion, no labels, the kernel the
+only judge. `dlm.recursive.one_shot` is the depth-1 control; on any graph with a
+path longer than two hops it provably fails to reach the closure, which is the
+falsifier that recursion is required. Run:
+
+```
+./experiments/recursive/recursive.sh
+```
+
+Measured (chain of 25 nodes, diameter 24): derived 300/300 true pairs, false 0,
+depth 6 (bound 7), one-shot 47; (16-node DAG, diameter 4): 120/120, depth 3. All
+verdicts true.
+
+### 5.20 Self-evaluation + weakness-targeted curriculum (`experiments/selfimprove`, v0.0056)
+
+v0.0054 put web access and self-supervision *inside* the model, and v0.0055 made the
+model's own output its next input — but the model still did not **evaluate itself**
+or **choose** what to improve. v0.0056 adds the missing controller:
+
+* `dlm/ability.py` reads the kernel closure ONLY and reports, for every **deduction
+target the model's rules promise** (`target_predicates`: all rule heads plus
+observed fact predicates — no fixed goal list), whether it is proved or blocked and
+by which absent premises. A premise the web can supply (`dataset_of`, `task_of`)
+is **actionable**; the rest are structural gaps. `weak_spots` orders the agenda
+(actionable first) and `improvement` scores a round **at the target level** — only
+actual kernel derivations count, so a scrambled fact can never look like progress;
+* `dlm/curriculum.py` runs the closed loop — assess → ask → acquire(web) → re-close
+→ re-assess — and stops on a *named* reason (`saturated`, `no_actionable`,
+`acquire_empty`, `no_progress`, `max_rounds`). Acquisition abstains (no fact) when
+evidence is missing, so replay is byte-for-byte deterministic and nothing is
+invented. `dlm.agent.Reader.assess` / `Reader.self_improve` expose it as the
+model's own capability.
+
+The north-star slice: the reader proves `trains` but cannot prove
+`recognizes(<program>, <what>)` until it discovers the `dataset_of` gap *itself* and
+searches for it — one self-directed acquisition fixes it (`weakness_identified`,
+`improvement_from_web`). A synthetic three-gap theory shows the loop **iterating**
+one weak spot per round to `saturated`. Controls: a scrambled fact yields
+`no_progress` (nothing proved), and with acquisition removed the loop stops at
+`acquire_empty` (abstains, invents nothing). Run:
+
+```
+./experiments/selfimprove/selfimprove.sh
+```
+
+Honest limit: the **agenda** is predicate-level (`dataset_of` is missing
+*somewhere*); only the **kernel** is argument-level. A scrambled fact can silence a
+weak spot without proving the target — the model stops asking, but it never asserts
+anything false. That is the conservative direction (abstain, don't invent).
+
 ## 7. Layout
 
 ```
@@ -931,13 +1047,20 @@ dlm/
   integral.py      untrusted integrators: forward closure + debt, evidence measure Z
   connection.py    untrusted connection: bounded order-sensitive search, credit, holonomy
   effective.py     untrusted measurement: evidence marginal predictor + order path integral
+  web.py           the model's web primitive: cached HTTP (the senses), abstains, offline-replayable
+  search.py        generic providers: Sphinx objects.inv, Wikipedia, Wikidata/MediaWiki, Stack Exchange
+  acquire.py       the acquisition subject: candidates -> web search -> reduced fact(+provenance) -> cache
+  agent.py         the autonomous Reader (perceive->acquire->search->induce->close->read) + self-supervised run_loop + self-improvement
+  recursive.py     recursive self-supervised learning: reify the kernel-certified self-composition level by level (log-depth closure)
+  ability.py       self-evaluation: deduction targets (rule heads) proved / blocked, and actionable externally-acquirable gaps
+  curriculum.py    weakness-targeted loop: assess -> ask -> acquire(web) -> re-close -> re-assess, to a named stop
 experiments/
   ground/          one generalization transfers (synthetic)
-  web/             real Wikipedia/Wikidata class hierarchies
+  web/             real Wikipedia/Wikidata class hierarchies (web access delegated to dlm.web/dlm.search)
   stream/          multi-relation accumulation, round-by-round open-universe curve
   abstract/        recurring subgoal -> invented predicate; DL + budget coverage
   online/          streaming trajectory: learn each round, score on unseen entities
-  code/            real GitHub repos -> import graph -> cross-repo transfer
+  code/            real GitHub repos -> import graph -> cross-repo transfer (transport delegated to dlm.web)
   mnist/           one program: reduce -> acquire meaning from the web -> learn -> understand -> IR-TREE -> N1..N9 reading (the body's final output; shares one pipeline with reading/)
   generalize/      corpus of programs -> induced concepts -> deductive transfer to the north star
   abstraction/     L5 composition .. L9 transfer, with an abstraction_score
@@ -948,12 +1071,50 @@ experiments/
   equal/           equality/congruence: reproduce and fix the D5 false negative
   integral/        forward integral + evidence measure + credit holonomy (the three layers)
   effective/       equal-budget held-out falsification of the integrals (predictor + controller)
+  recursive/       recursive self-supervised learning: bootstrap reachability from the model's own output, one-shot control
+  selfimprove/     model evaluates its own ability, finds its weak spot, searches for the missing premise (scramble/no-web controls)
   train/           accumulating learner + closure benchmark (the long-run harness seed)
-tests/             186 tests (network-free)
+tests/             220 tests (network-free)
 test.sh            PYTHONPATH=. python -m pytest -q
 ```
 
 ## 8. Version
+
+`0.0.56` — **self-evaluation + weakness-targeted curriculum** (`dlm/ability.py`,
+`dlm/curriculum.py`). The model reads its own ability off the kernel closure
+(which deduction targets its rules promise but cannot conclude), identifies the
+missing premise only acquired knowledge can supply, asks the web for exactly that
+premise, re-closes through the kernel, re-assesses, and stops on a named reason.
+Targets are discovered from the theory, not a fixed list; improvement is measured
+at the target level, so a scrambled fact improves nothing and a removed web
+abstains (`experiments/selfimprove`).
+
+`0.0.55` — **recursive self-supervised learning** (`dlm/recursive.py`). The model
+feeds its own kernel-certified output back as the next round's input: each round
+closes its current relation under two definitional level rules (inherit +
+self-join) and reifies the certified extension as a new predicate, so reachability
+is bootstrapped to arbitrary depth in O(log diameter) rounds with no labels, then
+abstains at the fixpoint. It is not given the relational transitive rule; a single
+composition cannot reach the closure, which is the recursion falsifier
+(`experiments/recursive/recursive.sh`).
+
+`0.0.54` — **the model is the subject, not the harness**. The automation that
+lets a deductive model improve without a human moves out of `experiments/` and
+into the model: `dlm/web.py` (the model's one web primitive — cached HTTP, the
+senses, abstaining, offline-replayable), `dlm/search.py` (generic providers:
+Sphinx object inventory, Wikipedia, Wikidata/MediaWiki, Stack Exchange — ways to
+look things up, never facts), `dlm/acquire.py` (the acquisition subject:
+candidates → web search → reduced `meaning`/`dataset_of` fact with provenance →
+cache; names no library or dataset), and `dlm/agent.py` (`Reader` owns
+perceive → acquire → search → induce → close → read, and `run_loop` repeats it
+over sources with a named stop reason, the kernel the only judge). The web
+residue in the experiments is now thin glue: `experiments/mnist/{knowledge,domain}.py`
+carry only the GIVEN PyTorch cue vocabulary and delegate acquisition to
+`dlm.acquire`; `experiments/mnist/run.py::pipeline` drives the model's `Reader`;
+`experiments/web/` and `experiments/code/` delegate all transport to `dlm.web`.
+Everything acquired is still untrusted (the kernel re-checks what it concludes),
+and the measured north-star output is unchanged (239 facts / 87-pair closure /
+615 atoms / 42 certified sentences / level N9). No kernel change.
 
 `0.0.53` — **the reading is the body's final output**. The north-star BODY
 (`experiments/mnist/run.py`) had used a private flat realizer (`realize.py`, now

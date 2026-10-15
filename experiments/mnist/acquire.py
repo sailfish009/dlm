@@ -1,15 +1,17 @@
 """Acquire the target source and cache it (untrusted I/O).
 
-The north-star target is the PyTorch MNIST example.  ``--offline`` replays the
-byte-identical cached copy so results are reproducible without the network.
+The transport is the model's (:mod:`dlm.web.Web`); this module keeps only the
+north-star's GIVEN URL and the human-readable ``<cache>/main.py`` replay file.
+``--offline`` replays the byte-identical cached copy so results are reproducible
+without the network.
 """
 from __future__ import annotations
 
 import os
-import urllib.request
+
+from dlm.web import Web
 
 URL = "https://raw.githubusercontent.com/pytorch/examples/main/mnist/main.py"
-UA = {"User-Agent": "dlm-research/0.1"}
 
 
 def _cache_path(cache_dir: str, url: str) -> str:
@@ -27,10 +29,9 @@ def acquire(url: str = URL, cache_dir: str = "cache", offline: bool = False,
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as fh:
             return fh.read()
-    if offline:
+    src = Web(cache_dir, offline=offline).get_text(url)
+    if src is None:
         raise FileNotFoundError(f"offline and no cache at {path}")
-    req = urllib.request.Request(url, headers=UA)
-    src = urllib.request.urlopen(req, timeout=40).read().decode("utf-8")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(src)
     return src

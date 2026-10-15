@@ -1,31 +1,30 @@
-"""Web knowledge extraction for the webssl experiment (NOTE.md §43).
+"""DLM v0.0054 -- webssl experiment glue (wiki entity -> Horn facts).
 
-Turns the live web into candidate logic, with no human labels:
+The web *access* and the *providers* now live in the model (:mod:`dlm.web`,
+:mod:`dlm.search`); the subject that reaches the web is the model, not this
+experiment.  What remains here is experiment-specific SHAPING only:
 
-* **Wikidata** (`wbsearchentities` / `wbgetentities`) -> function-free binary
-  triples ``(pred subj obj)``: instance_of, subclass_of, occupation, birthplace,
-  country, country_of, located_in, part_of.  Every label is slugified to a single
-  token because the DLM fragment has single-token constants only (NOTE §39.4).
-* **Wikipedia REST summary** -> the entity's prose, split into sentences.  Those
-  sentences are the natural-language surface used for distant supervision (an
-  atom whose object label appears in the sentence is the weak positive).
+* the GIVEN property map (``P31`` -> ``instance_of`` ...) and seed-name list;
+* slug/sentence reduction for the single-token DLM fragment;
+* turning Wikidata claims into the experiment's ``Fact``/``Doc`` records.
 
-Everything is cached under ``cache/`` so the experiment is reproducible offline
-(``offline=True`` never touches the network).
+No transport, no cache, no provider logic lives here any more.
 """
 from __future__ import annotations
 
-import hashlib
-import json
-import os
 import re
-import time
-import urllib.parse as up
-import urllib.request as ur
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
-UA = {"User-Agent": "dlm-research/0.1 (research; +https://github.com/sailfish009/dlm)"}
+from dlm.search import (wikidata_entities, wikidata_labels, wikidata_search,
+                        wikipedia_summary)
+from dlm.web import Web
+
+# Re-exported so ``experiments/web/acquire.py`` can keep using the same names.
+__all__ = ["UA", "Web", "WIKIDATA", "WIKI_SUMMARY", "PROP_PRED", "DEFAULT_SEEDS",
+           "slug", "split_sentences", "Fact", "Doc", "_entity_targets", "extract"]
+
+UA = {"User-Agent": "dlm-research/0.1 (+https://github.com/sailfish009/dlm)"}
 WIKIDATA = "https://www.wikidata.org/w/api.php"
 WIKI_SUMMARY = "https://en.wikipedia.org/api/rest_v1/page/summary/"
 
@@ -83,85 +82,6 @@ class Doc:
     labels: Dict[str, str] = field(default_factory=dict)  # slug -> surface label
 
 
-class WebCache:
-    def __init__(self, cache_dir: str, offline: bool = False) -> None:
-        self.dir = cache_dir
-        self.offline = offline
-        os.makedirs(cache_dir, exist_ok=True)
-        self._mem: Dict[str, object] = {}
-
-    def _path(self, key: str) -> str:
-        safe = re.sub(r"[^A-Za-z0-9._-]+", "_", key)
-        if len(safe) > 120:  # long query strings (batch entity ids) -> stable digest name
-            digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
-            safe = safe[:80] + "_" + digest
-        return os.path.join(self.dir, safe + ".json")
-
-    def get(self, key: str, producer):
-        if key in self._mem:
-            return self._mem[key]
-        path = self._path(key)
-        if os.path.exists(path):
-            with open(path, encoding="utf-8") as fh:
-                self._mem[key] = json.load(fh)
-            return self._mem[key]
-        if self.offline:
-            raise FileNotFoundError(f"offline: cache miss for {key!r} ({path})")
-        value = producer()
-        with open(path, "w", encoding="utf-8") as fh:
-            json.dump(value, fh, ensure_ascii=False)
-        self._mem[key] = value
-        return value
-
-
-def _urlopen(url: str, timeout: float = 25.0):
-    return ur.urlopen(ur.Request(url, headers=UA), timeout=timeout)
-
-
-class Wikidata:
-    def __init__(self, cache: WebCache, pause: float = 0.1) -> None:
-        self.cache = cache
-        self.pause = pause
-
-    def _api(self, params: dict) -> dict:
-        params = {**params, "format": "json"}
-
-        def produce():
-            time.sleep(self.pause)
-            with _urlopen(WIKIDATA + "?" + up.urlencode(params)) as r:
-                return json.load(r)
-
-        return self.cache.get("wd_" + up.urlencode(sorted(params.items())), produce)
-
-    def search(self, name: str) -> Optional[Tuple[str, str]]:
-        d = self._api({"action": "wbsearchentities", "search": name, "language": "en", "limit": 1})
-        hits = d.get("search") or []
-        if not hits:
-            return None
-        return hits[0]["id"], hits[0].get("label") or name
-
-    def entities(self, ids: Sequence[str], props: str = "labels|claims|sitelinks") -> Dict[str, dict]:
-        out: Dict[str, dict] = {}
-        ids = [i for i in dict.fromkeys(ids) if i]
-        for i in range(0, len(ids), 40):
-            chunk = ids[i:i + 40]
-            d = self._api({"action": "wbgetentities", "ids": "|".join(chunk), "props": props,
-                           "languages": "en", "sitefilter": "enwiki"})
-            out.update(d.get("entities", {}))
-        return out
-
-    def labels(self, ids: Sequence[str]) -> Dict[str, str]:
-        ent = self.entities(ids, props="labels")
-        return {q: (e.get("labels", {}).get("en", {}) or {}).get("value", q) for q, e in ent.items()}
-
-    def summary(self, title: str) -> str:
-        def produce():
-            with _urlopen(WIKI_SUMMARY + up.quote(title.replace(" ", "_"))) as r:
-                return json.load(r)
-        d = self.cache.get("wiki_" + title, produce)
-        return d.get("extract", "") or ""
-
-
 def _entity_targets(ent: dict) -> List[Tuple[str, str]]:
     """-> [(pred, target_qid)] for the supported properties of one entity."""
     out: List[Tuple[str, str]] = []
@@ -175,25 +95,27 @@ def _entity_targets(ent: dict) -> List[Tuple[str, str]]:
 
 def extract(names: Sequence[str] = DEFAULT_SEEDS, *, cache_dir: str, offline: bool = False,
             subclass_depth: int = 3, summary_chars: int = 900) -> Tuple[List[Doc], List[Fact]]:
-    """Seed entity names -> (docs, class_hierarchy_facts).  No human labels."""
-    cache = WebCache(cache_dir, offline=offline)
-    wd = Wikidata(cache)
+    """Seed entity names -> (docs, class_hierarchy_facts).  No human labels.
+
+    All network/caching is delegated to the model: ``dlm.web.Web`` fetches and
+    caches, ``dlm.search.wikidata_*`` reduce the responses.  ``offline`` replays
+    the byte cache; an unreachable source abstains (no fact, no invention).
+    """
+    web = Web(cache_dir, offline=offline)
 
     # 1. names -> qids
     qid_of: Dict[str, str] = {}
     label_of: Dict[str, str] = {}
     for name in names:
-        try:
-            found = wd.search(name)
-        except FileNotFoundError:
-            found = None
+        found = wikidata_search(web, name)
         if found:
-            qid_of[name], label_of[name] = found[0], found[1]
+            qid_of[name], label_of[name] = found
         else:
             qid_of[name], label_of[name] = slug(name), name
 
     # 2. entity claims
-    ents = wd.entities(list(qid_of.values())) if any(q.startswith("Q") for q in qid_of.values()) else {}
+    ents = wikidata_entities(web, list(qid_of.values())) if any(
+        q.startswith("Q") for q in qid_of.values()) else {}
     raw: Dict[str, List[Tuple[str, str]]] = {}
     targets: List[str] = []
     for name, q in qid_of.items():
@@ -201,7 +123,8 @@ def extract(names: Sequence[str] = DEFAULT_SEEDS, *, cache_dir: str, offline: bo
         targets += [t for _, t in raw[name]]
 
     # 3. labels for every target, then slug + human label
-    tlab = wd.labels(targets)
+    tlab = wikidata_labels(web, targets)
+
     def obj_of(q: str) -> Tuple[str, str]:
         human = tlab.get(q, q) or q
         return slug(human), human
@@ -216,7 +139,7 @@ def extract(names: Sequence[str] = DEFAULT_SEEDS, *, cache_dir: str, offline: bo
         ids = [q for q, _ in batch if q not in seen]
         if not ids:
             continue
-        cent = wd.entities(ids, props="labels|claims")
+        cent = wikidata_entities(web, ids, props="labels|claims")
         # Resolve labels for BOTH sides of every subclass edge, otherwise the
         # object of a chain stays a raw QID and no transitive rule can fire.
         edge_targets: List[str] = []
@@ -224,7 +147,7 @@ def extract(names: Sequence[str] = DEFAULT_SEEDS, *, cache_dir: str, offline: bo
             for pred, tgt in _entity_targets(cent.get(q, {})):
                 if pred == "subclass_of":
                     edge_targets.append(tgt)
-        clab = wd.labels(list(dict.fromkeys(ids + edge_targets)))
+        clab = wikidata_labels(web, list(dict.fromkeys(ids + edge_targets)))
         deeper: List[Tuple[str, int]] = []
         for q, depth in batch:
             if q in seen:
@@ -251,7 +174,8 @@ def extract(names: Sequence[str] = DEFAULT_SEEDS, *, cache_dir: str, offline: bo
             labels[oslug] = human
             facts.append(Fact(pred, slug(name), oslug))
         title = ((ent.get("sitelinks", {}) or {}).get("enwiki", {}) or {}).get("title") or name
-        text = wd.summary(title)[:summary_chars]
+        summ = wikipedia_summary(web, title)
+        text = (summ.get("extract", "") if summ else "")[:summary_chars]
         docs.append(Doc(name=name, slug=slug(name), sentences=split_sentences(text),
                         facts=facts, labels=labels))
     return docs, hierarchy

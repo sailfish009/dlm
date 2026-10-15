@@ -22,13 +22,11 @@ import hashlib
 import json
 import os
 import re
-import time
 import urllib.parse as up
-import urllib.request as ur
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-UA = {"User-Agent": "dlm-research/0.1 (research; +https://github.com/sailfish009/dlm)"}
+from dlm.web import UA, Web  # transport is the model's; UA re-exported for callers
 GH_API = "https://api.github.com"
 CODELOAD = "https://codeload.github.com"
 
@@ -66,6 +64,7 @@ class CodeCache:
     def __init__(self, cache_dir: str, offline: bool = False) -> None:
         self.dir = cache_dir
         self.offline = offline
+        self.web = Web(cache_dir, offline=offline)   # the model's cached web client
         os.makedirs(cache_dir, exist_ok=True)
         self._mem: Dict[str, object] = {}
 
@@ -93,28 +92,27 @@ class CodeCache:
         return value
 
 
-def url_json(url: str, *, pause: float, retries: int) -> object:
-    last: Exception | None = None
-    for attempt in range(max(1, int(retries))):
-        time.sleep(pause * (2 ** attempt))
-        try:
-            with ur.urlopen(ur.Request(url, headers=UA), timeout=30) as r:
-                return json.load(r)
-        except Exception as exc:  # noqa: BLE001 -- retry on any transport/HTTP error
-            last = exc
-    raise last if last else RuntimeError("no response")
+def url_json(url: str, *, pause: float = 0.0, retries: int = 1,
+             client: Web = None) -> object:
+    """JSON for ``url`` via the model's web client.
+
+    ``pause``/``retries`` are kept for call compatibility; transport and byte
+    caching are handled by :class:`dlm.web.Web` (abstain -> ``None`` -> raise).
+    """
+    client = client or Web("cache")
+    data = client.get_json(url)
+    if data is None:
+        raise RuntimeError(f"no JSON response for {url}")
+    return data
 
 
-def url_bytes(url: str, *, pause: float, retries: int) -> bytes:
-    last: Exception | None = None
-    for attempt in range(max(1, int(retries))):
-        time.sleep(pause * (2 ** attempt))
-        try:
-            with ur.urlopen(ur.Request(url, headers=UA), timeout=90) as r:
-                return r.read()
-        except Exception as exc:  # noqa: BLE001
-            last = exc
-    raise last if last else RuntimeError("no response")
+def url_bytes(url: str, *, pause: float = 0.0, retries: int = 1,
+              client: Web = None) -> bytes:
+    client = client or Web("cache")
+    raw = client.get_bytes(url)
+    if raw is None:
+        raise RuntimeError(f"no response for {url}")
+    return raw
 
 
 def search_url(query: str, page: int, per_page: int) -> str:

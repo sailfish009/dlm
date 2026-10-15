@@ -30,6 +30,8 @@ from dlm.equality import (absence_rule_equality, same_kind_facts, symbols_in,
 from dlm.gist import external_holes, gist_rules
 from dlm.ground import Ground, learn
 from dlm.lisp import atom_to_form, dump, form_to_rule, rule_to_form
+from dlm.agent import (Reader, astr, atom_of, induce_transitive,
+                       transitive_closure)
 from dlm.narrative import (LEVELS, analyze_sentences, reading, reading_level,
                            reading_score)
 from dlm.proof import proof_ir, proof_size, prove, verify
@@ -37,10 +39,9 @@ from dlm.proof import proof_ir, proof_size, prove, verify
 try:
     from .acquire import URL, acquire
     from .api_semantics import api_effect_facts, direct_explains
-    from .domain import (ENTITY_PHRASES, acquire_domain, dataset_candidates,
-                         domain_facts)
+    from .domain import (DOMAIN_VOCAB, DOMAIN_VERSION, ENTITY_PHRASES)
     from .extract import extract
-    from .knowledge import acquire_knowledge, meaning_facts
+    from .knowledge import KNOWLEDGE_VERSION, SYMBOL_VOCAB
     from .semantics import bridge_forms, meaning_forms
     from .semantics import UNDERSTANDING  # noqa: F401  (re-exported for callers)
     from .signature import build_signature
@@ -49,10 +50,9 @@ except ImportError:  # direct `python experiments/mnist/run.py`
     _sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from mnist.acquire import URL, acquire
     from mnist.api_semantics import api_effect_facts, direct_explains
-    from mnist.domain import (ENTITY_PHRASES, acquire_domain, dataset_candidates,
-                              domain_facts)
+    from mnist.domain import (DOMAIN_VOCAB, DOMAIN_VERSION, ENTITY_PHRASES)
     from mnist.extract import extract
-    from mnist.knowledge import acquire_knowledge, meaning_facts
+    from mnist.knowledge import KNOWLEDGE_VERSION, SYMBOL_VOCAB
     from mnist.semantics import bridge_forms, meaning_forms
     from mnist.semantics import UNDERSTANDING  # noqa: F401
     from mnist.signature import build_signature
@@ -72,18 +72,8 @@ STRUCTURAL = frozenset({"imports", "defines", "method_of", "inherits",
 STRUCT_GROUND = Ground(())
 
 
-def atom_of(fact: tuple) -> Atom:
-    return Atom(fact[0], tuple(Const(x) for x in fact[1:]))
-
-
-def astr(a: Atom) -> str:
-    return "(" + " ".join([a.pred] + [t.name for t in a.args]) + ")"
-
-
 def transitive(atoms: set) -> set:
-    kb = KnowledgeBase(set(atoms))
-    kb.add_rule(CALLS)
-    return closure(kb)
+    return transitive_closure(set(atoms), "calls")
 
 
 def negatives(closed_calls: set, universe: list, limit=None) -> list:
@@ -101,14 +91,8 @@ def negatives(closed_calls: set, universe: list, limit=None) -> list:
 
 def _learn_calls(base: set):
     """Induce the structural ``calls`` law over ``base`` (one learning pass)."""
-    calls = {a for a in base if a.pred == "calls"}
-    positives = transitive(calls)
-    universe = sorted({t.name for a in calls for t in a.args})
-    negs = negatives(positives, universe)
-    struct = {a for a in base if a.pred in STRUCTURAL}
-    res = learn(STRUCT_GROUND, struct, positives, negs,
-                max_body=2, extra_vars=2, max_rules=4)
-    return res, positives
+    return induce_transitive(base, STRUCTURAL, pred="calls",
+                             max_body=2, extra_vars=2, max_rules=4)
 
 
 def _kb_with(base: set, res, *, close_world: bool) -> KnowledgeBase:
@@ -151,56 +135,36 @@ def causal_atoms(base: set) -> set:
     return atoms
 
 
+# The MODEL's autonomous reader, configured with the GIVEN PyTorch vocabulary.
+# The experiment supplies only the reducer + bridge/gist rules + cue lexicons;
+# the loop itself (web acquisition, induction, closure, reading) is in dlm.
+READER = Reader(
+    perceive=extract,
+    symbol_vocab=SYMBOL_VOCAB,
+    entity_vocab=DOMAIN_VOCAB,
+    bridges=bridge_forms,
+    gists=gist_rules,
+    structural=tuple(sorted(STRUCTURAL)),
+    signature_builder=build_signature,
+    causal=causal_atoms,
+    entity_phrases=ENTITY_PHRASES,
+    law_pred="calls",
+    symbol_version=KNOWLEDGE_VERSION,
+    domain_version=DOMAIN_VERSION,
+)
+
+
 def pipeline(src: str, module: str = "main", cache_dir: str = KNOWLEDGE_CACHE,
              offline: bool = True, knowledge: dict = None, domain: dict = None) -> dict:
-    """The ONE integrated path: reduce -> acquire -> search -> close -> read.
+    """The ONE integrated path, now driven by the MODEL's autonomous reader.
 
-    Shared by the north-star body (:func:`run`) and the falsifier experiment
-    (``experiments/reading``).  It performs no assertion: it returns the kernel
-    closure and the reading built over it; the caller decides what to print.
+    ``dlm.agent.Reader`` owns the loop (perceive -> acquire -> search -> induce ->
+    close -> read); this function only supplies the GIVEN PyTorch vocabulary via
+    the module-level :data:`READER`.  Shared by the north-star body (:func:`run`)
+    and the falsifier experiment (``experiments/reading``).
     """
-    ext = extract(src, module)
-    labels, pipelines = ext["labels"], ext["pipelines"]
-    facts = [tuple(f) for f in ext["facts"]]
-
-    if knowledge is None:
-        knowledge = acquire_knowledge(ext["facts"], labels, cache_dir=cache_dir,
-                                      offline=offline)
-    meanings = knowledge["meanings"]
-
-    base = {atom_of(f) for f in ext["facts"]}
-    base |= {atom_of(f) for f in meaning_facts(meanings)}
-    causal = causal_atoms(base)
-
-    # SEARCH for the one premise no reading of the code can supply: what the
-    # instantiated dataset contains (the ``recognizes`` premise of the gist).
-    cands = dataset_candidates(facts, labels)
-    holes = external_holes(facts, cands)
-    if domain is None:
-        domain = acquire_domain({h: cands[h] for h in holes}, cache_dir=cache_dir,
-                                offline=offline)
-    entities = domain.get("entities", {}) if isinstance(domain, dict) else dict(domain)
-    dfacts_list = [tuple(f) for f in domain_facts(entities)]
-    dfacts = [atom_of(f) for f in dfacts_list]
-    sig = build_signature(meanings, dfacts_list)
-
-    base_kb = base | set(dfacts)
-    res, positives = _learn_calls(base_kb)
-    kb = _kb_with(base_kb, res, close_world=True)
-    closed = closure(kb, sig) | causal
-
-    sentences = reading(closed, labels, pipelines, module=module, meanings=meanings,
-                        entity_phrases=ENTITY_PHRASES)
-    sentence_analysis = analyze_sentences(sentences, closed)
-    return {
-        "ext": ext, "labels": labels, "pipelines": pipelines, "facts": facts,
-        "knowledge": knowledge, "meanings": meanings,
-        "base": base, "causal": causal, "cands": cands, "holes": holes,
-        "domain": domain, "entities": entities, "dfacts_list": dfacts_list,
-        "sig": sig, "base_kb": base_kb, "closed": closed, "kb": kb,
-        "res": res, "positives": positives,
-        "sentences": sentences, "sentence_analysis": sentence_analysis,
-    }
+    return READER.run(src, module=module, cache_dir=cache_dir, offline=offline,
+                      knowledge=knowledge, domain=domain)
 
 
 def law_transfer(base: set) -> dict:

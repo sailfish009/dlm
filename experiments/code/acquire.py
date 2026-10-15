@@ -37,7 +37,7 @@ def search_pool(*, query: str, pages: int, per_page: int, cache, pause: float,
 
         def produce(page=page) -> dict:
             return code.url_json(code.search_url(query, page, per_page),
-                                 pause=pause, retries=retries)
+                                 pause=pause, retries=retries, client=cache.web)
 
         d = cache.get(key, produce)
         items.extend(d.get("items", []) or [])
@@ -67,7 +67,7 @@ def fetch_files(full: str, ref: str, *, cache, pause: float, retries: int,
 
     def produce() -> Dict[str, str]:
         raw = code.url_bytes("%s/%s/tar.gz/%s" % (code.CODELOAD, full, ref),
-                             pause=pause, retries=retries)
+                             pause=pause, retries=retries, client=cache.web)
         out: Dict[str, str] = {}
         with tarfile.open(fileobj=io.BytesIO(raw), mode="r:gz") as tf:
             members = sorted((m for m in tf.getmembers() if m.isfile()), key=lambda m: m.name)

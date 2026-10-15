@@ -3,6 +3,12 @@
 Fetch random Wikipedia/Wikidata class hierarchies (no human labels), learn a
 general law on `Ground` + `Experience`, and score it against the kernel.
 
+> v0.0054: the web **access and providers are the model's** now (`dlm.web`,
+> `dlm.search`).  `web.py`/`acquire.py` here keep only experiment glue — the
+> GIVEN property map and seed list, slug/sentence reduction, and the shaping of
+> wiki responses into `Fact`/`Doc` records; all transport and caching are
+> delegated to `dlm.web.Web`.
+
 ## Run
 
 ```bash
