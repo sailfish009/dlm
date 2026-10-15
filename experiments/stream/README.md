@@ -17,6 +17,20 @@ Reports: `experiments/stream/reports/stream_seed*.json`.
 
 ## Domain (synthetic, known laws)
 
+The laws are **declared in Lisp** (`DOMAIN_SOURCE` in `run.py`), not built in
+Python. Macros rewrite to `rule` forms; the one evaluator then evaluates them.
+Expansion is pure rewriting — it asserts nothing, and the kernel closure is still
+the sole judge.
+
+```lisp
+(defmacro trans (?p)   (rule (?p ?x ?y) (?p ?x ?z) (?p ?z ?y)))
+(defmacro inverse (?p ?q) (rule (?q ?x ?y) (?p ?y ?x)))
+(trans subclass_of)
+(trans part_of)
+(trans located_in)
+(inverse country country_of)
+```
+
 * transitive: `subclass_of`, `part_of`, `located_in`
 * inverse: `country_of(X,Y) :- country(Y,X)`
 * `Ground` is **empty** — every clause must be learned.
@@ -44,6 +58,11 @@ A working learning structure must, on unseen entities:
   `located_in(X,Y) :- country(Y,E0), subclass_of(X,Y)` — sound on the sampled
   *train* negatives, false on unseen test entities (9 false assertions). In an
   open universe a finite negative sample cannot prove universal soundness.
+
+The Lisp declaration refactor above is *semantically identical* to the old
+Python-built oracle, so it leaves every number unchanged — it changes the
+**medium** (laws are now code), not the learning signal. The seed-3 finding is
+therefore still open.
 
 ## Files
 

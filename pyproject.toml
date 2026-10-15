@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlm-deductive-logic-model"
-version = "0.0.38"
-description = "DLM v0.0038 (fresh minimal rebuild): Ground (immutable non-referential axioms) + Experience (conservative learned rules) + open entity universe; Lisp is the symbolic medium, the kernel is the judge."
+version = "0.0.47"
+description = "DLM v0.0047: Ground + Experience + open entity universe, the Form-tree IR, proof as data, kernel-certified label-free abstraction, core-concept (gist) capture with a search-and-relearn loop for missing domain knowledge, a leveled final natural-language reading (N1 fact .. N8 certified structural analogy) where every sentence carries the kernel atoms that entail it, and stratified closed-world negation in the trusted kernel (certified negatives, non-stratified theories rejected, and a non-monotonic closure that retracts). Lisp is the symbolic medium, the kernel is the judge."
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
 authors = [{name = "sailfish009"}]

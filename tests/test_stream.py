@@ -1,7 +1,10 @@
 """Network-free tests of the v0.0038 stream (multi-round accumulation) experiment."""
 import argparse
 
-from experiments.stream.run import run
+from dlm.lisp import Env, eval_sexp, macroexpand
+from experiments.stream.run import (
+    DOMAIN_SOURCE, domain_forms, run, true_rules, TRANSITIVE, INVERSE,
+)
 
 
 def _args(**over):
@@ -27,3 +30,18 @@ def test_rounds_accumulate_and_increase_on_unseen_entities():
 
 def test_stream_is_deterministic():
     assert run(_args()) == run(_args())
+
+
+def test_domain_laws_are_declared_in_lisp():
+    rules = true_rules()
+    shapes = {(r.head.pred, tuple(b.pred for b in r.body)) for r in rules}
+    for p in TRANSITIVE:
+        assert (p, (p, p)) in shapes            # transitivity
+    assert (INVERSE[1], (INVERSE[0],)) in shapes  # inverse
+    # expansion is pure rewriting: the macro call turns into a `rule` form
+    env = Env()
+    eval_sexp("(defmacro trans (?p) (rule (?p ?x ?y) (?p ?x ?z) (?p ?z ?y)))", env)
+    expanded = macroexpand(("trans", "subclass_of"), env.macros)
+    assert expanded[0] == "rule" and expanded[1] == ("subclass_of", "?x", "?y")
+    # the declaration is deterministic
+    assert domain_forms(DOMAIN_SOURCE) == domain_forms(DOMAIN_SOURCE)

@@ -15,27 +15,44 @@ import json
 import random
 import sys
 import time
-from typing import Dict, List, Sequence, Set, Tuple
+from typing import List, Set, Tuple
 
-from dlm import Atom, Const, KnowledgeBase, Rule, Var, closure
+from dlm import Atom, Const, KnowledgeBase, Rule, closure
 from dlm.ground import Ground, learn
+from dlm.lisp import Env, eval_sexp
 
 TRANSITIVE = ("subclass_of", "part_of", "located_in")
 INVERSE = ("country", "country_of")
 
+# The domain laws are *declared in Lisp*: macros rewrite to `rule` forms, which
+# the one evaluator then evaluates.  Expansion is pure rewriting and asserts
+# nothing; only the kernel closure decides truth.  This is the medium, not the
+# judge -- the same laws could be written by hand; here they are written as code.
+DOMAIN_SOURCE = """\
+(defmacro trans (?p) (rule (?p ?x ?y) (?p ?x ?z) (?p ?z ?y)))
+(defmacro inverse (?p ?q) (rule (?q ?x ?y) (?p ?y ?x)))
+(trans subclass_of)
+(trans part_of)
+(trans located_in)
+(inverse country country_of)
+"""
 
-def A(pred: str, x, y) -> Atom:
-    return Atom(pred, (Const(x), Const(y)))
+
+def domain_forms(source: str = DOMAIN_SOURCE):
+    """Evaluate a Lisp domain declaration; return every evaluated form.
+
+    ``defmacro`` evaluates to its name, each law call to a :class:`Rule`.
+    """
+    return eval_sexp(source, Env())
 
 
 def true_rules() -> Tuple[Rule, ...]:
-    out: List[Rule] = []
-    for p in TRANSITIVE:
-        x, y, z = Var("?x"), Var("?y"), Var("?z")
-        out.append(Rule(Atom(p, (x, y)), (Atom(p, (x, z)), Atom(p, (z, y))), "true_" + p))
-    x, y = Var("?x"), Var("?y")
-    out.append(Rule(Atom(INVERSE[1], (x, y)), (Atom(INVERSE[0], (y, x)),), "true_inv"))
-    return tuple(out)
+    """The ground-truth domain laws, built from the Lisp declaration."""
+    return tuple(r for r in domain_forms() if isinstance(r, Rule))
+
+
+def A(pred: str, x, y) -> Atom:
+    return Atom(pred, (Const(x), Const(y)))
 
 
 def truth(facts) -> Set[Atom]:
@@ -147,6 +164,9 @@ def run(args) -> dict:
             "train_facts": len(train), "train_pairs": len(train_pos),
             "test_facts": len(test), "test_pairs": len(test_pos),
             "negatives": len(negs),
+            "source": DOMAIN_SOURCE.strip(),
+            "declared_laws": [str(r.head) + " :- " + ", ".join(str(b) for b in r.body)
+                              for r in true_rules()],
         },
         "curve": curve,
         "identity_recovery": round(identity, 4),

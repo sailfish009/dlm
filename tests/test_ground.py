@@ -3,7 +3,8 @@ import itertools
 
 from dlm import Atom, Const, Rule, Var, KnowledgeBase, closure, entails, description_length
 from dlm.lisp import (parse, dump, match_form, subst_form, form_to_atom,
-                      form_to_rule, atom_to_form, eval_sexp, Env)
+                      form_to_rule, atom_to_form, eval_sexp, Env,
+                      macroexpand, quasiquote_form, DefMacro)
 from dlm.ground import Ground, Experience, lgg_atoms, variate, learn
 
 
@@ -51,6 +52,50 @@ def test_eval_only_query_reads_truth():
     eval_sexp("(fact (parent a b))", env)
     assert eval_sexp("(query (parent a b))", env) == (True,)
     assert eval_sexp("(query (parent b a))", env) == (False,)
+
+
+def test_macroexpansion_is_pure_rewriting():
+    macros = {
+        "anc": DefMacro("anc", ("?x", "?y"),
+                        ("rule", ("ancestor", "?x", "?y"), ("parent", "?x", "?y")))
+    }
+    out = macroexpand(("anc", "n0", "n1"), macros)
+    assert out == ("rule", ("ancestor", "n0", "n1"), ("parent", "n0", "n1"))
+    # a bare metavariable in a template is filled; literals are copied
+    assert quasiquote_form(("p", "?x", "fixed"), {"?x": "n0"}) == ("p", "n0", "fixed")
+
+
+def test_lisp_macros_expand_then_evaluate_via_kernel():
+    env = Env()
+    eval_sexp("(fact (parent n0 n1))", env)
+    eval_sexp("(defmacro anc (?x ?y) (rule (ancestor ?x ?y) (parent ?x ?y)))", env)
+    # expansion alone asserts nothing
+    assert eval_sexp("(expand (anc n0 n1))", env) == (
+        ("rule", ("ancestor", "n0", "n1"), ("parent", "n0", "n1")),
+    )
+    assert eval_sexp("(query (ancestor n0 n1))", env) == (False,)
+    # only when the expanded form is evaluated does the kernel see a new rule
+    eval_sexp("(anc n0 n1)", env)
+    assert eval_sexp("(query (ancestor n0 n1))", env) == (True,)
+
+
+def test_macro_abstains_on_no_progress_or_mismatch():
+    env = Env()
+    eval_sexp("(defmacro loop (?x) (loop ?x))", env)
+    try:
+        eval_sexp("(loop a)", env)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("a macro that rewrites to itself must abstain")
+    env2 = Env()
+    eval_sexp("(defmacro two (?x ?y) (p ?x ?y))", env2)
+    try:
+        eval_sexp("(two only-one)", env2)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("a mismatching macro call must abstain")
 
 
 def test_lgg_and_variate():
