@@ -14,11 +14,14 @@ The kernel is the only judge; there are no labels. A round doubles the path
 length the relation spans, so the model reaches the full transitive closure in
 **O(log diameter)** rounds and abstains at the fixpoint (a round adds nothing).
 
+> The single recursive-SSL entry point is now `experiments/selfssl/selfssl.sh`;
+> this bounded experiment remains as an internal validation module (no shell).
+
 ## Run
 
 ```bash
-./experiments/recursive/recursive.sh            # chain24 + dag16
-OUTDIR=reports/recursive/mine ./experiments/recursive/recursive.sh
+python3 experiments/recursive/run.py            # chain24 + dag16
+OUTDIR=reports/recursive/mine python3 experiments/recursive/run.py
 ```
 
 Writes `reports/recursive/<stamp>/result.json`.

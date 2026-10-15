@@ -1,4 +1,4 @@
-"""Integration: closed-loop recursive self-supervised learning (v0.0056).
+"""Integration: closed-loop recursive self-supervised learning (v0.0058).
 
 Pins the north-star loop end-to-end on the real slice, network-free (offline
 replay): the model must ADMIT each new program into its own corpus, INDUCE
@@ -9,7 +9,7 @@ self-termination short of the cap / the user.
 """
 import os
 
-from experiments.selfloop.run import (
+from experiments.selfssl.run import (
     KNOWLEDGE_CACHE, reduce_program, run, source_stream,
 )
 
@@ -100,7 +100,7 @@ def test_loop_is_deterministic_offline():
 
 
 def test_summarize_uses_only_model_outputs():
-    from experiments.selfloop.run import _summarize
+    from experiments.selfssl.run import _summarize
     m = {"round": 0, "source": "prog", "new_facts": 7, "corpus_facts": 0,
          "concepts": 0, "concept_literals": [], "concepts_transferred": 0,
          "transfer_instances": 0, "derived_atoms": 109, "targets": 15,

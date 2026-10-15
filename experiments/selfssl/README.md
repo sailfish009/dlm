@@ -1,10 +1,11 @@
-# selfloop — the north star as a closed loop
+# selfssl — recursive self-supervised learning, the one loop (v0.0058)
 
-The v0.0056 capabilities (`dlm.ability`, `dlm.curriculum`, `dlm.recursive`,
-`dlm.generalize`, `dlm.narrative`) are each proven in a *bounded* experiment.
-This is the one that wires them into a single **closed loop** and then refuses to
-stop on its own: after every round of learning + evaluation, the model summarises
-the round in natural language, and **you** decide when training ends (Ctrl-C).
+This is the **single** recursive self-supervised learning runner. The other
+`experiments/*` recursive-learning scripts were unified into this one: it wires
+the model's own capabilities into a single **closed loop** and then refuses to
+stop on its own — after every round of learning + evaluation the model
+summarises the round in natural language, and **you** decide when training ends
+(Ctrl-C).
 
 ```
               +-----------------------------------------------------+
@@ -32,7 +33,7 @@ The order matters: the program is always tested **before** it is absorbed, so
 
 `northstar` (the real `main.py`) → the 12-program corpus (`p0`…`p11`) → an
 unbounded, deterministic stream of generated variants (`g1`, `g2`, …). Offline,
-the whole thing replays byte-for-byte; the bounded test is reproducible.
+the whole thing replays byte-for-byte; the bounded check is reproducible.
 
 ## Termination is manual
 
@@ -43,8 +44,8 @@ you have seen enough:
   report is written and the process exits cleanly;
 * second Ctrl-C — forces an immediate exit.
 
-`--rounds N` bounds the loop for testing / CI; `run(...)` itself never
-self-terminates (there is no saturation or `max_rounds` on the learning path).
+**No arguments are needed.** `--rounds N` is available only to bound the loop in
+tests / the harness; `run(...)` itself never self-terminates.
 
 ## Natural language is built from the model's own output
 
@@ -60,22 +61,21 @@ calls relation reaches depth 2 (282 pairs); its open promise 'recognizes' is
 blocked only on acquired knowledge (dataset_of).
 ```
 
-The separate `reading` field is the model's own **certified** N1–N9 sentence for
-the program (`dlm.narrative`); the round sentence is a *report* over derived
-quantities, never a certification. The distinction is kept explicit in the JSON
-(`summary` vs `reading`).
+The separate `reading` field is the model's own **certified** N1–N9 sentence
+(`dlm.narrative`); the round sentence is a *report* over derived quantities,
+never a certification. The JSON keeps `summary` and `reading` distinct.
 
 ## Usage
 
 ```bash
-./experiments/selfloop/selfloop.sh                # run until you Ctrl-C
-./experiments/selfloop/selfloop.sh --rounds 5     # bounded (CI / a quick look)
-./experiments/selfloop/selfloop.sh --no-reading   # skip the per-program reading
-./experiments/selfloop/selfloop.sh --online       # allow live acquisition
-OUTDIR=reports/selfloop/mine ./experiments/selfloop/selfloop.sh
+./experiments/selfssl/selfssl.sh                 # run until you Ctrl-C
+./experiments/selfssl/selfssl.sh --rounds 5      # bounded (CI / a quick look)
+./experiments/selfssl/selfssl.sh --no-reading    # skip the per-program reading
+./experiments/selfssl/selfssl.sh --online        # allow live acquisition
+OUTDIR=reports/selfssl/mine ./experiments/selfssl/selfssl.sh
 ```
 
-Report: `reports/selfloop/<stamp>/result.json` (or `--json PATH`). Every round
+Report: `reports/selfssl/<stamp>/result.json` (or `--json PATH`). Every round
 record carries `concepts`, `concepts_transferred`, `transfer_instances`,
 `derived_atoms`, `open` / `actionable` promises, `reach_depth` / `reach_pairs`,
 the `reading`, and the `summary`.

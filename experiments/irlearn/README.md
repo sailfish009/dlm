@@ -60,9 +60,12 @@ evaluated forms but the deduction ran elsewhere. v0.0058 makes a single
 
 ## Run
 
+> The single recursive-SSL entry point is `experiments/selfssl/selfssl.sh`; this
+> bounded experiment remains as an internal validation module (no shell).
+
 ```bash
-./experiments/irlearn/irlearn.sh
-./experiments/irlearn/irlearn.sh --rounds 8
+python3 experiments/irlearn/run.py
+python3 experiments/irlearn/run.py --rounds 8
 ```
 
 Verdicts (`all_ok`): `ir_tree_is_the_medium`, `law_induced_on_the_tree`,

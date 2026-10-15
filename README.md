@@ -1002,10 +1002,11 @@ adds nothing (fixpoint). Nothing is invented: the kernel derives the extension a
 the model feeds its own conclusion back — recursion, no labels, the kernel the
 only judge. `dlm.recursive.one_shot` is the depth-1 control; on any graph with a
 path longer than two hops it provably fails to reach the closure, which is the
-falsifier that recursion is required. Run:
+falsifier that recursion is required. Run (a bounded, network-free validation
+module; the unified loop entry point is `experiments/selfssl/selfssl.sh`):
 
 ```
-./experiments/recursive/recursive.sh
+python3 experiments/recursive/run.py
 ```
 
 Measured (chain of 25 nodes, diameter 24): derived 300/300 true pairs, false 0,
@@ -1073,10 +1074,11 @@ the given self-supervision carried over from v0.0055; what v0.0057 *learns* is t
 **law** (from examples) and the **vocabulary** (a definitional/conservative
 extension, reported separately from the relational reach gain). The induction
 space is still a small generic rule space — it does **not yet** rival LLM
-open-ended induction. Run:
+open-ended induction. Run (a bounded validation module; the unified loop entry
+point is `experiments/selfssl/selfssl.sh`):
 
 ```
-./experiments/selflearn/selflearn.sh
+python3 experiments/selflearn/run.py
 ```
 
 ### 5.22 One IR-TREE: the deduction medium IS the Lisp medium (`experiments/irlearn`, v0.0058)
@@ -1105,11 +1107,51 @@ evaluates are the *same* canonical set of forms.
 Honesty: the source is read as a real IR-TREE and both the deduction and the Lisp
 side operate on that one object; the law is still induced in a small generic rule
 space, and the round-trip/agreement are demonstrated on the model's own `dlm`
-source (bounded, deterministic, network-free). Run:
+source (bounded, deterministic, network-free). Run (a bounded validation module;
+the unified loop entry point is `experiments/selfssl/selfssl.sh`):
 
 ```
-./experiments/irlearn/irlearn.sh
+python3 experiments/irlearn/run.py
 ```
+
+### 5.23 The one recursive-SSL loop (`experiments/selfssl`, v0.0058)
+
+The recursive self-supervised learning runners were unified into a **single
+entry point**, `experiments/selfssl/selfssl.sh`. The older `recursive.sh`,
+`selfloop.sh`, `selflearn.sh` and `irlearn.sh` shells were removed; those
+experiments remain as bounded, network-free **validation modules** (`python3
+experiments/<name>/run.py`). `selfssl` wires the same capabilities into one
+**closed loop** and refuses to stop on its own:
+
+```
+  PERCEIVE --> LEARN --> EVALUATE --> SUMMARIZE --> ADMIT --> (next round)
+  (new prog)  (concepts (proof on      (one NL      (fold into
+              over old  held-out +     sentence)     own corpus)
+              corpus)   reify calls)
+```
+
+Each round perceives one program (the real `main.py`, then the 12-program
+corpus, then generated variants), induces concepts over the corpus it **already
+had** (its own past output — the recursion), re-derives them on the held-out
+program by **proof**, reifies its own `calls` relation, self-assesses from the
+kernel closure only, and prints **one natural-language sentence** built from
+those derived numbers. Only then does it admit the program, so the next round
+learns from strictly more of its own conclusions.
+
+`selfssl.sh` takes **no sub-commands**: it simply runs the loop. Watch the round
+summaries and press **Ctrl-C** when you have seen enough (the round in flight
+finishes and the report is written; a second Ctrl-C forces an immediate stop).
+The loop never self-terminates. Run:
+
+```
+./experiments/selfssl/selfssl.sh                 # run until you Ctrl-C
+./experiments/selfssl/selfssl.sh --rounds 5      # bounded (tests / a quick look)
+```
+
+Measured (9 rounds, offline): concepts appear at round 5, and by round 8
+`concepts_transferred = 4` on held-out programs; the corpus grows 0 → 133 facts
+and the reified `calls` relation 87 → 302 pairs. `tests/test_selfssl.py` pins the
+loop network-free.
 
 ## 7. Layout
 
@@ -1159,10 +1201,11 @@ experiments/
   equal/           equality/congruence: reproduce and fix the D5 false negative
   integral/        forward integral + evidence measure + credit holonomy (the three layers)
   effective/       equal-budget held-out falsification of the integrals (predictor + controller)
-  recursive/       recursive self-supervised learning: bootstrap reachability from the model's own output, one-shot control
+  recursive/       (validation module, no shell) recursive self-supervised learning: bootstrap reachability from the model's own output, one-shot control
   selfimprove/     model evaluates its own ability, finds its weak spot, searches for the missing premise (scramble/no-web controls)
-  selflearn/       induce the deduction law from the model's own call graph, recurse to closure, grow the vocabulary (held-out edges)
-  irlearn/         one IR-TREE medium: grow deduction on the same form tree Lisp reads/writes, with round-trip + Lisp==kernel agreement
+  selfssl/         THE one recursive-SSL entry point: closed loop, one NL summary per round, manual Ctrl-C stop
+  selflearn/       (validation module, no shell) induce the deduction law from the model's own call graph, recurse to closure, grow the vocabulary (held-out edges)
+  irlearn/         (validation module, no shell) one IR-TREE medium: grow deduction on the same form tree Lisp reads/writes, with round-trip + Lisp==kernel agreement
   train/           accumulating learner + closure benchmark (the long-run harness seed)
 tests/             249 tests (network-free)
 test.sh            PYTHONPATH=. python -m pytest -q
@@ -1181,7 +1224,10 @@ IR-TREE (1272 forms over 350 nodes / 578 call edges), induces the composition la
 through its own `findall` (2738 pairs, `final_match`+`kernel_match` true).
 Round-trip is exact (`parse(dump(f))==f`, `atom_ir(ir_atom(f))==f`) and a Lisp macro
 writes a new form into the same tree. The law is still induced in a small generic
-rule space.
+rule space. The recursive-SSL runners are unified into the single
+`experiments/selfssl/selfssl.sh` loop (no sub-commands, one natural-language
+summary per round, Ctrl-C to stop); the older shells were removed and their
+experiments kept as bounded validation modules.
 
 `0.0.57` — **recursive self-supervised learning on the model's own source**
 (`dlm/selflearn.py`, `experiments/selflearn`). The model perceives its own `dlm`
@@ -1213,7 +1259,7 @@ self-join) and reifies the certified extension as a new predicate, so reachabili
 is bootstrapped to arbitrary depth in O(log diameter) rounds with no labels, then
 abstains at the fixpoint. It is not given the relational transitive rule; a single
 composition cannot reach the closure, which is the recursion falsifier
-(`experiments/recursive/recursive.sh`).
+(`experiments/recursive`).
 
 `0.0.54` — **the model is the subject, not the harness**. The automation that
 lets a deductive model improve without a human moves out of `experiments/` and

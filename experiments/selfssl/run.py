@@ -1,9 +1,8 @@
-"""Closed-loop recursive self-supervised learning -- the north star as a loop.
+"""Recursive self-supervised learning -- the north star as ONE closed loop.
 
-The north-star slice (``experiments/mnist``) runs ONCE: reduce a program, learn a
-law, close, read.  This experiment makes it a **closed loop** with the model's
-own capabilities wired together, and then never stops on its own -- the user
-watches and force-quits (Ctrl-C).
+The single recursive self-supervised learning experiment (v0.0058).  It runs
+forever, prints a natural-language summary of every round so you can watch it,
+and only stops when YOU stop it (Ctrl-C).
 
 Each round performs exactly one *train -> evaluate -> summarize* cycle, in the
 order that makes the evaluation honest:
@@ -28,7 +27,7 @@ Nothing here is supervised: the kernel is the only judge.  The loop terminates
 only when (a) a ``--rounds`` cap is given, or (b) the user presses Ctrl-C; on
 stop it writes a report.
 
-Report: ``reports/selfloop/<stamp>/result.json`` (or ``--json PATH``).
+Report: ``reports/selfssl/<stamp>/result.json`` (or ``--json PATH``).
 """
 from __future__ import annotations
 
@@ -54,20 +53,20 @@ from dlm.ground import Ground
 from dlm.lisp import form_to_rule
 from dlm.recursive import recurse
 
-try:                                     # imported as experiments.selfloop.run
+try:                                     # imported as experiments.selfssl.run
     from ..mnist.extract import extract
     from ..mnist.knowledge import acquire_knowledge, meaning_facts
     from ..mnist.run import CALLS, KNOWLEDGE_CACHE, atom_of, pipeline
     from ..mnist.semantics import UNDERSTANDING, bridge_forms
     from ..generalize.programs import NORTH_STAR, corpus, program
-except ImportError:                      # direct `python experiments/selfloop/run.py`
+except ImportError:                      # direct `python experiments/selfssl/run.py`
     from mnist.extract import extract
     from mnist.knowledge import acquire_knowledge, meaning_facts
     from mnist.run import CALLS, KNOWLEDGE_CACHE, atom_of, pipeline
     from mnist.semantics import UNDERSTANDING, bridge_forms
     from generalize.programs import NORTH_STAR, corpus, program
 
-VERSION = "0.0.56"
+VERSION = "0.0.58"
 
 # Behaviour gloss for a concept body -- presentation only, never consulted for
 # truth (the kernel decides whether the concept fires).
@@ -352,7 +351,7 @@ def main(argv=None) -> int:
     ap.add_argument("--min-support", type=int, default=2)
     ap.add_argument("--max-body", type=int, default=3)
     ap.add_argument("--max-concepts", type=int, default=8)
-    ap.add_argument("--out", default=os.path.join(_ROOT, "reports", "selfloop"))
+    ap.add_argument("--out", default=os.path.join(_ROOT, "reports", "selfssl"))
     ap.add_argument("--json", default="")
     args = ap.parse_args(argv)
 
@@ -362,7 +361,7 @@ def main(argv=None) -> int:
         if stop["flag"]:
             raise KeyboardInterrupt          # second Ctrl-C forces an immediate exit
         stop["flag"] = True
-        print("\n[selfloop] stop requested -- finishing the current round, "
+        print("\n[selfssl] stop requested -- finishing the current round, "
               "then writing the report (press Ctrl-C again to force).", flush=True)
 
     old = None
@@ -371,7 +370,7 @@ def main(argv=None) -> int:
     except ValueError:                        # not the main thread
         old = None
 
-    print(f"selfloop v{VERSION}: closed-loop recursive self-supervised learning")
+    print(f"selfssl v{VERSION}: recursive self-supervised learning (closed loop)")
     print("  source stream: main.py -> 12-program corpus -> generated variants")
     print(f"  acquisition : {'offline (cache replay)' if args.offline else 'online'}"
           f"   reading: {'on' if args.do_reading else 'off'}")

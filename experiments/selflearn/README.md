@@ -56,9 +56,12 @@ definitional extension: it names finer structure but adds no new entailment.
 
 ## Run
 
+> The single recursive-SSL entry point is `experiments/selfssl/selfssl.sh`; this
+> bounded experiment remains as an internal validation module (no shell).
+
 ```bash
-./experiments/selflearn/selflearn.sh
-./experiments/selflearn/selflearn.sh --rounds 8 --max-body 2
+python3 experiments/selflearn/run.py
+python3 experiments/selflearn/run.py --rounds 8 --max-body 2
 ```
 
 Verdicts (`all_ok`): `law_induced_from_examples`, `induction_rejects_negatives`,
