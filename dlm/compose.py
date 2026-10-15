@@ -1,4 +1,4 @@
-"""DLM v0.0047 -- compositional / architectural / analogical abstraction (untrusted).
+"""DLM v0.0048 -- compositional / architectural / analogical abstraction (untrusted).
 
 v0.0041 (:mod:`dlm.generalize`) mines conjunctions of *unary subject features*
 (``backpropagates(X) ∧ optimizes(X)``).  That is propositional: one subject, no

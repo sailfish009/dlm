@@ -22,6 +22,14 @@ generalised. The companion experiment [`../generalize`](../generalize) learns
 understanding concepts on a **corpus** and lets the kernel **re-derive** them on
 this program by deduction (`./northstar.sh --offline --check` runs both).
 
+v0.0053 **integrates the leveled reading into this body**. Before, `run.py`
+glossed its atoms through a private flat realizer (`realize.py`) and emitted only
+~32 structural sentences; the N1..N9 reading (purpose/gist, causal "why",
+certified absences) lived **only** in [`../reading`](../reading), which the harness
+ran last, so this body's own final output never reached the purpose sentence.
+Now the body and the falsifier experiment share **one pipeline** (`run.pipeline`)
+and the body's `narrative` IS the N1..N9 reading. `realize.py` is deleted.
+
 ## Pipeline
 
 ```
@@ -30,7 +38,7 @@ extract.py          Python ast -> function-free Horn facts (the REDUCTION)    un
 knowledge.py        used symbols -> WEB lookup -> meaning(symbol, concept)     untrusted
 semantics.py        BRIDGE_FORMS: how a meaning makes a predicate true         given
 run.py              dlm.ground.learn + kernel closure -> understanding         kernel
-realize.py          atoms -> sentences, each carrying its entailing atoms      untrusted
+                    + dlm.narrative.reading -> N1..N9 reading (1 path)        untrusted
 ```
 
 ### 1. Reduction (not a codec)
@@ -113,10 +121,14 @@ subtrees are `source` / `module` / `knowledge` / `facts` / `ground` / `learned` 
 with `dlm.lisp.dump`. This is the DLM analogue of a token sequence: **proof as
 data**, but tree-shaped and checkable.
 
-`realize.py` glosses the derived atoms into sentences. It may not invent: every
-sentence carries a `support` list of atoms, and `run.py` marks it `verified` only
-if **all** support atoms are in the kernel closure. Where the reduction captured
-nothing, there is no sentence (abstain).
+`dlm.narrative.reading` glosses the derived atoms into a **leveled** N1..N9
+reading (facts, meanings, idioms, a named gradient step, the forward-pass
+architecture, a certified "why", the purpose/gist, a structural analogy, and
+certified absences). It may not invent: every sentence carries a `support` list of
+atoms, and `run.py` marks it `certified` only if **all** support atoms are in the
+kernel closure. Where the reduction captured nothing, there is no sentence
+(abstain). The body also reports `analyze_sentences` and the exact falsifier
+`northstar_purpose` ("…to recognize handwritten digits").
 
 ## Run
 
@@ -137,18 +149,23 @@ diagnostics) and prints the narrative with an `ok` mark per verified sentence.
   `optimizer.step → parameter_update`, `model.eval → evaluation`, `torch.no_grad →
   gradient_free`, `torch.save → serialization`). The remaining 40 explicitly
   abstain (mostly builtins and local names: `range`, `print`, `argmax`, …).
-* 239 facts (incl. the acquired meanings); `calls` closure 87 pairs; 277 atoms
+* 239 facts (incl. the acquired meanings); `calls` closure 87 pairs; 615 atoms
   derived; **false_final = 0** (the induced rule derives no `calls` pair outside
+  the true closure).
   the true closure).
 * The proof for `(calls main loss_backward)` re-verifies (size 3); the abstract
   pass invents nothing.
-* All 32 narrative sentences verified (`all_sentences_verified = true`), e.g.
+* All **42** reading sentences certified across all nine levels
+  (`{N1:7, N2:4, N3:14, N4:1, N5:1, N6:5, N7:4, N8:1, N9:5}`;
+  `all_sentences_verified = true`), e.g.
 
-  > Net is a PyTorch neural-network module. Net contains a Conv2d layer.
-  > Train performs a training step. Main calls backpropagation (loss.backward).
+  > Net is a neural-network module. Net defines a Conv2d layer.
+  > Train performs a training step. Main calls backpropagation.
   > Main runs the model in evaluation mode. Main saves the trained model.
-  > Inside train the steps run in order: model.train → … → loss.backward →
-  > optimizer.step → … .
+  > Inside train, one gradient step runs in a fixed order: optimizer.zero_grad
+  > (reset) -> model (forward/loss) -> … -> optimizer.step (update).
+  > Main is a program that trains a neural-network model to recognize
+  > handwritten digits.  Net does not contain an attention layer.
 
   Every one of these is entailed by an **acquired** `meaning` fact; strip the
   meanings and the semantic sentences disappear (only the structural `imports`

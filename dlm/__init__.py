@@ -1,24 +1,57 @@
-"""DLM v0.0047 -- trusted kernel (function-free Horn substrate).
+"""DLM v0.0053 -- trusted kernel (function-free Horn substrate), plus the layers.
 
 Fresh minimal rebuild around one question: what is the learning signal for
 deduction?  The answer this version encodes: a general (pronominal,
 non-referential) rule is a promise over an open universe, so every new referent
 is a fresh, non-self-referential test.  The kernel asserts truth (closure);
-everything else proposes.  v0.0047 adds stratified negation: a body literal may
-be negated (closed-world over a GIVEN universe), the theory is stratified and
-rejected if a negative cycle exists, and the closure becomes NON-MONOTONIC -- one
-new fact can retract a derived negative -- while staying sound.  Function-free;
-no weights, no softmax.
+everything else proposes.  v0.0047 added stratified negation (closed-world over a
+GIVEN universe; non-monotonic closure that retracts; non-stratified rejected).
+v0.0048 added TYPED/MODED signatures (:class:`Signature`): a theory is checked
+statically for type soundness, range restriction and mode anability, so an
+inadmissible rule is rejected before it can assert anything -- typing gates
+admission, never truth.  v0.0049 adds the two UNTRUSTED integrators that make the
+question "does deduction need a loss?" precise: :mod:`dlm.integral` (the forward
+integral = the closure and its kernel-decided debt; the evidence integral
+``Z = sum_T exp(-E(T))`` over candidate theories, a measure not an objective) and
+:mod:`dlm.connection` (order-sensitive credit under a bounded search, whose
+discrete circulation is a nonzero HOLONOMY -- so credit is a connection and
+learning it is a path integral, not a descent).  v0.0050 makes the deduction
+ladder VISIBLE in the final natural-language reading: N9 realizes a certified
+NEGATIVE (a closed-world absence, non-monotonic) and the reader is closed under
+a GIVEN typed/moded :class:`Signature`, so an ill-typed theory makes it ABSTAIN
+before deriving anything.  v0.0051 adds EQUALITY as a FINITE congruence (D7a,
+:mod:`dlm.equality`): the first D7 rung, letting the kernel conclude that two
+different symbols denote the SAME layer kind.  It is a conservative extension --
+over a given symbol set the alias relation ``same_kind`` is a finite ground
+relation and ``uses_layer`` lifts it from definition/method-call evidence -- so a
+false closed-world negative (v0.0050 certified ``absent(net, maxpool2d)`` though
+the program CALLS ``F.max_pool2d``) is now blocked without adding any positive
+Horn conclusion.  Function-free; no weights, no softmax.  v0.0052 MEASURES the
+integrators instead of only defining them: :mod:`dlm.effective` (untrusted) turns
+the evidence integral into a held-out PREDICTOR and the order/credit integral into
+a CONTROLLER, and `experiments/effective` falsifies them at equal budget against
+MAP / static / random controls -- the evidence marginal never loses to MAP here
+and strictly beats it when two theories are energy-tied, while integrated credit
+proves 12/12 goals where static and random prove 2/12.  Well-posedness is not
+effectiveness; this version measures the second.  v0.0053 INTEGRATES the leveled
+reading into the north-star BODY: ``experiments/mnist/run.py`` and the falsifier
+``experiments/reading`` now share ONE pipeline (``mnist.run.pipeline``), and the
+body's own final natural-language output IS the N1..N9 reading -- structure +
+acquired ``meaning`` + SEARCHED ``dataset_of`` + acquired ``api_effect`` + the
+D5/D7a closed-world absence layer.  Before, the body used a private flat realizer
+and the purpose sentence ("...to recognize handwritten digits") lived only in a
+side experiment; now the body emits it (``northstar_purpose``).  No kernel change.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Optional, Tuple
 
-__version__ = "0.0.47"
+__version__ = "0.0.53"
 __all__ = [
     "Const", "Var", "Term", "Atom", "NegAtom", "Rule", "KnowledgeBase",
     "closure", "entails", "unify", "strata", "description_length",
+    "Arg", "Signature", "type_errors", "fact_type_errors",
 ]
 
 
@@ -56,6 +89,157 @@ class Rule:
     head: Atom
     body: Tuple[Atom, ...] = ()
     name: str = ""
+
+
+@dataclass(frozen=True)
+class Arg:
+    """One typed, moded position of a predicate (an ILP-style signature slot).
+
+    ``type``  the name of the required type.
+    ``mode``  ``"in"`` (must be bound before use), ``"out"`` (may be produced)
+              or ``"any"`` (neither required nor producing).
+    """
+    type: str
+    mode: str = "any"
+
+    def __post_init__(self):
+        if self.mode not in ("in", "out", "any"):
+            raise ValueError(f"unknown mode: {self.mode!r}")
+
+
+@dataclass(frozen=True)
+class Signature:
+    """A GIVEN typed/moded signature for a predicate vocabulary (standard ILP).
+
+    ``args``     predicate -> per-position :class:`Arg`.
+    ``types``    type name -> the constants that inhabit it (empty = open; then
+                 only the subtype relation, not membership, is checked).
+    ``parents``  type name -> its supertypes (a small, transitive lattice).
+
+    Types gate rule ADMISSION, never truth: a signature only *rejects* a theory
+    that is ill-typed, structurally unsafe or not mode-anable.  It cannot make a
+    sound rule unsound, and it asserts nothing by itself.
+    """
+    args: Dict[str, Tuple[Arg, ...]] = field(default_factory=dict)
+    types: Dict[str, frozenset] = field(default_factory=dict)
+    parents: Dict[str, Tuple[str, ...]] = field(default_factory=dict)
+
+    def has(self, pred: str) -> bool:
+        return pred in self.args
+
+    def arity(self, pred: str) -> int:
+        return len(self.args[pred])
+
+    def ancestors(self, t: str) -> set:
+        """``t`` plus every transitive supertype."""
+        seen, stack = {t}, [t]
+        while stack:
+            for p in self.parents.get(stack.pop(), ()):
+                if p not in seen:
+                    seen.add(p)
+                    stack.append(p)
+        return seen
+
+    def compatible(self, a: str, b: str) -> bool:
+        # Unifiable iff one type is a subtype of the other (disjoint branches
+        # never meet).  A variable has exactly ONE type, so ``module`` and
+        # ``symbol`` clash even though both sit under ``callable``.
+        return a in self.ancestors(b) or b in self.ancestors(a)
+
+    def constants(self, t: str) -> set:
+        out: set = set()
+        for c in self.ancestors(t):
+            out |= set(self.types.get(c, ()))
+        return out
+
+
+def _vars(atom: Atom) -> set:
+    return {t.name for t in atom.args if isinstance(t, Var)}
+
+
+def type_errors(rule: Rule, sig: Signature) -> Tuple[str, ...]:
+    """Every static reason ``rule`` is inadmissible under ``sig`` (empty = OK).
+
+    Checks, in order: (a) known predicate + arity, (b) type soundness -- a
+    variable has one type and a constant inhabits its slot's type, (c) range
+    restriction -- every head/negated variable occurs in a POSITIVE body literal,
+    and (d) mode anability -- every ``in`` position is bound by the head's own
+    ``in`` positions or produced by some positive literal.  Anything it flags
+    would otherwise be silently pruned at run time; here it is rejected up front.
+    """
+    errs: list = []
+    atoms = [(rule.head, False)] + [(l, isinstance(l, NegAtom)) for l in rule.body]
+    for lit, isneg in atoms:
+        a = lit.atom if isneg else lit
+        if a.pred not in sig.args:
+            errs.append(f"unknown predicate {a.pred!r}")
+            continue
+        if len(a.args) != sig.arity(a.pred):
+            errs.append(f"arity {a.pred}/{len(a.args)} != declared {sig.arity(a.pred)}")
+            continue
+        for term, arg in zip(a.args, sig.args[a.pred]):
+            if isinstance(term, Const):
+                consts = sig.constants(arg.type)
+                if consts and term.name not in consts:
+                    errs.append(f"constant {term.name!r} is not of type {arg.type}")
+    vt: Dict[str, str] = {}
+    for lit, isneg in atoms:
+        a = lit.atom if isneg else lit
+        if a.pred not in sig.args or len(a.args) != sig.arity(a.pred):
+            continue
+        for term, arg in zip(a.args, sig.args[a.pred]):
+            if not isinstance(term, Var):
+                continue
+            prev = vt.get(term.name)
+            if prev is None:
+                vt[term.name] = arg.type
+            elif not sig.compatible(prev, arg.type):
+                errs.append(f"type clash on ?{term.name}: {prev} vs {arg.type}")
+            elif prev in sig.ancestors(arg.type):
+                vt[term.name] = arg.type  # keep the more specific type
+    pos = [l for l in rule.body if isinstance(l, Atom)]
+    pos_vars = set().union(*[_vars(l) for l in pos]) if pos else set()
+    for v in _vars(rule.head):
+        if v not in pos_vars:
+            errs.append(f"unsafe: head variable ?{v} is bound by no positive body literal")
+    for lit, isneg in atoms:
+        if isneg:
+            for v in _vars(lit.atom):
+                if v not in pos_vars:
+                    errs.append(f"unsafe: negated variable ?{v} is bound by no positive body literal")
+    bound = set()
+    for term, arg in zip(rule.head.args, sig.args[rule.head.pred]) \
+            if rule.head.pred in sig.args else ():
+        if isinstance(term, Var) and arg.mode == "in":
+            bound.add(term.name)
+        if isinstance(term, Const):
+            bound.add("\0" + term.name)  # constants are always bound
+    produced = {t.name for lit in pos if lit.pred in sig.args
+                for term, arg in zip(lit.args, sig.args[lit.pred])
+                if arg.mode in ("out", "any") for t in ([term] if isinstance(term, Var) else [])}
+    produced |= {term.name for lit in pos for term in lit.args if isinstance(term, Const)}
+    for lit in pos:
+        if lit.pred not in sig.args or len(lit.args) != sig.arity(lit.pred):
+            continue
+        for term, arg in zip(lit.args, sig.args[lit.pred]):
+            if arg.mode == "in" and isinstance(term, Var) and term.name not in bound and term.name not in produced:
+                errs.append(f"mode: input ?{term.name} of {lit.pred} is never produced")
+    return tuple(dict.fromkeys(errs))
+
+
+def fact_type_errors(atom: Atom, sig: Signature) -> Tuple[str, ...]:
+    """Static reasons a ground fact is ill-typed under ``sig`` (empty = OK)."""
+    if atom.pred not in sig.args:
+        return (f"unknown predicate {atom.pred!r}",)
+    if len(atom.args) != sig.arity(atom.pred):
+        return (f"arity {atom.pred}/{len(atom.args)} != declared {sig.arity(atom.pred)}",)
+    errs: list = []
+    for term, arg in zip(atom.args, sig.args[atom.pred]):
+        if isinstance(term, Const):
+            consts = sig.constants(arg.type)
+            if consts and term.name not in consts:
+                errs.append(f"constant {term.name!r} is not of type {arg.type}")
+    return tuple(errs)
 
 
 def _bind(pat: Term, ground: Term, s: Dict[str, Term]) -> bool:
@@ -127,7 +311,7 @@ def _join_delta(body: Tuple[Atom, ...], by_pred: dict, delta_by: dict, di: int,
             yield from _join_delta(body, by_pred, delta_by, di, i + 1, ns)
 
 
-def closure(kb: KnowledgeBase) -> set:
+def closure(kb: KnowledgeBase, sig: Optional[Signature] = None) -> set:
     """Least fixpoint of the rules over the facts (the kernel asserts this).
 
     Pure Horn rules use semi-naive evaluation: the first round joins over all
@@ -141,7 +325,19 @@ def closure(kb: KnowledgeBase) -> set:
     (see :func:`strata`): negation is sound only when the negated predicate is
     defined in a strictly lower stratum, so the facts it ranges over are already
     complete.  A negative dependency cycle is rejected with ``ValueError``.
+
+    If a typed/moded :class:`Signature` is supplied, the facts and rules are
+    checked *statically* first (see :func:`type_errors`) and an ill-typed theory
+    is rejected with ``TypeError`` before any derivation happens -- truth can
+    never be polluted by a rule that typing makes inadmissible.
     """
+    if sig is not None:
+        bad = [f"fact {a.pred}: {e}" for a in kb.facts
+               for e in fact_type_errors(a, sig)]
+        for r in kb.rules:
+            bad += [f"rule {r.name or r.head.pred}: {e}" for e in type_errors(r, sig)]
+        if bad:
+            raise TypeError("ill-typed theory: " + "; ".join(bad))
     for rule in kb.rules:
         for lit in rule.body:
             if isinstance(lit, NegAtom):

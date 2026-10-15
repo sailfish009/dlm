@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dlm-deductive-logic-model"
-version = "0.0.47"
-description = "DLM v0.0047: Ground + Experience + open entity universe, the Form-tree IR, proof as data, kernel-certified label-free abstraction, core-concept (gist) capture with a search-and-relearn loop for missing domain knowledge, a leveled final natural-language reading (N1 fact .. N8 certified structural analogy) where every sentence carries the kernel atoms that entail it, and stratified closed-world negation in the trusted kernel (certified negatives, non-stratified theories rejected, and a non-monotonic closure that retracts). Lisp is the symbolic medium, the kernel is the judge."
+version = "0.0.53"
+description = "DLM v0.0053: the north-star BODY is integrated with the leveled final natural-language reading (N1..N9) -- it and the falsifier experiment share one pipeline (mnist.run.pipeline), so the body's own output carries the purpose/gist sentence, the certified 'why', and the closed-world absences, built over structure + acquired meaning + searched dataset_of + acquired api_effect. Plus Ground + Experience + open entity universe, the Form-tree IR, proof as data, kernel-certified label-free abstraction, core-concept (gist) capture, stratified closed-world negation (certified negatives, non-monotonic retraction), typed/moded signatures checked before any derivation, equality as a FINITE congruence (dlm.equality, D7a), the untrusted INTEGRATORS (dlm.integral, dlm.connection), and dlm.effective: an equal-budget held-out falsification of the integrators. Lisp is the symbolic medium, the kernel is the judge."
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
 authors = [{name = "sailfish009"}]

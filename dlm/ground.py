@@ -1,4 +1,4 @@
-"""DLM v0.0047 -- Ground / Experience / open entity universe (untrusted).
+"""DLM v0.0048 -- Ground / Experience / open entity universe (untrusted).
 
 The architecture this module makes concrete:
 

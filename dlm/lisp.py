@@ -1,4 +1,4 @@
-"""DLM v0.0047 -- the Lisp seam (untrusted symbolic medium).
+"""DLM v0.0048 -- the Lisp seam (untrusted symbolic medium).
 
 Lisp is the medium, not the judge: it represents ground axioms, matches their
 pronouns (``?x``) against referential facts, and evaluates forms.  Only

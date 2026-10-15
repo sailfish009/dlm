@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# DLM v0.0042 north-star slice: acquire the PyTorch MNIST example, REDUCE it to
+# DLM v0.0053 north-star slice: acquire the PyTorch MNIST example, REDUCE it to
 # function-free Horn facts, look the used library symbols UP ON THE WEB and reduce
 # their definitions to `meaning(symbol, concept)` facts, LEARN a call rule from the
 # reduction, derive an understanding set through the trusted kernel, emit it as an
-# IR form, and gloss it into verified natural-language sentences.
+# IR form, and gloss it into the N1..N9 leveled reading (each sentence certifying
+# its support against the kernel closure).  The body and experiments/reading share
+# one pipeline (run.pipeline).
 #
 # Usage:
 #   ./experiments/mnist/mnist.sh                 # fetch (or reuse cache)

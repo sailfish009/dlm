@@ -1,4 +1,4 @@
-"""Network-free tests of the v0.0047 stratified-negation kernel + closed world.
+"""Network-free tests of the v0.0048 stratified-negation kernel + closed world.
 
 The new capability is a certified NEGATIVE conclusion over a given universe, with
 the property pure Horn cannot have -- non-monotonicity -- while staying sound:

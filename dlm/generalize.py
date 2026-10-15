@@ -1,4 +1,4 @@
-"""DLM v0.0047 -- generalization + concept invention over a CORPUS (untrusted).
+"""DLM v0.0048 -- generalization + concept invention over a CORPUS (untrusted).
 
 The abstraction in :mod:`dlm.abstract` folds recurring *rule bodies*.  This
 layer abstracts the **facts**: given a corpus of programs (each a set of

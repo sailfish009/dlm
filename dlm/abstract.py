@@ -1,4 +1,4 @@
-"""DLM v0.0047 -- label-free abstraction (untrusted, kernel-certified).
+"""DLM v0.0048 -- label-free abstraction (untrusted, kernel-certified).
 
 The LLM fits data to an external label ``y``.  The deductive model has **no
 label**: its target is its own closure.  Learning is therefore *abstraction* --

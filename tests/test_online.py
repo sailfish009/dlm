@@ -55,4 +55,23 @@ def test_run_and_analyze(tmp_path):
     for aspect in ("[coverage]", "[soundness]", "[generalisation]", "[dynamics]",
                    "[intra-round]", "[verdict]"):
         assert aspect in text
-    assert set(ARMS) == {"frozen", "plain", "abstract", "random"}
+    assert set(ARMS) == {"frozen", "plain", "abstract", "integral", "random"}
+
+
+def test_integral_marginal_is_logged_with_a_proper_score():
+    # v0.0052: every round logs the evidence-integral marginal at the same target.
+    rows = online_run("plain", 0, **CFG)
+    assert all({"held_marginal", "marginal_false", "marginal_brier",
+                "point_brier"} <= set(r) for r in rows)
+    for r in rows:
+        assert 0.0 <= r["held_marginal"] <= 1.0
+        assert r["marginal_false"] >= 0
+        assert 0.0 <= r["marginal_brier"] <= 1.0 and 0.0 <= r["point_brier"] <= 1.0
+
+
+def test_integral_arm_coexists_with_plain():
+    # the applied arm trains like `plain`; only the logged prediction differs
+    plain = online_run("plain", 0, **CFG)[-1]
+    integral = online_run("integral", 0, **CFG)[-1]
+    assert plain["held_recovery"] == integral["held_recovery"]
+    assert plain["held_marginal"] == integral["held_marginal"]

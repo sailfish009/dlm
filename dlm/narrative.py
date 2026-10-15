@@ -1,4 +1,4 @@
-"""DLM v0.0047 -- the leveled narrative realizer (untrusted, kernel-checked).
+"""DLM v0.0050 -- the leveled narrative realizer (untrusted, kernel-checked).
 
 The v0.0043 pipeline could *list* facts and *name* a core concept, but every
 sentence had the same flat shape (one atom -> one template) and the only
@@ -12,6 +12,15 @@ final natural-language output a measured **level**:
                       forward/loss -> backward -> update."     subgraph, not a raw chain)
     N5 architecture  "Net.forward is a conv -> relu -> ...    (role-normalised topology)
                       -> linear -> softmax network."
+    N9 absence       "Net does not contain a maxpool2d        (a certified NEGATIVE,
+                      layer."                                  closed-world negation)
+
+v0.0050 adds the first NEGATIVE sentence (N9): ``absent(?m,?l)`` is derivable only
+by stratified closed-world negation over a GIVEN candidate universe, and it is
+NON-MONOTONIC -- adding one ``has_layer`` fact retracts the matching sentence.
+Pure Horn deduction can never produce it.  Typing (D6) is deliberately NOT a
+sentence level: it GATES admission (an ill-typed theory makes the reader abstain),
+it never asserts a truth.
 
 Nothing here asserts truth.  Every sentence carries the atoms (``support``) that
 entail it and ``run.py`` refuses to print a sentence whose support is not in the
@@ -20,6 +29,13 @@ done by the UNTRUSTED realizer; the *facts* (calls/before/has_layer, acquired
 ``meaning``) come from the kernel closure.  No library symbol is named by the
 interpreter; the level-4/5 boundary uses acquired meanings where available and a
 small, auditable presentation lexicon otherwise (never consulted for truth).
+
+v0.0053 exports ``LEVEL_NOTE`` (each rung's KIND: presentation vs deduction vs
+knowledge-dependent) and ``analyze_sentences(sentences, closed)`` -- a read-only
+report over an already-built reading (per-level counts, certification, whether
+every support atom is really in the kernel closure, the negative sentences, and
+which rungs are presentation-only / knowledge-dependent).  The north-star BODY
+uses the same ``reading`` and this report; see ``experiments/mnist/run.py``.
 """
 from __future__ import annotations
 
@@ -29,7 +45,8 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 from . import Atom
 from .gist import concept_atoms, concept_str
 
-__all__ = ["LEVELS", "LEVEL_NAMES", "reading", "reading_level", "reading_score"]
+__all__ = ["LEVELS", "LEVEL_NAMES", "LEVEL_NOTE", "reading", "reading_level",
+           "reading_score", "analyze_sentences"]
 
 # The reading ladder.  N-numbers are the "sentence level" of the final output.
 LEVELS: Dict[int, str] = {
@@ -41,6 +58,7 @@ LEVELS: Dict[int, str] = {
     6: "causal",
     7: "purpose",
     8: "analogy",
+    9: "absence",
 }
 LEVEL_NAMES = {v: k for k, v in LEVELS.items()}
 
@@ -371,6 +389,86 @@ def _n8(closed: set, labels: Dict[str, str], pipelines: Dict[str, List[str]]) ->
     return out
 
 
+# --- N9 absence (D5 closed-world negation) ----------------------------------
+def _article(word: str) -> str:
+    return "an" if word[:1].lower() in "aeiou" else "a"
+
+
+def _n9(closed: set, labels: Dict[str, str]) -> List[dict]:
+    """Realise the certified NEGATIVE ``absent(M, L)`` (stratified negation).
+
+    This is the first NEGATIVE sentence in the reading: ``absent`` is derivable
+    only by closed-world negation over a GIVEN candidate universe, and it is
+    NON-MONOTONIC -- adding one ``has_layer`` fact retracts the matching
+    sentence.  Pure Horn deduction can never produce it.  The sentence is a
+    kernel-certified conclusion, not an assertion of absence-in-general.
+    """
+    closed_strs = {_astr(a) for a in closed}
+    out: List[dict] = []
+    for a in sorted(closed, key=_astr):
+        if a.pred != "absent":
+            continue
+        m = labels.get(a.args[0].name, a.args[0].name)
+        l = labels.get(a.args[1].name, a.args[1].name)
+        _emit(out, 9, f"{m} does not contain {_article(l)} {l} layer.",
+              [_astr(a)], closed_strs)
+    return out
+
+
+# What each rung IS, so a sentence analysis can separate presentation from
+# deduction.  Only N9 changes the conclusion set (it is the certified NEGATIVE,
+# non-monotonic); N2/N6/N7/N8 lean on ACQUIRED knowledge; N3/N4/N5/N8 are
+# presentation of certified structure.
+LEVEL_NOTE: Dict[int, str] = {
+    1: "fact (monotone)",
+    2: "acquired meaning applied",
+    3: "presentation: idiom",
+    4: "presentation: named composition",
+    5: "presentation: role topology",
+    6: "certified why (acquired api_effect)",
+    7: "purpose/gist (NEEDS searched domain knowledge)",
+    8: "presentation: certified analogy",
+    9: "deduction: certified NEGATIVE (non-monotonic)",
+}
+
+
+def analyze_sentences(sentences: Sequence[dict], closed: set) -> dict:
+    """Analyse the final NL output sentence by sentence (untrusted).
+
+    Separates the *presentation* reach (how many rungs speak) from the
+    *deduction* content: every sentence's ``support`` atoms must lie in the
+    kernel closure, and only N9 is a non-monotonic conclusion.  This is a
+    read-only report over an already-certified reading; it asserts nothing.
+    """
+    closed_strs = {_astr(a) for a in closed}
+    by_level: Dict[int, List[dict]] = {}
+    for s in sentences:
+        by_level.setdefault(s["level"], []).append(s)
+    support_atoms: set = set()
+    for s in sentences:
+        support_atoms.update(s["support"])
+    uncertified = [s["text"] for s in sentences if not s.get("certified")]
+    levels = sorted(by_level)
+    return {
+        "sentence_count": len(sentences),
+        "by_level": {n: len(by_level[n]) for n in levels},
+        "rung_kind": {n: LEVEL_NOTE.get(n, "?") for n in levels},
+        "levels_present": levels,
+        "max_level": max(levels) if levels else 0,
+        "certified": sum(1 for s in sentences if s.get("certified")),
+        "uncertified": uncertified,
+        "all_support_in_closure": all(t in closed_strs for t in support_atoms),
+        "distinct_support_atoms": len(support_atoms),
+        "mean_support_size": round(
+            sum(len(s["support"]) for s in sentences) / len(sentences), 3)
+        if sentences else 0.0,
+        "negative_sentences": len(by_level.get(9, [])),
+        "negative_texts": [s["text"] for s in by_level.get(9, [])],
+        "presentation_only_levels": [n for n in levels if n in (1, 3, 4, 5, 8)],
+        "knowledge_dependent_levels": [n for n in levels if n in (2, 6, 7)],
+    }
+
+
 def reading(closed: set, labels: Dict[str, str], pipelines: Dict[str, List[str]],
             *, module: str = "main", meanings: Optional[Dict[str, str]] = None,
             entity_phrases: Optional[Dict[str, str]] = None) -> List[dict]:
@@ -386,5 +484,6 @@ def reading(closed: set, labels: Dict[str, str], pipelines: Dict[str, List[str]]
     out += _n6(closed, labels)
     out += _n7(closed, labels, entity_phrases)
     out += _n8(closed, labels, pipelines)
+    out += _n9(closed, labels)
     out.sort(key=lambda s: (s["level"], s["text"]))
     return out

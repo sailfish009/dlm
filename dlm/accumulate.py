@@ -1,4 +1,4 @@
-"""DLM v0.0047 -- the accumulating learner (untrusted).
+"""DLM v0.0048 -- the accumulating learner (untrusted).
 
 ``ground.learn`` always starts from a fresh ``Experience``: it is a *refit* over
 whatever has been revealed so far, not an accumulation.  For a long run you need

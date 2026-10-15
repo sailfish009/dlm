@@ -1,4 +1,4 @@
-"""DLM v0.0047 -- the IR-TREE layer (untrusted).
+"""DLM v0.0048 -- the IR-TREE layer (untrusted).
 
 The canonical intermediate representation is the **form tree** -- the same nested
 tuple that atoms, rules, and macros already use::

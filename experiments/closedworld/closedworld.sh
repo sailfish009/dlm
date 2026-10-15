@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# DLM v0.0047 closed-world deduction: certify what the program does NOT have.
+# DLM v0.0048 closed-world deduction: certify what the program does NOT have.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"

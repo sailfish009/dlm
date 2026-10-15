@@ -1,4 +1,4 @@
-"""DLM v0.0047 -- closed-world absence over a GIVEN candidate universe (untrusted).
+"""DLM v0.0048 -- closed-world absence over a GIVEN candidate universe (untrusted).
 
 Negation is only sound over a finite, explicitly given domain.  This layer builds
 

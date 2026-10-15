@@ -1,4 +1,4 @@
-"""DLM v0.0047 -- proof as data (untrusted).
+"""DLM v0.0048 -- proof as data (untrusted).
 
 ``closure`` returns a *set* of atoms, but compression needs a *tree*.  A
 :class:`Proof` is a certifying derivation tree: an atom, the rule that derived

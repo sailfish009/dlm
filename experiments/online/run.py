@@ -31,24 +31,29 @@ if str(ROOT) not in sys.path:
 
 from dlm import Atom, Const, KnowledgeBase, closure  # noqa: E402
 from dlm.abstract import abstract_theory, theory_dl  # noqa: E402
+from dlm.effective import (brier, map_prediction, marginal_prediction,
+                           positive_set)  # noqa: E402
 from dlm.ground import Experience, Ground, learn  # noqa: E402
+from dlm.integral import evidence  # noqa: E402
 from dlm.proof import prove, proof_size  # noqa: E402
-from experiments.stream.run import (TRANSITIVE, gen_synthetic,  # noqa: E402
+from experiments.stream.run import (INVERSE, TRANSITIVE, gen_synthetic,  # noqa: E402
                                      negatives, truth)
 
-ARMS = ("frozen", "plain", "abstract", "random")
-INDUCING = ("plain", "abstract", "random")
-CURVE_FIELDS = ("held_recovery", "held_gain", "train_recovery", "train_false",
-                "false_assert", "clauses", "new_clauses", "dl", "avg_body_len",
+ARMS = ("frozen", "plain", "abstract", "integral", "random")
+INDUCING = ("plain", "abstract", "integral", "random")
+CURVE_FIELDS = ("held_recovery", "held_marginal", "held_gain", "train_recovery",
+                "train_false", "false_assert", "marginal_false", "marginal_brier",
+                "point_brier", "clauses", "new_clauses", "dl", "avg_body_len",
                 "max_depth", "mean_depth", "learn_seconds", "negatives",
                 "revealed_facts")
 RECORD_FIELDS = (
     "arm", "seed", "round", "revealed_facts", "revealed_entities", "revealed_pairs",
     "negatives", "clauses", "new_clauses", "dl", "dl_delta", "invented", "heads",
     "train_recovery", "train_false", "generalization_gap", "held_recovery",
-    "held_gain", "held_new", "false_assert", "avg_body_len", "retention", "churn",
-    "rules_admitted", "intra_curve", "max_depth", "mean_depth", "proof_nodes",
-    "depth_sampled", "learn_seconds")
+    "held_marginal", "held_gain", "held_new", "false_assert", "marginal_false",
+    "marginal_brier", "point_brier",
+    "avg_body_len", "retention", "churn", "rules_admitted", "intra_curve",
+    "max_depth", "mean_depth", "proof_nodes", "depth_sampled", "learn_seconds")
 
 
 def _batches(items: Sequence[Atom], rounds: int) -> List[set]:
@@ -65,6 +70,45 @@ def _kb(rules: Sequence, facts: set) -> KnowledgeBase:
 
 def _pct(hit: int, total: int) -> float:
     return round(hit / total, 4) if total else 1.0
+
+
+def _subsets(rules: Sequence, max_size: int) -> List[tuple]:
+    """Candidate theories = subsets of the learned rules (incl. the empty set)."""
+    from itertools import combinations
+    rules = tuple(rules)
+    out: List[tuple] = [()]
+    for k in range(1, min(max_size, len(rules)) + 1):
+        out.extend(combinations(rules, k))
+    if rules not in out:                       # the point theory must be a candidate
+        out.append(rules)
+    return out
+
+
+def _integral_prediction(rules: Sequence, train_facts: set, train_pos: set, neg: set,
+                         test: set, test_pos: set, *, max_subset: int = 2,
+                         cost: float = 0.5) -> Tuple[float, int, float, float]:
+    """The evidence-integral prediction over rule subsets (v0.0052, applied).
+
+    Point theories commit to the whole learned set; the posterior MARGINAL hedges
+    over every subset weighted by its train evidence.  Returns the committed
+    (recall, false asserts) at a 0.5 threshold AND the two proper Brier scores --
+    calibration is the integral's real claim, not the thresholded recall.
+    """
+    theories = _subsets(rules, max_subset)
+    names = [f"t{i}" for i in range(len(theories))]
+    ev = evidence(list(zip(names, theories)), KnowledgeBase(set(train_facts)),
+                  list(train_pos), negatives=set(neg), cost=cost)
+    ent = sorted({c.name for a in test for c in a.args})
+    preds = sorted(set(TRANSITIVE) | set(INVERSE))
+    universe = [Atom(p, (Const(a), Const(b))) for p in preds for a in ent for b in ent]
+    test_kb = KnowledgeBase(set(test))
+    marg = marginal_prediction(ev, theories, test_kb, universe)
+    mapp = map_prediction(ev, theories, test_kb, universe)
+    committed = positive_set(marg, 0.5)
+    rec = round(len(committed & test_pos) / len(test_pos), 4) if test_pos else 1.0
+    return (rec, len(committed - test_pos),
+            round(brier(marg, universe, test_pos), 6),
+            round(brier(mapp, universe, test_pos), 6))
 
 
 def _random_positives(revealed: set, revealed_truth: set, cap: int, rng: Random) -> set:
@@ -151,6 +195,11 @@ def online_run(arm: str, seed: int, *, n_train: int, n_test: int, chains: int,
         held = _pct(len(covered), len(test_pos))
         false_assert = len(closed_test - test_pos)
 
+        # APPLY the integral: score the same theory with the posterior marginal
+        # over rule subsets, in every arm, at the same held-out target.
+        held_marginal, marginal_false, marginal_brier, point_brier = _integral_prediction(
+            rules, revealed, revealed_truth, neg, test, test_pos)
+
         cur_rules = {str(x) for x in exp.rules}
         bodies = [len(x.body) for x in exp.rules]
         d = _derivation_stats(covered, kb_test, rng, depth_cap)
@@ -165,8 +214,11 @@ def online_run(arm: str, seed: int, *, n_train: int, n_test: int, chains: int,
             "heads": len({x.head.pred for x in rules}),
             "train_recovery": train_rec, "train_false": train_false,
             "generalization_gap": round(train_rec - held, 4),
-            "held_recovery": held, "held_gain": round(held - prev_held, 4),
+            "held_recovery": held, "held_marginal": held_marginal,
+            "marginal_brier": marginal_brier, "point_brier": point_brier,
+            "held_gain": round(held - prev_held, 4),
             "held_new": len(covered - prev_covered), "false_assert": false_assert,
+            "marginal_false": marginal_false,
             "avg_body_len": round(mean(bodies), 3) if bodies else 0.0,
             "retention": (round(len(cur_rules & prev_rules) / len(prev_rules), 3)
                           if prev_rules else 1.0),
@@ -246,6 +298,20 @@ def analyze(outdir: Path) -> Tuple[str, dict]:
         lines.append(f"  {arm:9s} by round=[{vals}] final={cur[-1]['false_assert']:.0f}")
     lines.append("")
 
+    lines.append("[integral] the evidence marginal vs the point theory (held-out)\n"
+                 "  recall at a 0.5 commit AND the proper Brier score (calibration).\n"
+                 "  under an MDL prior the marginal may COMMIT to fewer atoms yet\n"
+                 "  score better; the two are reported, not conflated.\n") 
+    for arm, cur in sorted(arm_curves.items()):
+        f = cur[-1]
+        d = f["held_marginal"] - f["held_recovery"]
+        db = f["marginal_brier"] - f["point_brier"]
+        lines.append(f"  {arm:9s} recall point={f['held_recovery']:.3f} "
+                     f"marginal={f['held_marginal']:.3f} ({d:+.3f})  brier "
+                     f"point={f['point_brier']:.4f} marginal={f['marginal_brier']:.4f} "
+                     f"({db:+.4f})")
+    lines.append("")
+
     lines.append("[generalisation] train fit vs unseen; theory growth")
     for arm, cur in sorted(arm_curves.items()):
         f = cur[-1]
@@ -287,7 +353,7 @@ def analyze(outdir: Path) -> Tuple[str, dict]:
 
 def main(argv: Optional[List[str]] = None) -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--arms", default="frozen,plain,abstract,random")
+    p.add_argument("--arms", default="frozen,plain,abstract,integral,random")
     p.add_argument("--seeds", default="0,1,2")
     p.add_argument("--rounds", type=int, default=5)
     p.add_argument("--n-train", type=int, default=24)

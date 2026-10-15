@@ -62,9 +62,13 @@ def test_run_derives_verified_understanding():
     assert r["all_sentences_verified"] is True
     assert r["false_final_count"] == 0
     assert r["counts"]["learned_rules"] >= 1
+    # v0.0053: the body's output IS the leveled N1..N9 reading (one pipeline)
+    assert r["reading_level"] >= 4
+    assert r["sentences"] == r["narrative"]
+    assert all(s["certified"] for s in r["narrative"])
     # the message uses the trusted kernel: every sentence is backed by closure atoms
     text = " ".join(s["text"] for s in r["narrative"])
-    assert "is a PyTorch neural-network module" in text
+    assert "is a neural-network module" in text
     assert "calls backpropagation" in text
     assert r["proof"] is not None and r["proof"]["verified"] is True
     assert r["ground_proof"] is not None and r["ground_proof"]["verified"] is True

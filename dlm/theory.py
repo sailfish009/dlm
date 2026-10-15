@@ -1,4 +1,4 @@
-"""DLM v0.0047 -- theory persistence (untrusted).
+"""DLM v0.0048 -- theory persistence (untrusted).
 
 A learned theory is Ground rules + Experience rules + the facts they were learned
 over.  To run for a long time you must be able to stop, checkpoint, and resume, so

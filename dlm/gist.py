@@ -1,4 +1,4 @@
-"""DLM v0.0047 -- core-concept (gist) capture over a program (untrusted, kernel-certified).
+"""DLM v0.0048 -- core-concept (gist) capture over a program (untrusted, kernel-certified).
 
 The reduction (``experiments/mnist/extract.py``) and the acquired ``meaning`` facts
 say *what the code uses and what those symbols mean individually*.  That is a pile

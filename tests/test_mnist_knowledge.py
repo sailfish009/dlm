@@ -159,7 +159,7 @@ def test_meaning_facts_shape():
 def test_understanding_requires_acquired_meaning():
     full = run(TINY, "inline://tiny")
     text = " ".join(s["text"] for s in full["narrative"])
-    assert "is a PyTorch neural-network module" in text
+    assert "is a neural-network module" in text
     assert "calls backpropagation" in text
     assert full["knowledge"]["meanings"]["nn_module"] == "module_base"
 
@@ -167,7 +167,7 @@ def test_understanding_requires_acquired_meaning():
     empty = run(TINY, "inline://tiny",
                 knowledge={"meanings": {}, "records": [], "stats": {"offline": True}})
     et = " ".join(s["text"] for s in empty["narrative"])
-    assert "is a PyTorch neural-network module" not in et
+    assert "is a neural-network module" not in et
     assert "calls backpropagation" not in et
     assert "imports torch" in et          # structural facts still understood
     assert empty["all_sentences_verified"] is True

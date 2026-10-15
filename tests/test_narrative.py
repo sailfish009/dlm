@@ -1,4 +1,4 @@
-"""Network-free tests of the v0.0047 leveled narrative realizer.
+"""Network-free tests of the v0.0048 leveled narrative realizer.
 
 The version raises the measured level of the final natural-language output from
 N7 (purpose) to N8: a structural analogy between two routines that share

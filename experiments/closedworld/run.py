@@ -1,6 +1,6 @@
-"""Experiments/closedworld -- closed-world deduction on the real program (v0.0047).
+"""Experiments/closedworld -- closed-world deduction on the real program (v0.0048).
 
-The north-star reading can say what the program HAS.  v0.0047 lets the kernel
+The north-star reading can say what the program HAS.  v0.0048 lets the kernel
 deduce what it does NOT have, over an explicitly GIVEN candidate universe:
 
     absent(?m, ?l) :- is_module(?m), candidate_layer(?l), not has_layer(?m, ?l)
@@ -29,14 +29,14 @@ from dlm.closedworld import (CANDIDATE_LAYERS, absence_rule, absent_kinds,
 try:
     from ..mnist.extract import extract
     from ..mnist.knowledge import acquire_knowledge, meaning_facts
-    from ..mnist.run import atom_of
-    from ..reading.run import CACHE, NORTH_STAR_SRC, _closed
+    from ..mnist.run import atom_of, closed_for
+    from ..reading.run import CACHE, NORTH_STAR_SRC
 except ImportError:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from mnist.extract import extract
     from mnist.knowledge import acquire_knowledge, meaning_facts
-    from mnist.run import atom_of
-    from reading.run import CACHE, NORTH_STAR_SRC, _closed
+    from mnist.run import atom_of, closed_for
+    from reading.run import CACHE, NORTH_STAR_SRC
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -46,7 +46,7 @@ def _base_closure(src: str, cache_dir: str, offline: bool):
     k = acquire_knowledge(ext["facts"], ext["labels"], cache_dir=cache_dir, offline=offline)
     base = {atom_of(f) for f in ext["facts"]}
     base |= {atom_of(f) for f in meaning_facts(k["meanings"])}
-    return _closed(base)
+    return closed_for(base)
 
 
 def run(src: str, cache_dir: str = CACHE, offline: bool = True) -> dict:
