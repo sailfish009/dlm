@@ -1,4 +1,4 @@
-# DLM v0.0056 — self-evaluation + weakness-targeted curriculum
+# DLM v0.0057 — learning the deduction law from the model's own source
 
 A **deductive logic model**: knowledge lives in an external knowledge base and
 answers come from *proof*, abstaining when it cannot prove. This is a **fresh,
@@ -6,6 +6,17 @@ minimal rebuild** (not a continuation of the v0.0036/37 layer stack) around a
 single question:
 
 > **What is the learning structure for deduction?**
+
+v0.0057 turns recursive self-supervised learning on the **model's own source**.
+`dlm/selflearn.py` perceives the whole `dlm` package as a call graph, **induces**
+the composition law from examples (search scored on self-generated positives +
+sampled negatives; `compose` wins tp=400 fp=0), then **recurses** — reifying the
+kernel-certified extension round by round — so one-shot recall 0.307 → 1.000 with
+`false=0` and a held-out 100-edge split 0.792 → 1.000, while the hypothesis
+vocabulary itself grows (355 → 379 features, 7 higher-order concepts). What is
+*learned* is the **law** and the **vocabulary**; the recursion mechanism is the
+given self-supervision from v0.0055, and the induction space is still a small
+generic rule space, not LLM open-ended induction (`experiments/selflearn`).
 
 v0.0056 closes the loop the model was still missing: **it evaluates its own
 ability and improves its own weak spots**. From the kernel closure alone it reads
@@ -1025,6 +1036,36 @@ Honest limit: the **agenda** is predicate-level (`dataset_of` is missing
 weak spot without proving the target — the model stops asking, but it never asserts
 anything false. That is the conservative direction (abstain, don't invent).
 
+### 5.21 Recursive self-supervised learning on the model's own source (`experiments/selflearn`, v0.0057)
+
+v0.0055 recursed on the model's own output, but the *law* it recursed with was
+given. v0.0057 turns recursion on the whole `dlm` package and **learns the law
+from examples**:
+
+* `dlm/selflearn.py` perceives the source as a **call graph** (`perceive_facts` →
+  `call_graph`: 325 nodes / 500 edges) and **induces** the composition law by
+  searching a small candidate space over relation literals (`induce_composition`),
+  scored on self-generated positive pairs and sampled negatives. `compose` wins
+  tp=400 fp=0 over identity/reverse/swap;
+* `self_learn` then **recurses**: it reifies the kernel-certified extension of the
+  induced law round by round and feeds it back as the next input, with the kernel
+  as the only judge. One-shot recall 0.307 → 0.474 → 0.936 → 1.000 (`false=0`,
+  fixpoint at round 4); a held-out 100-edge split recovers implied edges
+  0.792 → 1.000;
+* `grow_vocabulary` reifies invented predicates to **grow the hypothesis
+  alphabet** (features 355 → 379, 32-concept library, 7 higher-order concepts).
+
+Honesty: the *recursion mechanism* (reify the self-composition level by level) is
+the given self-supervision carried over from v0.0055; what v0.0057 *learns* is the
+**law** (from examples) and the **vocabulary** (a definitional/conservative
+extension, reported separately from the relational reach gain). The induction
+space is still a small generic rule space — it does **not yet** rival LLM
+open-ended induction. Run:
+
+```
+./experiments/selflearn/selflearn.sh
+```
+
 ## 7. Layout
 
 ```
@@ -1054,6 +1095,7 @@ dlm/
   recursive.py     recursive self-supervised learning: reify the kernel-certified self-composition level by level (log-depth closure)
   ability.py       self-evaluation: deduction targets (rule heads) proved / blocked, and actionable externally-acquirable gaps
   curriculum.py    weakness-targeted loop: assess -> ask -> acquire(web) -> re-close -> re-assess, to a named stop
+  selflearn.py     recursive self-supervised learning on the model's OWN source: induce the composition law from examples, reify it to the reachability closure, grow the hypothesis vocabulary
 experiments/
   ground/          one generalization transfers (synthetic)
   web/             real Wikipedia/Wikidata class hierarchies (web access delegated to dlm.web/dlm.search)
@@ -1073,12 +1115,27 @@ experiments/
   effective/       equal-budget held-out falsification of the integrals (predictor + controller)
   recursive/       recursive self-supervised learning: bootstrap reachability from the model's own output, one-shot control
   selfimprove/     model evaluates its own ability, finds its weak spot, searches for the missing premise (scramble/no-web controls)
+  selflearn/       induce the deduction law from the model's own call graph, recurse to closure, grow the vocabulary (held-out edges)
   train/           accumulating learner + closure benchmark (the long-run harness seed)
-tests/             220 tests (network-free)
+tests/             237 tests (network-free)
 test.sh            PYTHONPATH=. python -m pytest -q
 ```
 
 ## 8. Version
+
+`0.0.57` — **recursive self-supervised learning on the model's own source**
+(`dlm/selflearn.py`, `experiments/selflearn`). The model perceives its own `dlm`
+package as a call graph, **induces** the composition law from examples (search
+scored on self-generated positives + sampled negatives; `compose` tp=400 fp=0
+beats identity/reverse/swap), then **recurses**: it reifies the kernel-certified
+extension of that law round by round and feeds it back as the next input, with the
+kernel as the only judge — one-shot recall 0.307 → 0.474 → 0.936 → 1.000
+(`false=0`, fixpoint at round 4), and a held-out 100-edge split 0.792 → 1.000. It
+also grows the hypothesis alphabet by reifying invented predicates (features
+355 → 379, 32-concept library, 7 higher-order concepts). The recursion *mechanism*
+is the given self-supervision from v0.0055; what is learned is the law and the
+vocabulary. The induction space is still a small generic rule space, not LLM
+open-ended induction.
 
 `0.0.56` — **self-evaluation + weakness-targeted curriculum** (`dlm/ability.py`,
 `dlm/curriculum.py`). The model reads its own ability off the kernel closure
