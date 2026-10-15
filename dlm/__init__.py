@@ -1,4 +1,4 @@
-"""DLM v0.0057 -- trusted kernel (function-free Horn substrate), plus the layers.
+"""DLM v0.0058 -- trusted kernel (function-free Horn substrate), plus the layers.
 
 Fresh minimal rebuild around one question: what is the learning signal for
 deduction?  The answer this version encodes: a general (pronominal,
@@ -86,14 +86,25 @@ round can quantify over them), which removes the fixed-alphabet plateau a
 v0.0056-style loop hits -- a definitional, conservative extension reported
 separately from the relational reach gain.  The model's induction is a small
 generic rule space, not yet the open-ended induction of an LLM; the honest gap is
-``experiments/selflearn``'s subject.
+``experiments/selflearn``'s subject.  v0.0058 makes the IR-TREE the ONE MEDIUM
+(:mod:`dlm.irlearn`): the medium through which the model IMPROVES ITS DEDUCTION
+and the medium LISP reads/evaluates/writes are the SAME form tree.  The model
+perceives its own source as IR forms, induces the governing law AS a form,
+recursively reifies each certified extension as the next form predicate, and the
+recursion is executed through Lisp's own ``eval_form``/``findall`` -- so the
+learner's conclusion and the Lisp program's conclusion are one and the same tree,
+proven by round-trip (``parse(dump(f)) == f``, ``atom_ir(ir_atom(f)) == f``) and
+by agreement (Lisp ``findall`` == the kernel's closure forms).  The improvement
+claim is unchanged and still measured (one-shot -> recursive to the reachability
+fixpoint, zero false derivations); what is new is that deduction and automation
+no longer live on two representations -- the IR-TREE is the shared medium.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, Optional, Tuple
 
-__version__ = "0.0.57"
+__version__ = "0.0.58"
 __all__ = [
     "Const", "Var", "Term", "Atom", "NegAtom", "Rule", "KnowledgeBase",
     "closure", "entails", "unify", "strata", "description_length",

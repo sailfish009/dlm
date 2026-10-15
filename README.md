@@ -1,4 +1,4 @@
-# DLM v0.0057 — learning the deduction law from the model's own source
+# DLM v0.0058 — one IR-TREE: the deduction medium and the Lisp medium are the same
 
 A **deductive logic model**: knowledge lives in an external knowledge base and
 answers come from *proof*, abstaining when it cannot prove. This is a **fresh,
@@ -6,6 +6,19 @@ minimal rebuild** (not a continuation of the v0.0036/37 layer stack) around a
 single question:
 
 > **What is the learning structure for deduction?**
+
+v0.0057 turns recursive self-supervised learning on the **model's own source**.
+v0.0058 answers the split that v0.0057 still had: it improved deduction on a flat
+`Atom`/`Rule` substrate while Lisp read a *different* form tree. In v0.0058 the
+**IR-TREE is the one medium** — the thing deduction grows and the thing Lisp
+evaluates are the *same* canonical set of forms (`dlm/irlearn.py`). Themed on the
+model's own `dlm` source: the IR-TREE holds 1272 forms, the composition law is
+induced *on the tree* (tp=400 fp=0), the medium grows each round (2538 → 5075 →
+7813 → 10551 forms) until deduction recall is 0.306 → 1.000 (`false=0`), and Lisp
+proves the *same* levels through its own `findall` (2738 pairs, 4 levels,
+`final_match` and `kernel_match` both true). Round-trip is exact
+(`parse(dump(f))==f`, `atom_ir(ir_atom(f))==f`) and a Lisp macro writes a new form
+back into the same tree (`experiments/irlearn`).
 
 v0.0057 turns recursive self-supervised learning on the **model's own source**.
 `dlm/selflearn.py` perceives the whole `dlm` package as a call graph, **induces**
@@ -1066,6 +1079,38 @@ open-ended induction. Run:
 ./experiments/selflearn/selflearn.sh
 ```
 
+### 5.22 One IR-TREE: the deduction medium IS the Lisp medium (`experiments/irlearn`, v0.0058)
+
+v0.0057 made real progress on deduction, but it did so on a **flat** `Atom`/`Rule`
+substrate while Lisp read a separate form tree. v0.0058 removes that split: the
+**IR-TREE is the one medium** — the thing the recursion grows and the thing Lisp
+evaluates are the *same* canonical set of forms.
+
+* `dlm/irlearn.py` perceives the model's own `dlm` source as an **IR-TREE**
+  (`IRTree`: a canonical frozen set of head/arg forms; 1272 forms over 350 nodes /
+  578 call edges) and **induces the composition law on the tree** (`induce_law`:
+  the same candidate shapes scored on self-generated positives + sampled
+  negatives; `compose` tp=400 fp=0 beats identity/reverse/swap);
+* `recurse` reifies the kernel-certified extension round by round and **the medium
+  itself grows**: 2538 → 5075 → 7813 → 10551 forms, deduction recall 0.306 →
+  1.000 with `false=0` (fixpoint when a round adds nothing);
+* the **same tree is Lisp's medium**: `lisp_env` builds a Lisp environment from the
+  IR-TREE, `lisp_prove_one_shot`/`lisp_recurse` derive the levels through Lisp's
+  own `eval_form`/`findall`, and the result **agrees with the kernel**
+  (`one_shot_match`, `final_match`, `kernel_match`; 2738 pairs over 4 levels);
+* **round-trip is exact** — `parse(dump(f)) == f` and `atom_ir(ir_atom(f)) == f`,
+  and `pattern_key` is alpha-invariant; a **Lisp macro writes a new form back into
+  the same tree** (`lisp_writes_ir` → `(r1 probe_a probe_b)` enters `env.kb.facts`).
+
+Honesty: the source is read as a real IR-TREE and both the deduction and the Lisp
+side operate on that one object; the law is still induced in a small generic rule
+space, and the round-trip/agreement are demonstrated on the model's own `dlm`
+source (bounded, deterministic, network-free). Run:
+
+```
+./experiments/irlearn/irlearn.sh
+```
+
 ## 7. Layout
 
 ```
@@ -1096,6 +1141,7 @@ dlm/
   ability.py       self-evaluation: deduction targets (rule heads) proved / blocked, and actionable externally-acquirable gaps
   curriculum.py    weakness-targeted loop: assess -> ask -> acquire(web) -> re-close -> re-assess, to a named stop
   selflearn.py     recursive self-supervised learning on the model's OWN source: induce the composition law from examples, reify it to the reachability closure, grow the hypothesis vocabulary
+  irlearn.py       ONE IR-TREE medium: the deduction grows the same form tree Lisp evaluates; induce the law on the tree, recurse, and prove agreement (Lisp findall == kernel closure)
 experiments/
   ground/          one generalization transfers (synthetic)
   web/             real Wikipedia/Wikidata class hierarchies (web access delegated to dlm.web/dlm.search)
@@ -1116,12 +1162,26 @@ experiments/
   recursive/       recursive self-supervised learning: bootstrap reachability from the model's own output, one-shot control
   selfimprove/     model evaluates its own ability, finds its weak spot, searches for the missing premise (scramble/no-web controls)
   selflearn/       induce the deduction law from the model's own call graph, recurse to closure, grow the vocabulary (held-out edges)
+  irlearn/         one IR-TREE medium: grow deduction on the same form tree Lisp reads/writes, with round-trip + Lisp==kernel agreement
   train/           accumulating learner + closure benchmark (the long-run harness seed)
-tests/             237 tests (network-free)
+tests/             249 tests (network-free)
 test.sh            PYTHONPATH=. python -m pytest -q
 ```
 
 ## 8. Version
+
+`0.0.58` — **one IR-TREE: the deduction medium and the Lisp medium are the same**
+(`dlm/irlearn.py`, `experiments/irlearn`). v0.0057 improved deduction on a flat
+`Atom`/`Rule` substrate while Lisp read a different form tree; v0.0058 makes the
+**IR-TREE the one medium**. It perceives the model's own `dlm` source as an
+IR-TREE (1272 forms over 350 nodes / 578 call edges), induces the composition law
+*on the tree* (`compose` tp=400 fp=0), recurses so the medium itself grows
+(2538 → 5075 → 7813 → 10551 forms) until deduction recall is 0.306 → 1.000
+(`false=0`, fixpoint when a round adds nothing), and Lisp proves the *same* levels
+through its own `findall` (2738 pairs, `final_match`+`kernel_match` true).
+Round-trip is exact (`parse(dump(f))==f`, `atom_ir(ir_atom(f))==f`) and a Lisp macro
+writes a new form into the same tree. The law is still induced in a small generic
+rule space.
 
 `0.0.57` — **recursive self-supervised learning on the model's own source**
 (`dlm/selflearn.py`, `experiments/selflearn`). The model perceives its own `dlm`
