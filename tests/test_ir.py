@@ -1,40 +1,40 @@
-"""DLM v0.0039 tests: the IR is the Form tree (read-only views/features)."""
-from dlm import Atom, Const, Rule, Var
-from dlm.ir import (is_form, ir_head, ir_children, ir_walk, pattern_key,
-                    tree_features, subforms, ir_rule, rule_ir, ir_atom, atom_ir)
-from dlm.lisp import parse
+import json
+
+import pytest
+
+from dlm import (IRValidationError, canonical_json, dag_index, dump, from_json,
+                 loads, new_state, node_id, validate_model_state)
 
 
-def test_form_basics_and_walk():
-    f = parse("(rule (ancestor ?x ?y) (parent ?x ?z) (ancestor ?z ?y))")[0]
-    assert is_form(f) and ir_head(f) == "rule"
-    assert len(ir_children(f)) == 3
-    paths = [p for p, _ in ir_walk(f)]
-    assert paths[0] == ()                       # root first
-    assert (1,) in paths and (2,) in paths and (3,) in paths
-    # leaves are not forms
-    assert not is_form("?x") and ir_head("?x") is None
+def test_sexp_is_lossless_for_strings_and_typed_terms():
+    form = ("atom", "strange pred", ("const", "New York"),
+            ("const", "123"), ("const", "("), ("var", "x"))
+    assert loads(dump(form)) == form
 
 
-def test_pattern_key_is_renaming_invariant():
-    a = parse("(rule (h ?x ?y) (e ?x ?z) (e ?z ?y))")[0]
-    b = parse("(rule (h ?p ?q) (e ?p ?r) (e ?r ?q))")[0]
-    assert pattern_key(a) == pattern_key(b)
-    c = parse("(rule (h ?p ?q) (e ?p ?q))")[0]
-    assert pattern_key(a) != pattern_key(c)
+def test_json_is_exactly_one_ir_expression():
+    state = new_state(())
+    restored = from_json(canonical_json(state))
+    assert restored == state
+    assert json.loads(canonical_json(state))[0] == "model-state"
 
 
-def test_tree_features_and_subforms():
-    f = parse("(rule (h ?x ?y) (e ?x ?y))")[0]
-    feats = tree_features(f)
-    assert "head:rule" in feats and "head:e" in feats and "sym:?x" in feats
-    small = subforms(f, min_size=1)
-    assert f in small and ("h", "?x", "?y") in small
+def test_content_id_and_dag_view_are_deterministic():
+    form = ("root", ("leaf", "x"), ("leaf", "x"))
+    assert node_id(form) == node_id(loads(dump(form)))
+    index = dag_index(form)
+    assert index[node_id(("leaf", "x"))] == ("leaf", "x")
+    assert len(index) == 2
 
 
-def test_projection_roundtrip():
-    f = parse("(rule (ancestor ?x ?y) (parent ?x ?y))")[0]
-    r = ir_rule(f)
-    assert rule_ir(r) == f                       # IR -> Rule -> IR
-    a = ir_atom(f[1])
-    assert atom_ir(a) == f[1]                    # IR -> Atom -> IR
+def test_model_state_schema_rejects_missing_or_wrong_sections():
+    validate_model_state(new_state(()))
+    with pytest.raises(IRValidationError):
+        validate_model_state(("model-state", ("version", "0.0.65")))
+
+
+def test_reader_rejects_multiple_expressions_and_non_symbol_heads():
+    with pytest.raises(IRValidationError):
+        loads("(a) (b)")
+    with pytest.raises(IRValidationError):
+        loads("(1 x)")
