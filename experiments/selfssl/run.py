@@ -11,8 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-from dlm import (Atom, Store, call_facts, episode_ir, evaluate_expr, field,
-                 lower_paths, new_state, observe, realize, source_hash,
+from dlm import (Atom, Store, acquire_once, call_facts, episode_ir, evaluate_expr,
+                 field, lower_paths, new_state, observe, realize, source_hash,
                  stop_status)  # noqa: E402
 
 
@@ -82,8 +82,22 @@ def main():
                         default=ROOT / "experiments/selfssl/store")
     parser.add_argument("--fresh", action="store_true")
     parser.add_argument("--checkpoint-every", type=int, default=0)
+    parser.add_argument("--no-external", action="store_true",
+                        help="disable model-owned need assessment/acquisition")
+    transport = parser.add_mutually_exclusive_group()
+    transport.add_argument("--online", dest="online", action="store_true",
+                           help="allow fresh HTTP fetches (default)")
+    transport.add_argument("--offline", dest="online", action="store_false",
+                           help="use only the deterministic response cache")
+    parser.set_defaults(online=True)
+    parser.add_argument("--providers", default="wikipedia,github,web-search")
+    parser.add_argument("--external-limit", type=int, default=1)
+    parser.add_argument("--web-timeout", type=float, default=10.0)
+    parser.add_argument("--cache", type=Path,
+                        default=ROOT / "experiments/selfssl/cache")
     args = parser.parse_args()
-    if args.max_concepts < 1 or args.budget < 1:
+    if (args.max_concepts < 1 or args.budget < 1 or args.external_limit < 1
+            or args.web_timeout <= 0):
         parser.error("limits must be positive")
 
     paths = tuple(sorted((ROOT / "dlm").glob("*.py")))
@@ -106,6 +120,15 @@ def main():
             episodes, subject, fingerprint = source_observation(paths)
             if subject_hash(state) != fingerprint:
                 state = store.append(state, observe(state, episodes, subject))
+            if not args.no_external:
+                providers = tuple(name.strip() for name in args.providers.split(",")
+                                  if name.strip())
+                acquisition = acquire_once(
+                    state, cache_dir=args.cache, offline=not args.online,
+                    providers=providers, limit=args.external_limit,
+                    timeout=args.web_timeout)
+                if acquisition is not None:
+                    state = store.append(state, acquisition)
             experience = field(field(state, "theory"), "experience")[1:]
             saturated = field(stop_status(state), "status")[1] == "saturated"
             budget = 0 if saturated or len(experience) >= args.max_concepts else args.budget

@@ -23,15 +23,17 @@ def _memory_record(rule: Form, status: str, round_no: int,
             ("support-sources", *tuple(sorted(sources))), ("reason", reason))
 
 
-def new_state(episodes: Iterable[Form], *, ground: Iterable[Form] = (),
-              experience: Iterable[Form] = (), subject: Form = ("none",),
-              language: Form | None = None, lr: float = 0.2,
+def new_state(episodes: Iterable[Form], *, documents: Iterable[Form] = (),
+              ground: Iterable[Form] = (), experience: Iterable[Form] = (),
+              subject: Form = ("none",), language: Form | None = None, lr: float = 0.2,
               margin: float = 1.0) -> Form:
     ground, experience = tuple(ground), tuple(experience)
     state: Form = (
         "model-state",
         ("version", "0.0.65"),
         ("round", 0),
+        ("documents", *tuple(documents)),
+        ("agenda", ("acquisitions",)),
         ("evidence", *tuple(episodes)),
         ("theory", ("ground", *sorted_forms(ground)),
          ("experience", *sorted_forms(experience))),
@@ -372,6 +374,16 @@ def commit_transition(state: Form, transition: Form) -> Form:
         proposed = field(transition, "after")[1]
         expected = observe(state, field(proposed, "evidence")[1:],
                            field(proposed, "subject")[1])
+    elif action[0] == "ingest":
+        from .ingest import ingest_transition
+        expected = ingest_transition(
+            state, field(action, "documents")[1:],
+            role=str(field(action, "role")[1]),
+            min_confidence=float(field(action, "min-confidence")[1]))
+    elif action[0] == "acquire":
+        from .active import acquisition_transition
+        expected = acquisition_transition(
+            state, field(action, "need")[1], field(action, "documents")[1:])
     else:
         raise ValueError("transition action is not an admitted capability")
     if canonical_json(expected) != canonical_json(transition):
@@ -384,7 +396,16 @@ def commit_transition(state: Form, transition: Form) -> Form:
 def observe(state: Form, episodes: Iterable[Form], subject: Form) -> Form:
     """Create, but do not commit, a transition replacing external observations."""
     before = node_id(state)
-    work = replace_field(state, "evidence", ("evidence", *tuple(episodes)))
+    incoming = tuple(episodes)
+    external = tuple(episode for episode in field(state, "evidence")[1:]
+                     if any(isinstance(item, tuple) and item[0] == "document-id"
+                            for item in episode[1:]))
+    incoming_ids = {field(item, "document-id")[1] for item in incoming
+                    if any(isinstance(part, tuple) and part[0] == "document-id"
+                           for part in item[1:])}
+    preserved = tuple(item for item in external
+                      if field(item, "document-id")[1] not in incoming_ids)
+    work = replace_field(state, "evidence", ("evidence", *incoming, *preserved))
     work = replace_field(work, "subject", ("subject", subject))
     work = replace_field(work, "candidates", ("candidates",))
     work = _set_metrics(work, 0)

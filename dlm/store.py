@@ -106,6 +106,12 @@ class Store:
         data = {
             "root": node_id(state),
             "round": field(state, "round")[1],
+            "documents": len(field(state, "documents")) - 1,
+            "external_episodes": sum(
+                any(isinstance(item, tuple) and item[0] == "document-id"
+                    for item in episode[1:])
+                for episode in field(state, "evidence")[1:]),
+            "acquisitions": len(field(field(state, "agenda"), "acquisitions")) - 1,
             "ground": len(field(theory, "ground")) - 1,
             "experience": len(field(theory, "experience")) - 1,
             "experience_records": len(memory),

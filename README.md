@@ -6,6 +6,11 @@ IR-TREE remains the authoritative model.** Python objects, JSON, and indexes are
 views; every durable change is a replayable, kernel-checked IR transition.
 
 ```text
+Wikipedia / GitHub / web search / local text
+  -> cached bounded transport
+  -> candidate-blind text or Python-AST lowering
+  -> typed source-document + claims + provenance IR
+  -> validated ingest transition
 fixed evidence + current IR state
   -> persisted TreeLisp rule programs              C_t = L(S_t)
   -> native sparse state/action scorer             π_t = rank_N(S_t, C_t)
@@ -28,7 +33,19 @@ subject:
 (model-state
   (version "0.0.65")
   (round 2)
-  (evidence (episode ...))
+  (documents
+    (source-document
+      (provenance (provider "wikipedia") (uri "...")
+                  (source-group "wikipedia:123") (trust "acquired")
+                  (revision "7") (content-hash "..."))
+      (content "...") (normalized "...")
+      (document-tree ...) (claims ...)))
+  (agenda
+    (acquisitions
+      (acquisition-record
+        (need (information-need ...))
+        (status "acquired") (document-ids "@doc-..."))))
+  (evidence (episode ... (document-id "@doc-...")))
   (theory (ground ...) (experience ...))
   (memory (experience-record ...))
   (language
@@ -61,6 +78,32 @@ Terms are explicit and lossless:
 
 `node_id` assigns canonical content IDs. `dag_index` and `index.json` are
 rebuildable caches, never independent authorities.
+
+## Heterogeneous external input → IR-TREE
+
+The v0.0062 acquisition ideas were adapted to the current typed model-state
+rather than copying its obsolete tuple/StoreState representation:
+
+- `dlm/web.py`: bounded cached stdlib transport plus Wikipedia, GitHub repository
+  README, Stack Exchange web-search, and direct URL providers;
+- `dlm/ingest.py`: HTML/Markdown/plain-text normalization, sentence tree,
+  conservative relation extraction, and AST-only Python projection;
+- `ingest_transition`: deterministically recomputes the document/evidence update
+  before the Store journals it.
+
+Every payload becomes a `(source-document ...)` carrying raw content, normalized
+text, structural tree, claims, content hash, URI, revision, trust, and
+`source-group`. Raw content is authoritative input: validation reruns the internal
+projection and rejects edited normalized text, trees, or claims. Extractors
+receive only the document—never a candidate theory or current prediction. Exact
+mirrored content is assigned one source group so it cannot fake independent
+corroboration.
+
+Only non-uncertain claims above the confidence gate become episode facts.
+Uncertain and `guessed` claims remain inspectable IR but never enter kernel
+closure. External text never directly creates Ground or Experience rules.
+The lexical reducer is deliberately conservative and limited; unrecognized prose
+is still retained in the document tree and causes no assertion.
 
 ## Persisted TreeLisp program layer
 
@@ -140,38 +183,57 @@ A stale, edited, forged, or semantically inconsistent journal line is rejected.
 Derived closure is never persisted as truth. `checkpoint()` writes the current
 state atomically and retains the old journal as an audit segment.
 
-## Recursive self-study
+## Recursive self-study with model-owned acquisition
 
 ```bash
+# Default: assess needs and fetch Wikipedia/GitHub/web-search evidence each round
 ./experiments/selfssl/selfssl.sh --max-concepts 40
+# Deterministic replay/test mode: use the response cache only
+./experiments/selfssl/selfssl.sh --offline --max-concepts 40
 # Ctrl-C is the normal stop mechanism
 ```
 
-Each round:
+External ingestion is now inside the recursive round rather than a separate
+preprocessing requirement. Each round:
 
 1. parses `dlm/*.py` with `ast.parse` only into typed PyIR;
-2. extracts a bounded public learning call graph;
-3. obtains held-out dependency evidence from an independent BFS oracle;
-4. runs the persisted candidate programs;
-5. lets the native scorer order candidates;
-6. admits at most one Experience rule through the kernel gate;
-7. appends the transition to `experiments/selfssl/store/`.
+2. derives `(information-need ...)` forms from unresolved source symbols,
+   explicit unknowns, and confirmed targets with no kernel proof;
+3. selects the next need using persisted acquisition history;
+4. selects a provider order by need kind (for example, GitHub first for an
+   unresolved source symbol), constructs its own query, and queries the allowed
+   providers (default) or only their cache (`--offline`);
+5. lowers returned text into canonical source-document IR and commits an
+   `acquire` transition; a miss is an explicit, retryable abstention;
+6. extracts the bounded public learning call graph and independent held-out BFS
+   evidence;
+7. runs persisted candidate programs and native ranking;
+8. admits at most one Experience rule through the kernel gate;
+9. appends both acquisition and learning transitions to the journal.
 
-The next round consumes both prior Experience and learned ranking state.
-Natural language is emitted only for measured held-out improvement or repaired
-contradiction; saturation is silent. This improves the symbolic self-model and
-search policy. It does not rewrite Python source and does not treat its own
-prediction as a label.
+Thus the next round consumes prior documents, acquisition history, Experience,
+and learned ranking state. The caller controls transport policy and resource
+limits, but does not supply the query or label. Natural language is emitted only
+for measured held-out improvement or repaired contradiction; saturation is
+silent. This improves the symbolic self-model and search policy. It does not
+rewrite Python source and does not treat its own prediction as a label.
 
 ## Commands
 
 ```bash
 ./test.sh
+# Local Markdown/Python/text input
+./experiments/ingest/ingest.sh --file README.md --store /tmp/dlm65-store --fresh
+# Heterogeneous web acquisition (omit --offline for a fresh fetch)
+./experiments/ingest/ingest.sh --query 'deductive logic model' \
+  --providers wikipedia,github,web-search --store /tmp/dlm65-store
 ./experiments/axiom/axiom.sh
 ./experiments/repl/repl.sh --fresh
 ./experiments/repl/repl.sh --eval '(run-programs)'
 ./experiments/selfssl/selfssl.sh --rounds 4 --interval 0 \
   --store /tmp/dlm65-store --fresh
+./experiments/selfssl/selfssl.sh --providers wikipedia,github,web-search \
+  --store /tmp/dlm65-store
 ```
 
 Inside the REPL:
@@ -182,8 +244,10 @@ ir> (stop-status)
 ir> (step 64)
 ```
 
-Tests cover canonical IR round-trip, executable persisted programs, native
-contrast state, exact proof verification, fixed evidence, unknown handling,
+Tests cover canonical IR round-trip, heterogeneous document conversion,
+provenance/content integrity, candidate-blind extraction, guessed-data exclusion,
+web-provider normalization, executable persisted programs, native contrast
+state, exact proof verification, fixed evidence, unknown handling,
 Ground immutability, counterexample lifecycle memory, stale/forged transition
 refusal, append-only replay and tamper refusal, TreeLisp capability boundaries,
 PyIR validation, held-out learning, event-only speech, and restart behavior.

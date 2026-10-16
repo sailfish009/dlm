@@ -39,9 +39,11 @@ def test_axiom_experiment():
 def test_ir_selfssl_is_recursive_event_driven_and_resumable(tmp_path):
     root = Path(__file__).resolve().parents[1]
     store_path = tmp_path / "store"
+    cache_path = tmp_path / "cache"
     runner = root / "experiments/selfssl/run.py"
     command = [sys.executable, str(runner), "--rounds", "4", "--interval", "0",
-               "--store", str(store_path), "--budget", "256"]
+               "--store", str(store_path), "--cache", str(cache_path),
+               "--budget", "256", "--offline"]
     first = subprocess.run(command, cwd=root, text=True, capture_output=True,
                            check=True, timeout=30)
     state = Store(store_path).load()
@@ -51,11 +53,16 @@ def test_ir_selfssl_is_recursive_event_driven_and_resumable(tmp_path):
     assert field(metrics, "held-coverage")[1] == field(metrics, "held-total")[1] > 0
     assert field(metrics, "held-false")[1] == 0
     assert field(state, "round")[1] == 4
+    acquisitions = field(field(state, "agenda"), "acquisitions")[1:]
+    assert acquisitions
+    assert all(field(record, "status")[1] in {"acquired", "abstained"}
+               for record in acquisitions)
     assert json.loads((store_path / "snapshot.ir.json").read_text())[0] == "model-state"
     assert (store_path / "experience.irlog").read_text().strip()
 
     resumed = subprocess.run(
         [sys.executable, str(runner), "--rounds", "1", "--interval", "0",
-         "--store", str(store_path), "--budget", "32"],
+         "--store", str(store_path), "--cache", str(cache_path),
+         "--budget", "32", "--offline"],
         cwd=root, text=True, capture_output=True, check=True, timeout=30)
     assert "I improved my IR model" not in resumed.stdout

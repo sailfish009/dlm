@@ -13,6 +13,7 @@ Form = Scalar | tuple["Form", ...]
 
 _SYMBOL = re.compile(r"^[A-Za-z_@?+*/<>=!$%&~.^:-][A-Za-z0-9_@?+*/<>=!$%&~.^:-]*$")
 _TOKEN = re.compile(r'\s*(?:(\()|(\))|("(?:\\.|[^"\\])*")|([^\s()]+))')
+_VALID_DOCUMENTS: set[str] = set()
 
 
 class IRValidationError(ValueError):
@@ -233,6 +234,70 @@ def validate_episode(episode: Form) -> None:
         raise IRValidationError("evidence cannot confirm and contradict an atom")
 
 
+def validate_document(document: Form) -> None:
+    if not isinstance(document, tuple) or document[0] != "source-document":
+        raise IRValidationError("expected source-document")
+    for name in ("id", "provenance", "media-type", "title", "content",
+                 "normalized", "document-tree", "claims"):
+        field(document, name)
+    for name in ("id", "media-type", "title", "content", "normalized"):
+        value = field(document, name)
+        if len(value) != 2 or not isinstance(value[1], str):
+            raise IRValidationError(f"document {name} must be a string")
+    provenance = field(document, "provenance")
+    for name in ("provider", "uri", "source-group", "trust", "revision",
+                 "content-hash"):
+        value = field(provenance, name)
+        if len(value) != 2 or not isinstance(value[1], str):
+            raise IRValidationError(f"provenance {name} must be a string")
+    if not field(provenance, "provider")[1] or not field(provenance, "uri")[1]:
+        raise IRValidationError("document provider and URI cannot be empty")
+    if not field(provenance, "source-group")[1]:
+        raise IRValidationError("source-group cannot be empty")
+    if field(provenance, "trust")[1] not in {"observed", "acquired", "guessed"}:
+        raise IRValidationError("unknown external trust tier")
+    content = field(document, "content")[1]
+    digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    if field(provenance, "content-hash")[1] != digest:
+        raise IRValidationError("document content hash mismatch")
+    expected_id = "@doc-" + hashlib.sha256(
+        (field(provenance, "provider")[1] + "\0" + field(provenance, "uri")[1]
+         + "\0" + digest).encode()).hexdigest()[:20]
+    if field(document, "id")[1] != expected_id:
+        raise IRValidationError("document ID does not match provenance and content")
+    tree = field(document, "document-tree")
+    if len(tree) < 2:
+        raise IRValidationError("document tree cannot be empty")
+    for claim in field(document, "claims")[1:]:
+        if not isinstance(claim, tuple) or claim[0] != "claim":
+            raise IRValidationError("claims must contain claim forms")
+        for name in ("proposition", "status", "extractor", "confidence", "support", "span"):
+            field(claim, name)
+        proposition = field(claim, "proposition")
+        if len(proposition) != 2:
+            raise IRValidationError("claim needs one proposition")
+        validate_atom(proposition[1])
+        if any(term[0] == "var" for term in proposition[1][2:]):
+            raise IRValidationError("external claims must be ground")
+        if field(claim, "status")[1] not in {"acquired", "guessed"}:
+            raise IRValidationError("unknown claim status")
+        confidence = field(claim, "confidence")[1]
+        if not _number(confidence) or not 0.0 <= float(confidence) <= 1.0:
+            raise IRValidationError("claim confidence must be in [0,1]")
+        span = field(claim, "span")
+        if (len(span) != 3 or not _integer(span[1]) or not _integer(span[2])
+                or span[1] < 0 or span[2] < span[1]):
+            raise IRValidationError("claim span is malformed")
+    # Raw content is authoritative input; derived text/tree/claims must be the
+    # exact output of the candidate-blind internal projection, not supplied facts.
+    document_key = hashlib.sha256(canonical_json(document).encode()).hexdigest()
+    if document_key not in _VALID_DOCUMENTS:
+        from .ingest import canonical_document
+        if canonical_json(canonical_document(document)) != canonical_json(document):
+            raise IRValidationError("document projection is not canonical")
+        _VALID_DOCUMENTS.add(document_key)
+
+
 def validate_verdict(verdict: Form) -> None:
     if not isinstance(verdict, tuple) or verdict[0] != "verdict":
         raise IRValidationError("expected verdict")
@@ -279,16 +344,62 @@ def validate_model_state(state: Form) -> None:
         raise IRValidationError("model-state contains a non-IR value")
     if not isinstance(state, tuple) or state[0] != "model-state":
         raise IRValidationError("expected model-state")
-    required = ("version", "round", "evidence", "theory", "memory", "language",
-                "decision", "candidates", "verdicts", "events", "metrics", "subject")
+    required = ("version", "round", "documents", "agenda", "evidence", "theory",
+                "memory", "language", "decision", "candidates", "verdicts",
+                "events", "metrics", "subject")
     for name in required:
         field(state, name)
     if field(state, "version")[1] != "0.0.65":
         raise IRValidationError("wrong model-state version")
     if not _integer(field(state, "round")[1]):
         raise IRValidationError("round must be an integer")
+    documents = field(state, "documents")[1:]
+    for document in documents:
+        validate_document(document)
+    document_ids = [field(document, "id")[1] for document in documents]
+    if len(document_ids) != len(set(document_ids)):
+        raise IRValidationError("document IDs must be unique")
+    agenda = field(state, "agenda")
+    acquisitions = field(agenda, "acquisitions")
+    for record in acquisitions[1:]:
+        if not isinstance(record, tuple) or record[0] != "acquisition-record":
+            raise IRValidationError("agenda must contain acquisition records")
+        for name in ("need", "status", "round", "document-ids"):
+            field(record, name)
+        need_field = field(record, "need")
+        if len(need_field) != 2 or not isinstance(need_field[1], tuple):
+            raise IRValidationError("acquisition record needs one information need")
+        need = need_field[1]
+        if need[0] != "information-need":
+            raise IRValidationError("expected information-need")
+        for name in ("id", "kind", "query", "target", "reason", "providers"):
+            field(need, name)
+        for name in ("id", "kind", "query", "reason"):
+            if len(field(need, name)) != 2 or not isinstance(field(need, name)[1], str):
+                raise IRValidationError(f"information need {name} must be a string")
+        if not isinstance(field(need, "target")[1], tuple):
+            raise IRValidationError("information need target must be a form")
+        if (not field(need, "providers")[1:]
+                or any(name not in {"wikipedia", "github", "web-search"}
+                       for name in field(need, "providers")[1:])):
+            raise IRValidationError("information need providers are invalid")
+        status = field(record, "status")[1]
+        document_refs = field(record, "document-ids")[1:]
+        if status not in {"acquired", "abstained"}:
+            raise IRValidationError("unknown acquisition status")
+        if (status == "acquired") != bool(document_refs):
+            raise IRValidationError("acquisition status disagrees with documents")
+        if not _integer(field(record, "round")[1]):
+            raise IRValidationError("acquisition round must be an integer")
+        if any(not isinstance(value, str) or value not in set(document_ids)
+               for value in document_refs):
+            raise IRValidationError("acquisition refers to an absent document")
     for episode in field(state, "evidence")[1:]:
         validate_episode(episode)
+        document_fields = [x for x in episode[1:]
+                           if isinstance(x, tuple) and x[0] == "document-id"]
+        if document_fields and document_fields[0][1] not in set(document_ids):
+            raise IRValidationError("evidence refers to an absent document")
     theory = field(state, "theory")
     for tier in ("ground", "experience"):
         rules = field(theory, tier)
