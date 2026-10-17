@@ -1,0 +1,141 @@
+# -*- mode: org; coding: utf-8-unix  -*-
+
+* goals
+- smallest self-contained computing system that can reproduce itself
+- keep things simple
+** why
+https://www.facebook.com/onemore.freeman/posts/10226332358917904
+geek stuff:
+
+if you abandon the idea of integrating/linking computer algorithms together at the abstraction level of machine code (C linker), then what you gain is that all the complexity spelled out on the countless pages of the platform's ABI documentation -- using a messy, spoken language --, can be expressed formally in program code.
+
+such a "linker" would only have authority locally, on your own computer, and as such it becomes configurable, and can employ all the usual programming techniques like type systems and other forms of assertions on a much higher abstraction level than machine code and memory relocations.
+
+solving this problem on a higher level would automatically eliminate much of the complexity of the C abstraction level that is not at all inherent to the problem domain of integrating algorithms.
+
+this is an enormous accidental complexity that creeps into most software that intersects with the C toolchain in any way (i.e. practically all software).
+
+it is the consequence of the enormous mistake that we, the IT profession, have been making for the past several decades: organizing most of our compiler infrastructure around the faulty idea that you can retain and benefit from intellectual property if you only distribute compiled executables, because they are already lowered/distorted to the abstraction level of assembly -- an inherently lossy transformation --, that inhibits the efforts of prying eyes.
+
+much waste for very little gain. there'll always be countless children who will have enormous fun exploring/learning the magic of computing while disassembling and removing your copy protections... trust me, i know.
+
+the opensource era should finally weed out this monstrosity of accidental complexity.
+* du -sh source/ ~600k; minimal bootstrap: ~2000 LoC
+- gc
+- PEG parser
+- x86 assembler
+- x86 and LLVM backends
+- libc and linux platforms
+* lisp source representation
+ - cons
+ - string
+ - numbers
+ - symbols
+* evaluator
+** eval
+*** expand
+*** encode
+   - all variables have been looked up, either
+     - a reified variable object
+     - a primitive like LET, SET, etc
+*** eval
+   - actual interpretation
+*** apply
+   - eval'ed heads of list forms
+   - results of custom evaluatoras
+** customization: *expanders*, *encoders*, *evaluators*, *applicators*
+** special forms
+- <form>: expand-time function call; arguments are unevaluated source code
+  - variable position
+  - call position
+- <fixed>: wraps a closure, passes it its arguments unevaluated
+  - for special forms: if, or, and, quote, define, lambda, let, set, while
+- <primitive-function>: implementation is encoded in the target's language
+** impl. details
+*** accessors: macros that expand to a simple OOP-AT
+*** <variable>
+ - an index is assigned at creation time
+   - the lexical <env>'s holds the current offset
+ - can hold a value (globals)
+*** <env>
+nested envs inherit the parent's current offset
+*** <context>
+ - created at runtime
+ - a vector of values
+ - addressed by the variable's index
+
+very similar to how a stack frame is used.
+* compiler
+** compiles an env of toplevel definitions
+ - integers
+ - <expr>: lambda's (not capturing yet)
+ - <selector>'s (single dispatch)
+
+code body of lambdas is in the encoded form, only a subset of Maru:
+ - literal numbers
+ - literal string
+ - pairs aka cons cells forming a tree
+ - <variable>
+ - <expr> (lambda)
+
+** object layout
+ - accessors are macros
+   - expand to a single oop-at primitive
+   - understood by both the compiler and the interpreter
+** impl. details
+ - uses the local variable's value slot to assign stack offsets
+** LLVM backend
+%word = type i64
+%ptr = type i8*
+all values are %ptr's, and a lot of casting happens.
+* bootstrap
+host (eval.exe + emit.l), slave (eval.l), target (eval.s -> eval.exe) [loop]
+
+ - host interpreter loads and runs the slave codebase
+ - run metalevel => list of definitions
+ - compiler "level shifts" it to the target
+* platform
+"holding environment" for the interpreter's implementation
+
+examples:
+ - libc
+ - linux
+ - metacircular
+ - raspberry pi
+ - C64
+* interesting tidbits
+- bootstrapped peg parser generator
+- x86 assembler based on a bunch of #define's copy-pasted from a C
+  project, and parsed by Maru's peg parser
+- test-elf; emit a static ELF binary
+* open questions
+** closures: capture what?
+- by reference, or capture the cell itself?
+- what are their names?
+  - clambda?
+** types, typoids?
+is it ok to hold lowlevel metainfo, like object layout's boxing/unboxing info?
+or compile what's needed for e.g. the GC into a lowlevel typoid?
+** bootstrap image vs. just an executable
+compile proper heap objects into a static, read-only space; e.g. string literals in the code
+** <context> vs. *globals*
+it would be nice to merge the two: are modules just closures? whose captured vars are the globals?
+is <context> really just <k/env> (a compiled, "kernel" representation of <env>)?
+** boxed-bitmap for objects
+** compilation of types
+- boot.l is mutable, but the eval.exe contains expanded accessors (i.e. literal offsets)
+- what about stuff like <fd-stream>? needed by the level-shifted code,
+  but also useful in the interpreter; e.g. *standard-output*
+** 2 kinds of compilation?
+ 1) the current level-shift, to bring alive the interpreter's implementation
+ 2) compilation of closures in the full Maru language, assuming a different runtime environment
+example: <selectors>
+ - compile to a vector of pointers, pointing to the target's asm code
+ - a heap vector in a <selector> instance, holding the closures, that have a compiled implementation
+** boxed-bitmap for stackframe, gc/let*
+- life-cycle of such slots?
+- typesystem to "paint" the return value of gc/allocate?
+- enforce SSA for this painted values/variables?
+** define-record -- properly named?
+- single inheritance (should that be added to a different construct?)
+- separate define-structure?

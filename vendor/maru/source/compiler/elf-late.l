@@ -1,0 +1,677 @@
+;;; -*- mode: lisp; coding: us-ascii -*-
+
+;;;
+;;; Compiling lambdas
+;;;
+
+(define-function compile/expression-to-operand (expr -c-)
+  (cond
+    ((and (variable? expr)
+          ;; TODO we should handle global variables, too.
+          (let ((x (<variable>-value expr)))
+            (or (is <STACK-CELL>	x)
+                (is <LI64>		x)
+                (is <LI32>		x))))
+     ;; (let ((value (<variable>-value expr)))
+     ;;   (print-all *debug-output* "*** matched: "expr"="value", type:" (type-of value) "\n")
+     ;;   value)
+     (<variable>-value expr))
+
+    ((long? expr)
+     (LI64 expr))
+
+    (else
+     ;; (when (variable? expr)
+     ;;   (let ((value (<variable>-value expr)))
+     ;;     (assert (global-variable? expr))
+     ;;     (print-all *debug-output* "*** matched: "expr"="value", type:" (type-of value) "\n")
+     ;;     value))
+     (comp expr))))
+
+(define-function compile/expr-into-temp-or-literal (expr -c-)
+  (cond
+    ((long? expr)
+     (LI64 expr))
+    (else
+      (comp expr)
+      (let ((temp (alloc-stack-temp -c-)))
+        (emit STORE $ temp)
+        temp))))
+
+(define-function compile-call-to-global-function (op -c-)
+  (if (feature redefinable-functions-in-target)
+      (let ()
+        (comp op)
+        (compile-call-to-<target-function> -c-))
+    (emit CALL (closure-code-label (<variable>-name op))))
+  ())
+
+(define-method compile-call-to <expr> (op -c-)
+  ;; NOTE the fact that a literal <expr> is found in a variable's
+  ;; value slot at compile time implies that it's a global definition.
+  (compile-call-to-global-function op -c-)
+  (expr-n-required-parameters self))
+
+;; this case is handled early in compile-call
+;; (define-method compile-call-to <pair> (op -c-)
+;;   (comp op)
+;;   (compile-call-to-<target-function> -c-))
+
+(define-method compile-call-to (slave-value <selector>) (op -c-)
+  (compile-call-to-global-function op -c-)
+  ;; TODO extract and return n-params
+  ())
+
+;;;
+;;; Special Forms
+;;;
+
+(define-function compile/expressions-into-temp (prog -c-)
+  (assert (pair? prog) "compile/expressions-into-temp: prog is empty or not a list") ; this is against silently storing an uninitialized EAX while compiling e.g. (let (x) ...)
+  ;; NOTE it's tempting here to check for single-element prog's, and
+  ;; turning them into a compile/expression, but our single caller,
+  ;; namely sf/let, requires a temp location, even when
+  ;; initialized to literal values.
+  (while (pair? prog)
+    (comp (car prog))
+    (set prog (cdr prog)))
+  (let ((temp (alloc-stack-temp -c-)))
+    (emit STORE $ temp)
+    temp))
+
+(define-function %let-binding (binding comp)
+  ;; we unconditionally initialize empty bindings to () to avoid hidden bugs,
+  ;; at a small cost of initializing temp locations even when it wouldn't be necessary.
+  ;; TODO cleanup! expand now brings let bindings to a normal form (to ease encode's job). think this through...
+  (unless (pair? binding)
+    (set binding (list binding ())))
+  (unless (cdr binding)
+    (set binding (list (car binding) ())))
+  (let ((var (car binding))
+        (tmp (compile/expressions-into-temp (cdr binding) comp)))
+    (assert (= (type-of var) <variable>) "compile/let-binding: encountered a non-variable: " var)
+    (set (<variable>-value var) tmp)))
+
+(define-function sf/let (expr -c-)
+  (let ((temps (map-with %let-binding (caddr expr) -c-)))
+    (list-do stmt (cdddr expr)
+      (comp stmt))
+    (free-temps temps)))
+
+(define-function sf/set (expr -c-)
+  (let* ((var	(second expr))
+         (value	(<variable>-value var)))
+    (accessible-variable-or-die var -c-)
+    (comp (third expr))
+    (cond
+      ((or (is <STACK-CELL> value)
+           (is <R64> value))
+       (emit STORE $ value))
+      ((is <C-variable> value)
+       ;; TODO dispatch on the type of the C-variable
+       (error "TODO <C-variable>")
+       ;; (emit STORE $ ((if (= 'darwin (target-value target/os)) GOT64 GLOBAL-CELL)
+       ;;             (EXTERNAL-LABEL (<C-variable>-name value))))
+       )
+      (else
+       (emit STORE $ (GLOBAL-CELL (label (<variable>-name var))))))))
+
+(define-function sf/address-of (expr -c-)
+  (let ((var (cadr expr)))
+    (or (variable? var) (error "address-of: non-variable argument: "var))
+    (let ((val (<variable>-value var)))
+      (cond
+        ((global-variable? var)
+         (emit ADDR (GLOBAL-CELL (label (<variable>-name var)))))
+        ((is <STACK-CELL> val)
+         (emit ADDR val))
+        ;; ((is <R64> val)
+        ;;  (maybe-spill-params -c-)
+        ;;  (emit ADDR (<variable>-value var)))
+        (else
+         (error "address-of: don't know how to compile for variable " var ", holding the value " val))))))
+
+(define-function sf/and (expr -c-)
+  (let ((done (label)))
+    (set expr (cdr expr))
+    (while expr
+      (comp (car expr))
+      (when (set expr (cdr expr))
+        (emit GOTOF $ done)))
+    (label! done)))
+
+(define-function sf/or (expr -c-)
+  (let ((done (label)))
+    (set expr (cdr expr))
+    (while expr
+      (comp (car expr))
+      (when (set expr (cdr expr))
+        (emit GOTOT $ done)))
+    (label! done)))
+
+(define-function sf/if (expr -c-)
+  (let ((condition	(second expr))
+        (then		(third expr))
+        (else		(cdddr expr))
+        (l/false	(label))
+        (l/end		(label)))
+    (comp condition)
+    ;; the current-value from the condition is false when we jump to
+    ;; the else branch, therefore we don't need to clear the
+    ;; current-value when the else branch is empty.
+    (emit GOTOF $ l/false)
+    (comp then)
+    ;; therefore, we can just fall through with the return value of
+    ;; the true branch when the else branch is empty.
+    (when else
+      (emit GOTO l/end))
+    (label! l/false)
+    (list-do stmt else
+      (comp stmt))
+    (label! l/end)))
+
+(define-function sf/while (expr -c-)
+  (let ((l/body	(label))
+        (l/cond	(label))
+        (body	(cddr expr)))
+    (when body ; only need to skip it at first if there's any at all
+      (emit GOTO l/cond))
+    (label! l/body)
+    (list-do stmt body
+      (and stmt (comp stmt)))
+    (label! l/cond)
+    (comp (second expr))
+    (emit GOTOT $ l/body)))
+
+(define-function sf/return (expr -c-)
+  (list-do stmt (cdr expr)
+    (comp stmt))
+  (emit GOTO (or (<compiler>-fn-epilogue-label -c-)
+                 (set (<compiler>-fn-epilogue-label -c-) (label)))))
+
+(define-function sf/lambda (form -c-)
+  (let ((expr (eval form)))
+    (emit LOAD (compile-expr expr () -c-))))
+
+(define-function sf/C-string (expr -c-)
+  (assert (= (list-length expr) 2))
+  (emit LOAD (emit-object/C-string (second expr) -c-)))
+
+(define *special-forms* (list
+  (cons (target-value let)		sf/let)
+  (cons (target-value and)		sf/and)
+  (cons (target-value or)		sf/or)
+  (cons (target-value if)		sf/if)
+  (cons (target-value while)		sf/while)
+  (cons (target-value set)		sf/set)
+  (cons (target-value lambda)		sf/lambda)
+  (cons (target-value return)		sf/return)
+  (cons (target-value address-of)	sf/address-of)
+  (cons (target-value C-string)		sf/C-string)
+  (cons (target-value stack-pointer-on-entry) sf/stack-pointer-on-entry)
+  ))
+
+;;;
+;;; Special Operators
+;;;
+
+(define-function compile/unary-operator (op args -c-)
+  (comp (car args))
+  ;; FIXME we shouldn't need to instantiate the instructions here...
+  (let ((instr (op ())))
+    (if (<instruction>-has-input? instr)
+        (emit op $)
+      (emit op))))
+
+;; FIXME? these implement a right-to-left evaluation order, while
+;; function calls implement the opposite. note that this is entangled
+;; with e.g. the LOAD/STORE instructions above, as they expect arg0 to
+;; be loaded in %rax.
+(define-function compile/binary-operator (op args -c-)
+  (let ((tmp (compile/expr-into-temp-or-literal (cadr args) -c-)))
+    (comp (car args))
+    (free-temp tmp)
+    (let ((instr (op ())))
+      (if (<instruction>-has-input? instr)
+          (emit op $ tmp)
+        (emit op tmp)))))
+
+(define-function compile/ternary-operator (op args -c-)
+  (let ((tmp2 (compile/expr-into-temp-or-literal (third  args) -c-))
+        (tmp1 (compile/expr-into-temp-or-literal (second args) -c-)))
+    (comp (car args))
+    (free-temp tmp1)
+    (free-temp tmp2)
+    (let ((instr (op ())))
+      (if (<instruction>-has-input? instr)
+          (emit op $ tmp1 tmp2)
+        (emit op tmp1 tmp2)))))
+
+(define +operator-compilers+ (list->array (list () compile/unary-operator compile/binary-operator compile/ternary-operator)))
+
+;; a vector of assoc lists indexed by operator arity
+(define *special-operators*
+    (let ((table
+           `(;; nullary
+             ()
+             ;; unary
+             ((-  ,NEGATE) (not ,LOGIC-NOT) (bitwise-not ,BITWISE-NOT))
+             ;; binary
+             ((+  ,ADD) (-   ,SUB) (* ,MULTIPLY) (/ ,DIVIDE)
+              (bitwise-and ,AND) (bitwise-or ,OR) (bitwise-xor ,XOR)
+              (<  ,LT ) (<=  ,LE ) (= ,EQ ) (>= ,GE) (> ,GT) ; (!= ,NE)
+              (arithmethic-shift-left ,ASL) (arithmethic-shift-right  ,ASR)
+              (char-at		,LOAD-I8)
+              (byte-at		,LOAD-I8)
+              ,(when-at-expand (feature memory-block)
+                 `(cell-at	,LOAD-CELL))
+              (oop-at		,LOAD-OOP)
+             )
+             ;; ternary
+             ((set-char-at	,STORE-I8)
+              (set-byte-at	,STORE-I8)
+              ,(when-at-expand (feature memory-block)
+                 `(set-cell-at ,STORE-CELL))
+              (set-oop-at	,STORE-OOP)
+             ))))
+      (list->array
+       (map (lambda (arity-line)
+              (map (lambda (entry)
+                     (let* ((op-name (car entry))
+                            (op (eval-in-target op-name)))
+                       (assert op "operator not found while building *special-operators* "op)
+                       (cons op (cdr entry))))
+                   arity-line))
+            table))))
+
+(define-method compile <pair> (-c-)
+  (let* ((op		(first self))
+         (op-is-a-var?	(variable? op))
+         (op-value	(if op-is-a-var?
+                            (or (<variable>-value op)
+                                (error "error: calling undefined function: "op))
+                          op))
+         (args		(rest self))
+         (arity		(list-length args))
+         (handler	()))
+    (emit-comment 2 "call of op: "op", op-is-a-var? "op-is-a-var?", args: " args)
+    ;; TODO add compiler-macros. use them to optimize stuff on the lisp semantic level
+    (cond
+      ((set handler (second (assq op-value (array-at *special-operators* arity))))
+       (emit-comment 3 "found op "op" in *special-operators*, handler: "handler)
+       ((array-at +operator-compilers+ arity) handler args -c-))
+      ((is <fixed> op)
+       (let ((handler (cdr (assq op *special-forms*))))
+         (emit-comment 3 "op is a <fixed>: "op", handler: "handler)
+         (or handler (error "No handler for fixed form: " self))
+         (handler self -c-)))
+      (else
+       (compile-call-form op args -c-)))))
+
+(define-method compile <variable> (-c-)
+  (accessible-variable-or-die self -c-)
+  (let ((value self.value))
+    (cond
+      ((or (is <R64> value)
+           (is <LI64> value)
+           (is <STACK-CELL> value)
+           (is <STACK-PARAM> value))
+       (emit LOAD value))
+      ((global-variable? self)
+       (cond
+         ((= 'true self.name)
+          (emit LOAD (LI64 (target-value true))))
+         ((subtype? (type-of value) <type>)
+          (emit LOAD (LI64 (eval-in-slave `(<type>-slave-id ,value)))))
+          ((is <C-function> value) ; handles the situation when e.g. libc/strcmp is passed as a comparator fn for array-binary-search
+           ;; load the trampoline address, so the value is a callable pointer
+           (emit LOAD (GLOBAL-ADDR (external-trampoline-label value -c-))))
+         ((is <C-variable> value)
+          ;; TODO dispatch on the type of the C-variable
+          (error "TODO <C-variable>")
+          ;; (emit LOAD ((if (= 'darwin (target-value target/os)) GOT64 GLOBAL-CELL)
+          ;;            (EXTERNAL-LABEL (<C-variable>-name value))))
+          )
+         ((and (not (feature redefinable-functions-in-target))
+               (is <expr> value))
+          (emit LOAD (GLOBAL-ADDR (label self.name))))
+         (else
+          (emit LOAD (GLOBAL-CELL (label self.name))))))
+      (else
+       (error "don't know how to compile <variable>: " self ", holding the value: "value", type: "(type-of value))))))
+
+(define-method compile <long> (-c-)
+  ;; FIXME: We can't call COMPILE-OBJECT here, because that would box
+  ;; the value. But then why the lack of symmetry with <string> and
+  ;; other literals in the code (they are emitted as full heap objects)?
+  (emit LOAD (LI64 self)))
+
+;;;
+;;; COMPILE-DEFINITION
+;;;
+
+;; TODO a lot of this is the same in the 32 bits
+(define-method compile-definition <type>		(name -c-)	) ; we don't need (target-value <type>) here because <type> is "reused" by the slave from the host
+(define-method compile-definition <undefined>		(name -c-)	(compile-definition (target-value false) name -c-))
+
+(define-method compile-definition <long> (name -c-)
+  (with-current-segment (if (= 0 self) 'bss 'data)
+    (label! name)
+    (emit-symtab-entry/variable name
+                                (if (= 0 self) +.bss-section-index+ +.data-section-index+)
+                                (current-laddress)
+                                target/cell-size/bytes)
+    (emit CELL self)))
+
+;; kinda KLUDGE
+;; this is used when emitting the literal dispatch tables of <selectors>
+;; FIXME merge this somehow into the compile-object protocol?
+;; this, and the whole emit-object business is kinda KLUDGEy
+(define-function compile-array (self -c-)
+  (let ((compiled (array (array-length self))))
+    (for (i 0 (array-length self))
+      (let ((obj (array-at self i)))
+        (set (array-at compiled i)
+             (typecase obj
+               (<long>		(compile-object obj -c-))
+               (<expr>		(compile-expr   obj () -c-))
+               (<undefined>	(compile-object obj -c-))
+               (else (error "compile-array: don't know how to compile: "obj))))))
+    compiled))
+
+(define-method compile-definition <array> (name -c-)
+  (let ((compiled (compile-array self -c-)))
+    (with-current-segment 'data
+      (label! name)
+      (emit-symtab-entry/variable name
+                                  +.data-section-index+
+                                  (current-laddress)
+                                  target/cell-size/bytes)
+      (array-do el compiled
+        (emit CELL el)))))
+
+(define-method compile-definition <expr> (name -c-)
+  (assert name)
+  (let ((object-label (compile-expr self name -c-)))
+    (when (feature redefinable-functions-in-target)
+      (with-current-segment 'data
+        (label! name)
+        (emit CELL object-label)))))
+
+;;;
+;;; Emitting Elf
+;;;
+
+(define-constant +n-program-headers+
+    (if-feature relocatable-elf
+        (if-at-expand (= "c-obj" elf-emission-type) 0 8)
+      5))
+
+(define-constant +n-section-headers+
+    (if-feature relocatable-elf 11 0))
+
+;; The file prefix: the bytes before the code segment, whose size the
+;; code segment's laddress base must match (the text LOAD maps them
+;; congruently). The program header table sits at the end of the text
+;; segment, the section header table at the end of the file; the
+;; prefix is just the ELF header.
+(define-constant +elf-prefix-size+ elf/sizeof-Elf64_Ehdr)
+
+(define-constant +code-segment-address+		(if-feature relocatable-elf 0 0x00400000))
+(define-constant +code-segment-space+		0x00040000)
+
+(define-constant +ro-data-segment-address+	(+ +code-segment-address+	+code-segment-space+))
+(define-constant +ro-data-segment-space+	0x00020000)
+
+(define-constant +data-segment-address+		(+ +ro-data-segment-address+	+ro-data-segment-space+))
+(define-constant +data-segment-space+		0x00020000)
+
+(define-constant +bss-segment-address+		(+ +data-segment-address+	+data-segment-space+))
+(define-constant +bss-segment-space+		0x00020000) ; reserved for bss; the heap image follows
+
+;; The heap image segment: the initial, pre-initialized heap. It is the
+;; last loaded segment, so the program break starts right after it and
+;; brk can grow the heap at runtime (see platform/acquire-memory).
+(define-constant +heap-segment-address+		(+ +bss-segment-address+	+bss-segment-space+))
+(define-constant +heap-segment-space+		0x01000000)
+
+;; The ELF header, shared by the three elf writers. E-PHOFF and E-SHOFF
+;; accept a number or a section desig; the desig form resolves as a
+;; fixup relative to the header start (file offset arithmetic).
+(define-function emit-elf-header (e-type arch e-entry e-phoff e-phnum e-shoff e-shnum e-shstrndx)
+  (label!	'elf-header-start)
+  (.i8		0x7f)                   ; ident[0]
+  (.ascii	"ELF")
+  (.i8		elf/ELFCLASS64 elf/ELFDATA2LSB 1 elf/ELFOSABI_NONE) ; version
+  (.i8		0 0 0 0 0 0 0 0) ; EI_ABIVERSION and padding (total 16 ident bytes)
+  (.i16		e-type)          ; e_type
+  (.i16		arch)            ; e_machine
+  (.i32		1)               ; e_version
+  (.i64		e-entry)         ; e_entry (entry point)
+  (.i64		(if (symbol? e-phoff)
+                    (label e-phoff (- self (laddress 'elf-header-start)))
+                  e-phoff))      ; e_phoff
+  (.i64		(if (symbol? e-shoff)
+                    (label e-shoff (- self (laddress 'elf-header-start)))
+                  e-shoff))      ; e_shoff
+  (.i32		0)               ; e_flags
+  (.i16		(label 'elf-header-end	(- self (laddress 'elf-header-start)))) ; e_ehsize
+  (.i16		(if (= 0 e-phnum) 0 elf/sizeof-Elf64_Phdr)) ; e_phentsize
+  (.i16		e-phnum)         ; e_phnum
+  (.i16		elf/sizeof-Elf64_Shdr) ; e_shentsize
+  (.i16		e-shnum)         ; e_shnum
+  (.i16		e-shstrndx)      ; e_shstrndx
+  (label!	'elf-header-end)
+  (assert (= (- (laddress 'elf-header-end) (laddress 'elf-header-start)) elf/sizeof-Elf64_Ehdr)))
+
+;; The bss segment carries no file content, but a zero memsz is
+;; illegal in a PT_LOAD.
+(define-function bss-size ()
+  (max 1 (segment-length 'bss)))
+
+;; Emits the loaded assembler segments as PT_LOAD program headers.
+(define-function emit-base-phdrs ()
+  (let ((file-offset 0))
+    (list-do entry `((code	,(+ elf/PF_R elf/PF_X)	,+code-segment-space+)
+                     (ro-data	,(+ elf/PF_R elf/PF_W)	,+ro-data-segment-space+)
+                     (data	,(+ elf/PF_R elf/PF_W)	,+data-segment-space+))
+
+      (let* ((name		(first entry))
+             (permissions	(second entry))
+             (space		(third entry))
+             (size		(segment-length name)))
+
+        (verbosity 1 (print-all *debug-output* "emitting segment: "name", size: "size"\n"))
+        (emit-program-header elf/PT_LOAD
+                             file-offset
+                             size size
+                             permissions
+                             elf/page-size
+                             (if (= name 'code)
+                                 ;; the LOAD starts at the file's first
+                                 ;; byte (the prefix), which maps at
+                                 ;; +code-segment-address+; the segment's
+                                 ;; own base sits behind the prefix
+                                 +code-segment-address+
+                               (segment-base name))
+                             space)
+        (incr file-offset size)))
+
+    ;; bss has no file content; the heap image follows it in memory.
+    (assert (<= (segment-length 'bss) +bss-segment-space+)
+            "emit-base-phdrs: bss does not fit in its reserved space")
+
+    (emit-program-header elf/PT_LOAD
+                         file-offset
+                         0 (bss-size)
+                         (+ elf/PF_R elf/PF_W)
+                         elf/page-size
+                         (segment-base 'bss)
+                         +bss-segment-space+)
+
+    (if-feature relocatable-elf
+        ()
+      ;; The heap image is the last loaded segment, so the program break
+      ;; starts right after it: brk grows the heap without a gap.
+      (emit-program-header elf/PT_LOAD
+                           file-offset
+                           (segment-length 'heap)
+                           (segment-length 'heap)
+                           (+ elf/PF_R elf/PF_W)
+                           elf/page-size
+                           (segment-base 'heap)
+                           +heap-segment-space+))))
+
+(when-feature cffi
+  (require "source/compiler/cffi-late.l"))
+
+(when-feature relocatable-elf
+  (require "source/compiler/relocatable-elf.l"))
+
+;; Writes out a very simple/basic ET_EXEC ELF executable.
+(define-function write-elf-to-stream/static (stream arch)
+  ;; Writes out a very simple and static ET_EXEC ELF executable: a
+  ;; fixed-address binary with no relocations, no section headers, and
+  ;; no dynamic linking (this is the code path of (not (feature
+  ;; relocatable-elf)). The linux platform can function with this.
+  (.segment	'data)
+  (.align	elf/page-size)
+
+  (.segment	'ro-data)
+  (.align	elf/page-size)
+
+  ;; Initialize the empty heap image. It is the last loaded segment;
+  ;; later stages move literals into it. For now it only holds this
+  ;; placeholder cell so that its PT_LOAD has content.
+  (.segment	'heap)
+  (.align	target/cell-size/bytes)
+  (label!	'heap-start)
+  (.i8/times	0 target/cell-size/bytes)
+
+  ;; append the program header table to the text segment, so that
+  ;; AT_PHDR (load bias + e_phoff) points into a mapped region.
+  (with-current-segment 'code
+    (.align	8)
+    (label!	'phdr-table)
+
+    ;; make space for the phdr table and .align it, so that the size
+    ;; of the .text segment becomes final after this point.
+    (with-segment-position-backup (current-segment)
+      (.i8/times 0 (* +n-program-headers+ elf/sizeof-Elf64_Phdr))
+      (.align	elf/page-size))
+
+    (emit-base-phdrs)
+
+    (.align	elf/page-size)
+
+    ;; we rewind the write position of the segment to write the ELF
+    ;; header. it's not elegant, but this is the last thing we do
+    ;; with the segment before emitting it, so it's ok here.
+    (set (current-paddress) 0)
+
+    (emit-elf-header elf/ET_EXEC arch
+                     (closure-code-label '_start)
+                     (paddress 'phdr-table)
+                     +n-program-headers+
+                     0 0 0))
+
+  ;; we can start writing the file. note that the order must be in
+  ;; sync with the headers above.
+  (list-do name '(code ro-data data heap) ; bss segment needs no storage
+    (write-segment-to-stream name stream)))
+
+(define-function compile-env (env -c- output-path machine-type reloc-type glob-dat-type)
+  (verbosity 1
+    (warn "begin compiling env with "(array-length (<env>-bindings env))" definitions\n\n")
+    (map (lambda (sym)
+           (warn (symbol->string sym)"	"(eval-in-slave sym)"\n"))
+         '(target/os
+           target/arch
+           target/little-endian?
+           target/cell-size/bits
+           ;;oop/alignment-in-bytes oop/align-padding
+           ;;oop/payload-mask oop/tag-mask
+           )))
+  (comment-features)
+  ;; NOTE this array-do will not pick up any new definitions added to
+  ;; the env after the iterations has begun (see e.g. the
+  ;; COMPILE-DEFINITION of <selector>).
+  (with-assembling (((code	(if-at-expand (= "c-obj" elf-emission-type)
+                                    0
+                                  +code-segment-address+))
+                     (ro-data	(if-at-expand (= "c-obj" elf-emission-type)
+                                    0
+                                  +ro-data-segment-address+))
+                     (data	(if-at-expand (= "c-obj" elf-emission-type)
+                                    0
+                                  +data-segment-address+))
+                     (bss	(if-at-expand (= "c-obj" elf-emission-type)
+                                    0
+                                  +bss-segment-address+))
+                     (heap	(if-at-expand (= "c-obj" elf-emission-type)
+                                    0
+                                  +heap-segment-address+))
+                     (.shstrtab	0)
+                     (.symtab	0)
+                     (.strtab	0)))
+
+    (.segment	'.shstrtab)
+    (.i8	0)				; mandated by the elf standard
+
+    (.segment	'.strtab)
+    (.i8	0)				; mandated by the elf standard
+
+    (.segment	'.symtab)
+    (emit-symtab-entry 0 0 0 0 0 0)		; mandated by the elf standard
+    (when-at-expand (= "c-obj" elf-emission-type)
+      ;; section symbols, one per allocatable section, so that
+      ;; relocations can reference sections; their st_shndx values are
+      ;; the section indices of the shdr table (relocatable-elf.l's
+      ;; +c-obj/.*-section-index+ constants, emitted by
+      ;; %c-obj-emit-section-headers), and they must precede all other
+      ;; symbols
+      (list-do section-index (list +c-obj/.text-section-index+
+                                   +c-obj/.rodata-section-index+
+                                   +c-obj/.data-section-index+
+                                   +c-obj/.bss-section-index+)
+        (emit-symtab-entry 0
+                           (+ (bitwise-shift elf/STB_LOCAL 4)
+                              elf/STT_SECTION)
+                           0
+                           section-index
+                           0 0)))
+
+    ;; This is the default segment, and whoever changes it should make
+    ;; sure changes it back by using WITH-CURRENT-SEGMENT,
+    ;; WITH-NEW-LABEL, or similar constructs.
+    (.segment 'code)
+
+    ;; Make space for the ELF header; it will be emitted as the final step.
+    (.i8/times 0 elf/sizeof-Elf64_Ehdr)
+
+    (array-do var (<env>-bindings env)
+      (let* ((name		(<variable>-name  var))
+             (value		(<variable>-value var))
+             (type-blacklist	(list <form> <fixed>))
+             (name-blacklist	'()))
+        (unless (or (member? (type-of value) type-blacklist)
+                    (member? name name-blacklist))
+          ;; (emit-comment 1 "defn "name)
+          (verbosity 1 (warn name ", "))
+          (compile-definition value name -c-))))
+    (verbosity 1 (warn "\n"))
+
+    (when-feature relocatable-elf
+      (finalize-relocatable-emission -c- machine-type reloc-type glob-dat-type))
+
+    (with-open-stream (stream output-path "w")
+      (if-feature relocatable-elf
+          (write-elf-to-stream/relocatable stream machine-type)
+        (write-elf-to-stream/static stream machine-type)))
+
+    (verbosity 2
+      (array-do var (<env>-bindings (<assembler>-env *assembler*))
+        (let ((value (<variable>-value var)))
+          (when (is <label> value)
+            (emit COMMENT (list "0x"(integer->string (<label>-laddress value) 16)
+                                "\t" (<variable>-name var)))))))))

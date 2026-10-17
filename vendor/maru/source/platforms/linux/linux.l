@@ -1,0 +1,333 @@
+;;; -*- mode: lisp; coding: us-ascii -*-
+
+(set (feature platform/linux) true)
+(set (feature platform/posix) true)
+
+(require "source/platforms/platform-c-based.l")
+
+;; It's tempting to just include the posix cgrov values, but even
+;; though they mostly overlap, there's no guarantee that they are
+;; the same.
+;; (require-cgrov "source/platforms/posix/posix")
+
+(require-cgrov "source/platforms/linux/linux")
+
+;; Internally we define a posix API, so we need to define
+;; some posix/foo constants.
+(define-constant posix/O_WRONLY linux/O_WRONLY)
+(define-constant posix/O_CREAT  linux/O_CREAT)
+(define-constant posix/O_TRUNC  linux/O_TRUNC)
+
+(define main) ; forward
+
+;; define some llvm intrinsics as FFI calls
+;; https://llvm.org/docs/LangRef.html#llvm-memcpy-intrinsic
+;; (define-C-functions ()
+;;   (void llvm.memcpy.p0i8.p0i8.i32 (* * int int))
+;;   )
+;; TODO turned off because this requires linking to something that defines memcpy. apparently llvm doesn't emit its own code for these.
+;; (if (= (host-value *compiler-backend*) "llvm")
+;;     (define-form copy-oops (from to wordcount)
+;;       ;; TODO add align: https://llvm.org/docs/LangRef.html#attr-align
+;;       `(llvm.memcpy.p0i8.p0i8.i32 ,to ,from (words-to-bytes ,wordcount) 1)))
+
+;; this is a placeholder object in the target on which we can register
+;; a special-form later. theoretically, this could be any object
+;; (including nil), but we leave a recognizable trace for better
+;; potential error messages.
+(define syscall
+  (fixed (lambda args
+           (print "syscall encountered in interpreted code with args " args "\n")
+           (abort))))
+
+;; NOTE: cannot be a function, because the syscall special form cannot be applied
+;; NOTE: the assert wrapper must be defined later when ERROR is set up
+(define-form syscall* args
+  `(%syscall-rc-assert ,(first args) (syscall ,@args)))
+
+;;;
+;;; Platform API implementation when running on top of the Linux kernel.
+;;;
+(define-function platform/flush-streams ()
+  ;; there's no need to flush fd's on linux. fsync straight out
+  ;; returns an error when called on a terminal or pipe.
+  ;; (syscall* linux/SYS_fsync linux/STDOUT_FILENO)
+  ;; (syscall* linux/SYS_fsync linux/STDERR_FILENO)
+  )
+
+;; NOTE copy means it may not overlap. move means they may overlap.
+
+;; TODO these two are exported into the evaluator to provide the same api in interpreted code. how shall this be?
+(define-function copy-oops (from to wordcount)
+  (for (i 0 wordcount)
+    (set (oop-at to   i)
+         (oop-at from i))))
+
+(define-function copy-bytes (from to count)
+  (for (i 0 count)
+    (set (byte-at to   i)
+         (byte-at from i))))
+
+(define-function platform/move-oops (from to wordcount)
+  (cond
+    ((< to from)
+     (for (i 0 wordcount)
+       (set (oop-at to   i)
+            (oop-at from i))))
+    ((< from to)
+     (for (i (- wordcount 1) -1 -1)
+       (set (oop-at to   i)
+            (oop-at from i))))))
+
+(define-function platform/move-bytes (from to count)
+  (cond
+    ((< to from)
+     (for (i 0 count)
+       (set (byte-at to   i)
+            (byte-at from i))))
+    ((< from to)
+     (for (i (- count 1) -1 -1)
+       (set (byte-at to   i)
+            (byte-at from i))))))
+
+(define-function platform/clear-cells (from cell-count)
+;; TODO this is still rather high in the profiler. maybe introduce
+;; backend specific compiler macros, and then add an x86 asm
+;; impelmentation?
+  (for (i 0 cell-count)
+    (set (oop-at from i) 0)))
+
+(define-form platform/diag-print-string (str)
+  (typecase str
+    (<string> ; i.e. we can calculate the string length at expand time
+     `(syscall linux/SYS_write linux/STDERR_FILENO
+                     (string->C-string ,str) ,(string-length str)))
+    (else
+     ;; FIXME why do i need the eval?
+     `(let ((cstr ,(if (eval '(feature emit-with-object-headers))
+                       `(string->C-string ,str)
+                     str)))
+        (syscall linux/SYS_write linux/STDERR_FILENO cstr (C-string-length cstr))))))
+
+(define-function platform/diag-print-char (char)
+  ;; TODO endianness?
+  (syscall linux/SYS_write linux/STDERR_FILENO (address-of char) 1)
+  char)
+
+;; needs to be a form; the compiler doesn't yet support . rest args
+(define-function platform/halt (exit-code)
+  (syscall linux/SYS_exit exit-code))
+
+(define *initial-break* 0)
+(define *current-break* 0)
+
+(define-function platform/acquire-memory/via-brk (size)
+  ;; https://gist.github.com/nikAizuddin/f4132721126257ec4345
+  (unless *initial-break*
+    (set *current-break* (set *initial-break* (syscall linux/SYS_brk 0)))
+    ;; TODO too early, ASSERT and ERROR is not functional at this point
+    ;;(assert (< 0 *current-break*))
+    )
+  (let ((new-break	(syscall linux/SYS_brk (+ *current-break* size)))
+        (result		*current-break*))
+    (when (= new-break *current-break*)
+      (platform/diag-print "SYS_brk failed, aborting")
+      (platform/halt 39))
+    (set *current-break* new-break)
+    ;; KLUDGE we make all allocated memory executable.
+    ;; `make test-elf` generates machine code and wants to call it...
+    (syscall linux/SYS_mprotect *initial-break*
+             (- *current-break* *initial-break*)
+             (+ (+ linux/PROT_READ linux/PROT_WRITE)
+                linux/PROT_EXEC))
+    result))
+
+;; KLUDGE whose only role is to keep gc/read-only-object?
+;; working. it requires the heap to lie above the static image,
+;; but mmap(0) picks from the top of the address space, which on
+;; 32-bit targets lies above 2^31, i.e. it compares negative against
+;; the image. hence the hint: right above the image (the program
+;; break), grown as we allocate. it's a delme...
+(define *mmap-hint* 0)
+
+;; the kernel hands us the page size in the auxv; parsed in _start
+(define *kernel-page-size* 0)
+
+;; i386 doesn't have SYS_mmap (its old variant takes a pointer to an
+;; arg struct), only SYS_mmap2, whose offset argument counts in units
+;; of 4096 bytes. we always pass 0 as the offset, so they are
+;; equivalent here.
+(define-constant linux/SYS_mmap*
+  (case target/arch
+    (IA-32	'linux/SYS_mmap2)
+    (else	'linux/SYS_mmap)))
+
+(define-function platform/acquire-memory/via-mmap (size)
+  ;; KLUDGE we make all allocated memory executable.
+  ;; `make test-elf` generates machine code and wants to call it...
+  ;;
+  ;; We don't let the kernel choose the address (it would map us into
+  ;; its mmap area, which can lie below our static image, e.g. under
+  ;; qemu-user with a guest ld.so), but hand out consecutive chunks
+  ;; starting right above the binary's break. this way all heap memory
+  ;; stays above the static image, keeping the invariant of
+  ;; gc/read-only-object? intact. MAP_FIXED_NOREPLACE ensures that we
+  ;; don't clobber anything that might have been mapped there in the
+  ;; meantime (needs linux 4.17+).
+  (unless *mmap-hint*
+    (set *mmap-hint* (align-address-up (syscall linux/SYS_brk 0)
+                                       *kernel-page-size*)))
+  (set size (align-address-up size *kernel-page-size*))
+  (let ((result	(syscall linux/SYS_mmap*
+                         *mmap-hint*			; addr
+                         size				; length
+                         (+ (+ linux/PROT_READ linux/PROT_WRITE)
+                            linux/PROT_EXEC)
+                         (+ (+ linux/MAP_PRIVATE linux/MAP_ANONYMOUS)
+                            linux/MAP_FIXED_NOREPLACE)
+                         -1				; fd
+                         0)))				; offset
+    ;; NOTE the raw syscall returns -errno on failure (libc's
+    ;; MAP_FAILED == -1 doesn't apply here).
+    (when (< result 0)
+      (platform/diag-print "SYS_mmap failed, aborting")
+      (platform/halt 40))
+    (set *mmap-hint* (+ *mmap-hint* size))
+    result))
+
+(define-function platform/acquire-memory (size)
+  ;; the brk based allocator remains the default: it grows the heap
+  ;; right above the binary's static image, which keeps the assumption
+  ;; of gc/read-only-object? (all heap memory lies above the static
+  ;; image) true even in environments where the mmap area is not (see
+  ;; via-mmap's comment). swap the call below to try the mmap based
+  ;; allocator.
+  (platform/acquire-memory/via-brk size))
+
+(eval-in-host '(load "source/platforms/linux/syscall.l"))
+
+;; https://clang.llvm.org/docs/UsersManual.html#freestanding-builds
+
+;; let's declare a memset function because clang -O can emit
+;; references to it (and memcpy and memmove) even with `clang
+;; -nostdlib -nostartfiles -ffreestanding -Wl,-Bstatic`.
+
+;; So even if your handwritten code never mentions strlen, LLVM might:
+;;   - Recognize an strlen impl in the IR and turn it to an strlen call.
+;;   - Emit a call to strlen (libc function) during lowering to
+;;     AArch64 assembly/object code.
+(eval-in-host
+ '(define *llvm-platform-specific-prelude*
+   "
+define weak dso_local ptr @memset(ptr %dst, i32 %val, %word %len) {
+entry:
+  %end = getelementptr i8, ptr %dst, %word %len
+  %val8 = trunc i32 %val to i8
+  br label %loop
+
+loop:
+  %cur = phi ptr [ %dst, %entry ], [ %next, %store ]
+  %done = icmp eq ptr %cur, %end
+  br i1 %done, label %exit, label %store
+
+store:
+  store i8 %val8, ptr %cur
+  %next = getelementptr i8, ptr %cur, %word 1
+  br label %loop
+
+exit:
+  ret ptr %dst
+}
+
+define weak dso_local i64 @strlen(ptr %str) {
+entry:
+  br label %loop
+
+loop:
+  ; %cur starts as %str, then advances by 1 each iteration
+  %cur = phi ptr [ %str, %entry ], [ %next, %loop ]
+
+  %ch = load i8, ptr %cur
+  %zero = icmp eq i8 %ch, 0
+  %next = getelementptr i8, ptr %cur, i64 1
+  br i1 %zero, label %exit, label %loop
+
+exit:
+  %endptr = phi ptr [ %cur, %loop ]
+  %start = ptrtoint ptr %str to i64
+  %end   = ptrtoint ptr %endptr to i64
+  %len   = sub i64 %end, %start
+  ret i64 %len
+}
+"))
+
+;; aka `extern char **environ` in libc land
+(define %envp)
+
+;; the API we use
+(define-function posix/envp ()
+  %envp)
+
+;; auxv is (a_type a_val) machine-word pairs, terminated by an AT_NULL pair
+(define-function %parse-kernel-page-size (auxv)
+  (let ((i 0))
+    (until (= (oop-at auxv i) linux/AT_NULL)
+      (when (= (oop-at auxv i) linux/AT_PAGESZ)
+        (set *kernel-page-size* (oop-at auxv (+ i 1))))
+      (incr i 2))
+    (unless (< 0 *kernel-page-size*)
+      (platform/diag-print "AT_PAGESZ not found in the auxv, aborting")
+      (platform/halt 41))))
+
+;; https://www.muppetlabs.com/~breadbox/software/tiny/teensy.html
+;; http://www.dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html
+;; https://0xax.gitbooks.io/linux-insides/content/Misc/linux-misc-4.html
+;; https://stackoverflow.com/questions/50260855/how-get-arguments-value-using-inline-assembly-in-c-without-glibc
+;; i386: https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/i386/start.S;h=91035fa83fb7ee38a0ca5834ba1d215b4a7f78e8;hb=HEAD
+;; x86_64: https://sourceware.org/git/?p=glibc.git;a=blob;f=sysdeps/x86_64/start.S;h=354d2e6ec78f0eaf9ab0f8ed665c2e5499388df0;hb=HEAD
+;; argc and argv position on the stack: https://briancallahan.net/blog/20200808.html
+;;
+;; auxv, ELF auxiliary vector: contains information about the memory page size, metadata from the ELF file, etc
+;;   https://amit.prasad.me/blog/before-main
+;;   How programs get run: ELF binaries
+;;   https://lwn.net/Articles/631631/
+(define-function _start ()
+  ;; too early for this: (debug (platform/diag-print "_start is alive\n"))
+
+  ;; Stack layout, High memory
+  ;; +---------------------+
+  ;; | auxv[0].a_type = 0  | ; some AT_NULL nonsense, #defined as 0
+  ;; | auxv[0].a_val = 0   |
+  ;; +---------------------+
+  ;; | ...                 |
+  ;; +---------------------+
+  ;; | auxv[0].a_type      |
+  ;; | auxv[0].a_val       |
+  ;; +---------------------+
+  ;; | NULL                |
+  ;; +---------------------+
+  ;; | ...                 |
+  ;; +---------------------+
+  ;; | envp pointers       | key=value strings
+  ;; +---------------------+
+  ;; | NULL                |
+  ;; +---------------------+
+  ;; | ... (argc times)    |
+  ;; +---------------------+
+  ;; | argv[0]             |
+  ;; +---------------------+
+  ;; | argc (int)          | <-- stack pointer points to argc
+  ;; +---------------------+
+  ;; Lower memory
+
+  (let* ((sp (stack-pointer-on-entry))
+         (argc (oop-at sp 0))
+         (argv (+ sp (words-to-bytes 1)))
+         (envp (+ argv (words-to-bytes (+ argc 1)))))
+    (set %envp envp)
+    ;; the auxv follows the envp array's NULL terminator
+    (let ((cursor envp))
+      (until (= 0 (oop-at cursor 0))
+        (set cursor (+ cursor (words-to-bytes 1))))
+      (%parse-kernel-page-size (+ cursor (words-to-bytes 1))))
+    (syscall linux/SYS_exit (main argc argv))))

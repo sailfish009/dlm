@@ -1,0 +1,62 @@
+// find $(guix build glibc | tail -n 2 | head -n 1)/include/ | grep waitflags
+// grep -r "P_PID" $(guix build glibc | tail -n 2 | head -n 1)/include/
+// grep -r MAP_ANONYMOUS $(guix build linux-libre-headers)/include/
+// less $(guix build linux-libre-headers)/include/linux/sched.h
+// less $(guix build linux-libre-headers)/include/asm/unistd_32.h
+// less $(guix build --target=aarch64-linux-gnu linux-libre-headers)/include/asm/unistd_64.h
+// less $(guix build linux-libre-headers)/include/asm/unistd_64.h
+
+prefix linux/
+
+// default _GNU_SOURCE 1
+
+header	sys/syscall.h
+
+integer	SYS_exit SYS_read SYS_write SYS_openat SYS_close SYS_chdir SYS_lseek SYS_brk SYS_mmap SYS_fsync SYS_mprotect SYS_clone SYS_execve SYS_waitid SYS_wait4 SYS_pipe2 SYS_dup3 SYS_getcwd SYS_statx
+
+integer SYS_mmap2 (defined __i386__)
+
+header	sys/wait.h unistd.h linux/sched.h fcntl.h
+
+integer STDIN_FILENO STDOUT_FILENO STDERR_FILENO
+
+integer AT_FDCWD
+
+integer SIGCHLD CLONE_VM CLONE_VFORK WNOHANG WSTOPPED WEXITED WNOWAIT P_ALL P_PID
+
+integer O_RDONLY O_WRONLY O_RDWR O_CREAT O_TRUNC SEEK_SET SEEK_CUR SEEK_END
+
+header	sys/mman.h
+
+// less $(guix build linux-libre-headers)/include/asm-generic/mman-common.h
+integer PROT_READ PROT_WRITE PROT_EXEC PROT_NONE
+integer MAP_TYPE MAP_FIXED MAP_ANONYMOUS MAP_POPULATE MAP_NONBLOCK MAP_STACK MAP_HUGETLB MAP_SYNC MAP_FIXED_NOREPLACE
+
+// less $(guix build linux-libre-headers)/include/linux/mman.h
+integer MAP_SHARED MAP_PRIVATE
+
+header linux/stat.h
+
+// FIXME statx is ambiguous on the C side, therefore we must use struct statx
+// but the groveler cannot deal with that.
+// sizes statx
+
+integer STATX_TYPE STATX_MODE STATX_NLINK STATX_UID STATX_GID STATX_ATIME STATX_MTIME STATX_CTIME STATX_INO STATX_SIZE STATX_BLOCKS STATX_BASIC_STATS STATX_BTIME STATX_MNT_ID STATX_DIOALIGN STATX_MNT_ID_UNIQUE
+
+header asm/errno.h
+
+// less $(guix build linux-libre-headers)/include/asm-generic/errno-base.h
+integer EPERM ENOENT ESRCH EINTR EIO ENXIO E2BIG ENOEXEC EBADF ECHILD EAGAIN ENOMEM EACCES EFAULT ENOTBLK EBUSY EEXIST EXDEV ENODEV ENOTDIR EISDIR EINVAL ENFILE EMFILE ENOTTY ETXTBSY EFBIG ENOSPC ESPIPE EROFS EMLINK EPIPE EDOM ERANGE
+
+// less $(guix build linux-libre-headers)/include/asm-generic/errno.h
+integer EDEADLK ENAMETOOLONG ENOLCK ENOSYS ENOTEMPTY ELOOP EWOULDBLOCK ENOMSG EIDRM ECHRNG EL2NSYNC EL3HLT EL3RST ELNRNG EUNATCH ENOCSI EL2HLT EBADE EBADR EXFULL ENOANO EBADRQC EBADSLT EDEADLOCK EBFONT ENOSTR ENODATA ETIME ENOSR ENONET ENOPKG EREMOTE ENOLINK EADV ESRMNT ECOMM EPROTO EMULTIHOP EDOTDOT EBADMSG EOVERFLOW ENOTUNIQ EBADFD EREMCHG ELIBACC ELIBBAD ELIBSCN ELIBMAX ELIBEXEC EILSEQ ERESTART ESTRPIPE EUSERS ENOTSOCK EDESTADDRREQ EMSGSIZE EPROTOTYPE ENOPROTOOPT EPROTONOSUPPORT ESOCKTNOSUPPORT EOPNOTSUPP EPFNOSUPPORT EAFNOSUPPORT EADDRINUSE EADDRNOTAVAIL ENETDOWN ENETUNREACH ENETRESET ECONNABORTED ECONNRESET ENOBUFS EISCONN ENOTCONN ESHUTDOWN ETOOMANYREFS ETIMEDOUT ECONNREFUSED EHOSTDOWN EHOSTUNREACH EALREADY EINPROGRESS ESTALE EUCLEAN ENOTNAM ENAVAIL EISNAM EREMOTEIO EDQUOT ENOMEDIUM EMEDIUMTYPE ECANCELED ENOKEY EKEYEXPIRED EKEYREVOKED EKEYREJECTED EOWNERDEAD ENOTRECOVERABLE ERFKILL EHWPOISON
+
+// less $(guix build linux-libre-headers)/include/linux/auxvec.h
+header linux/auxvec.h
+
+integer AT_NULL AT_IGNORE AT_EXECFD AT_PHDR AT_PHENT AT_PHNUM AT_PAGESZ AT_BASE AT_FLAGS AT_ENTRY AT_NOTELF AT_UID AT_EUID AT_GID AT_EGID AT_PLATFORM AT_HWCAP AT_CLKTCK AT_SECURE AT_BASE_PLATFORM AT_RANDOM AT_HWCAP2 AT_RSEQ_FEATURE_SIZE AT_RSEQ_ALIGN
+// these are quite new and we don't need them... AT_HWCAP3 AT_HWCAP4 AT_EXECFN AT_MINSIGSTKSZ
+
+header linux/limits.h
+
+integer PATH_MAX

@@ -1,0 +1,21 @@
+;;; -*- mode: lisp; coding: us-ascii -*-
+(let* ((facts (list (dlm-atom 'edge 'a 'b) (dlm-atom 'edge 'b 'c)))
+       (target (dlm-atom 'reach 'a 'c))
+       (e (dlm-episode 'train facts (list target) ()))
+       (state (dlm-new-state (list e) ()))
+       (after (dlm-commit state (dlm-learning-transition state 64))))
+  (dlm-check (= (dlm-length (dlm-nth after 5)) 1) "Experience admission")
+  (dlm-check (equal (dlm-nth state 3) (dlm-nth after 3)) "evidence fixed")
+  (dlm-check (not (dlm-nth after 4)) "Ground unchanged")
+  (let* ((counter (dlm-episode 'counter facts () (list target)))
+         (observed (dlm-commit after (dlm-observe-transition after (list counter))))
+         (revised (dlm-commit observed (dlm-learning-transition observed 0))))
+    (dlm-check (not (dlm-nth revised 5)) "counterexample retracts Experience")
+    (dlm-check (= (dlm-length (dlm-nth revised 6)) 2) "lifecycle history retained"))
+  (let* ((r (car (dlm-nth after 5)))
+         (conflict (dlm-new-state
+                     (list (dlm-episode 'counter facts () (list target))) (list r))))
+    (dlm-check (equal conflict (dlm-commit conflict
+                                (dlm-learning-transition conflict 64)))
+               "Ground conflict abstains")))
+(println "DLM model tests complete")

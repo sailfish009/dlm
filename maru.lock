@@ -1,0 +1,8 @@
+repository=https://github.com/attila-lendvai/maru
+commit=3566784a063abbff264a249d6b061cf18afccd06
+backend=llvm
+platform=linux
+target=x86_64-unknown-linux-gnu
+validated_binary=eval1
+runtime_boot=boot.l
+# Source checkout plus boot dependencies are required; binary alone is insufficient.

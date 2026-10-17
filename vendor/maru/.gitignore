@@ -1,0 +1,13 @@
+build
+notes.txt
+eval
+eval-llvm
+eval-x86
+etc
+*.g.l
+playground
+perf-*
+perf.data*
+.guix-profile*
+.gdbinit
+*.cgrov.*.l
