@@ -3,6 +3,10 @@ commit=3566784a063abbff264a249d6b061cf18afccd06
 backend=llvm
 platform=linux
 target=x86_64-unknown-linux-gnu
-validated_binary=eval1
-runtime_boot=boot.l
-# Source checkout plus boot dependencies are required; binary alone is insufficient.
+source_root=src/maru
+license=LICENSE.maru
+local_modification=source/evaluator/vm-with-file-support.l
+embedded_baseline_files=57
+runtime=maru-compiler
+rebuild_seed=bootstrap/maru-seed
+payload_self_reproduction=false

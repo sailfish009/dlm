@@ -1,11 +1,12 @@
-DLM v0.0067 adapts the local DLM v0.0066 design and the user's Maru dlm.l
-reference port. The Maru source snapshot, history bundle and seed evaluator are
-redistributed with upstream attribution and LICENSE in vendor/maru/LICENSE.
-Follow that license when redistributing or modifying these materials.
+DLM v0.0069 derives its model from the local DLM v0.0067/0068 Maru port,
+following v0.0066's deductive design. Confirm DLM authorship/license before public
+release; this NOTICE does not grant a license.
 
-DeepLog (/research/deeplog.txt) informs the planned algebraic architecture;
-no DeepLog implementation code is included here.
+Maru sources and the evaluator binaries derive from attila-lendvai/maru
+(https://github.com/attila-lendvai/maru), revision
+3566784a063abbff264a249d6b061cf18afccd06. See LICENSE.maru.
+The evaluator's vm-with-file-support.l is locally modified to include baseline
+Lisp source payloads and a native memory reader with external-file fallback.
+Those payloads reproduce upstream baseline behavior, not the modified loader.
 
-NeuroSymbolic-IR and secdpy are design references only; no code is copied from
-them into this release. Confirm authorship and applicable DLM source licensing
-before publishing. This notice is not a license.
+DeepLog is a theoretical reference; no DeepLog implementation is included.
