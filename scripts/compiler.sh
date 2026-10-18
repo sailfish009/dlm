@@ -28,7 +28,7 @@ case "$MODE" in
   cp "$DIR/maru" "$DIR/maru.stripped"; cp "$DIR/next" "$DIR/next.stripped"
   strip "$DIR/maru.stripped" "$DIR/next.stripped"
   cmp "$DIR/maru.stripped" "$DIR/next.stripped" >> "$DIR/verify.log" 2>&1
-  (cd "$ROOT"; sha256sum src/dlm/*.l tests/*.l scripts/run.sh) > "$DIR/tests.sha256"
+  (cd "$ROOT"; sha256sum src/dlm/*.l tests/*.l experiments/interaction/*.l scripts/run.sh) > "$DIR/tests.sha256"
   (cd "$DIR"; sha256sum artifacts.sha256 tests.sha256 verify.log) > "$DIR/verified"
   echo "Verified: $ID" ;;
  promote)

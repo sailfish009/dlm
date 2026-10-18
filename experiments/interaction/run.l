@@ -1,0 +1,40 @@
+;;; -*- mode: lisp; coding: us-ascii -*-
+(define-function interaction-prefix (xs n)
+  (if (> n 0) (cons (car xs) (interaction-prefix (cdr xs) (- n 1))) ()))
+(define-function interaction-tasks (values low high)
+  (let ((tasks ()))
+    (for (n low (+ high 1))
+      (let ((state (interaction-prefix values n)))
+        (list-do goal state
+          (set tasks (dlm-append tasks (list (list state goal)))))))
+    tasks))
+(define-function interaction-evaluate (model tasks mode)
+  (let ((wins 0) (calls 0) (seed 70))
+    (list-do task tasks
+      (set seed (+ seed 1))
+      (let ((result (interaction-rollout model (car task) (dlm-nth task 1)
+                     (+ 1 (dlm-length (car task))) mode seed)))
+        (if (= (dlm-nth result 1) 'success) (set wins (+ wins 1)))
+        (set calls (+ calls (dlm-nth result 3)))))
+    (list 'result mode wins (dlm-length tasks) (list 'calls calls))))
+
+(define *interaction-cold* (interaction-model))
+(define *interaction-trained* *interaction-cold*)
+(define *interaction-train-tasks* (interaction-tasks '(a b c d) 1 4))
+(define *interaction-held-tasks* (interaction-tasks '(u v w x y z s t) 5 8))
+(define *interaction-search-calls* 0)
+(for (epoch 0 12)
+  (list-do task *interaction-train-tasks*
+    (set *interaction-trained*
+         (interaction-train *interaction-trained* (car task) (dlm-nth task 1) 64))
+    (let* ((records (dlm-nth *interaction-trained* 2))
+           (latest (dlm-nth records (- (dlm-length records) 1))))
+      (set *interaction-search-calls* (+ *interaction-search-calls*
+        (dlm-nth (dlm-nth latest 3) 3))))))
+(println "TRAINING " (list 'updates (dlm-nth *interaction-trained* 3)
+                          'search-calls *interaction-search-calls*))
+(println "HELD-COLD " (interaction-evaluate *interaction-cold* *interaction-held-tasks* 'learned))
+(println "HELD-RANDOM " (interaction-evaluate *interaction-cold* *interaction-held-tasks* 'random))
+(println "HELD-TRAINED " (interaction-evaluate *interaction-trained* *interaction-held-tasks* 'learned))
+(println "HELD-SCRAMBLED " (interaction-evaluate *interaction-trained* *interaction-held-tasks* 'scrambled))
+(println "TRACE " (interaction-rollout *interaction-trained* '(u v w x) 'w 5 'learned 70))
