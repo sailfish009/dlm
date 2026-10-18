@@ -1,0 +1,37 @@
+maru: OK
+maru.ll: OK
+sources.sha256: OK
+record: OK
+PASS: constant match with empty environment
+PASS: repeated variable conflict
+PASS: unsafe rule recognized
+PASS: recursive closure
+PASS: no reversed derivation
+PASS: proof verified
+PASS: absent rule rejected
+PASS: forged conclusion rejected
+PASS: explicit contradiction blocks admission
+closure: ((atom reach (a c)) (atom edge (b c)) (atom edge (a b)))
+proof verified: true
+absent rule rejected: true
+verdict: (verdict 1 0 0 (demo) 6 true)
+learn: (learning-result ((rule (atom reach ((var x) (var z))) ((atom edge ((var x) (var y))) (atom edge ((var y) (var z)))))) (rule (atom reach ((var x) (var z))) ((atom edge ((var x) (var y))) (atom edge ((var y) (var z))))) (verdict 1 0 0 (demo) 6 true) 6)
+DLM tests complete
+PASS: Experience admission
+PASS: evidence fixed
+PASS: Ground unchanged
+PASS: observation retracts before any query
+PASS: counterexample retracts Experience
+PASS: lifecycle history retained
+PASS: Ground conflict abstains
+DLM model tests complete
+PASS: malformed rule rejected
+PASS: malformed argument list rejected
+PASS: malformed proof conclusion rejected
+PASS: truncated proof rejected
+PASS: cross-premise binding conflict rejected
+Generated candidate-vm.l from embedded sources using Maru
+warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
+1 warning generated.
+Built compiler-source image: /research/dlm_v0.0070/runtime/releases/20261018T054901Z-31301/next
+Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.

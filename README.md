@@ -1,64 +1,62 @@
-# DLM v0.0069 -- embedded Maru compiler baseline
+# DLM v0.0070 -- verified compiler lifecycle
 
-No vendor directory. Maru sources are in src/maru; model code is in src/dlm.
-Maru's license is LICENSE.maru at the source root.
+Maru supplies the Lisp runtime/compiler; src/dlm supplies the deductive model.
+No vendor directory. Maru's license is LICENSE.maru. No GPU, PyTorch or LLM.
+
+## Run
 
 ```sh
-./scripts/run.sh repl
 ./scripts/run.sh test
-./scripts/build.sh
-./scripts/verify-compiler.sh
+./scripts/run.sh repl
 ```
 
-## Layout
+The active maru-compiler is a symlink to a retained release binary. Initial runtime
+is included under runtime/releases/initial. DLM code is loaded externally.
 
-- maru-compiler: Linux x86-64 evaluator with 57 baseline Maru Lisp payloads inside.
-- src/maru/: minimal self-compile source set, including the experimental native
-  memory-stream loader in source/evaluator/vm-with-file-support.l.
-- src/dlm/: deduction, proof checking, learning, Experience, model REPL operations.
-- bootstrap/maru-seed: ordinary evaluator for rebuilding modified embedding code.
-- scripts/: compile/link, explicit rebuild, regression and payload verification.
-- tests/: 15 DLM assertions plus demo.
-- LICENSE.maru: upstream Maru license; NOTICE explains provenance.
+## Compiler lifecycle
 
-## Execution vs rebuilding
-
-REPL and DLM execution load boot.l from the binary; no external Maru Lisp files
-are needed at runtime. DLM files remain external and use safe file fallback when
-not present in the embedded baseline. Example:
-
-```lisp
-(dlm-status)
-(define facts (list (dlm-atom 'edge 'a 'b) (dlm-atom 'edge 'b 'c)))
-(define target (dlm-atom 'reach 'a 'c))
-(dlm-observe (list (dlm-episode 'user facts (list target) ())))
-(dlm-learn 64)
-(dlm-ask target)
+```sh
+ID=$(./scripts/compiler.sh rebuild)     # current source; ordinary seed; Python build tool
+# Or: ID=$(./scripts/compiler.sh reproduce)  # active embedded snapshot; no Python
+./scripts/compiler.sh verify "$ID"
+./scripts/compiler.sh promote "$ID"     # explicit, never automatic
+./scripts/compiler.sh rollback
 ```
 
-The compiler Lisp is interpreted from embedded payloads, not natively compiled
-compiler functions. Current source contains a frozen baseline payload table.
-Changes to external compiler files are NOT automatically incorporated into that
-table. The modified loader's source can be rebuilt using the ordinary seed.
-Do not confuse this with autonomous compiler-source learning or a fully
-self-reproducing embedded compiler image: neither is implemented.
+rebuild includes current src/maru files and regenerates payloads. reproduce uses
+only the active image's embedded generator/snapshot; it does NOT incorporate
+external edits. Both use external clang/linker. Verification also needs strip.
+The Python payload assembler is build-only, not a DLM runtime dependency.
 
-build.sh explicitly replaces maru-compiler after a successful compilation;
-verify-compiler.sh does not promote anything. Back up accepted binaries before
-experiments. A staged regression-gated promotion/rollback mechanism is pending.
+Each release retains source manifest, parent binary SHA-256, build mode, LLVM,
+binary hashes, build/verification logs and a verification marker bound to artifacts
+and test inputs. verify performs DLM regressions plus next-generation self-build,
+LLVM and stripped-binary equality. promote checks recorded artifacts/test inputs;
+rebuild promotion also rejects changed source manifests. Previous runtime is kept
+for rollback. These are local integrity checks, NOT signatures or a hostile-code
+security boundary. Run candidate code under OS isolation for untrusted patches.
 
-## Verification
+## DLM changes
 
-verify-compiler.sh runs the embedded compiler from an empty source directory,
-emits the baseline LLVM twice, compares LLVM and stripped executable bytes,
-and runs DLM tests on the embedded runtime. This proves deterministic embedded
-baseline compilation, NOT reproduction of the modified compiler-image itself.
+- Observation revises Experience immediately, preventing queries through stale
+  counterexample-invalidated rules before the next learning step.
+- Observation conflicting with Ground abstains and preserves prior state.
+- Rule/atom/proof shape checks reject tested malformed inputs.
+- Bounded derivation exposes complete/incomplete; legacy closure raises on
+  incomplete rather than treating exhaustion as false.
+- Optional developer reference check: `python tests/differential.py` compares
+  20 seeded graph closures, including cycles, to sibling dlm_v0.0066.
 
-Building requires clang/linker; verification requires strip. Scripts use bash
-and coreutils. No Python/PyTorch/GPU/LLM is needed to execute or build this release.
-The runtime is not a hostile-code sandbox. DLM has no persistent journal or web
-learning loop; fixpoint limits count passes rather than instructions.
+Tests cover 22 assertions. This is not full malformed-input validation. Resource
+limits still count fixpoint passes, not unifications, CPU instructions or memory;
+strict operation/memory budgets remain future work. No persistent model journal,
+web loop, autonomous compiler patch learner or independent compiler-performance
+benchmark is claimed. Fixed-point equality is reproducibility, not correctness.
 
-The initial 57-file source set was 327466 bytes. Embedding those payloads in a
-source table increases source size; fewer external files does not imply a smaller
-implementation. License and DLM authorship must be reviewed before publication.
+## Research boundary
+
+Compiler-source improvement belongs in src/maru; model learning in src/dlm.
+A compiler candidate must preserve semantics and improve independently measured
+held-out tasks/resources before being called a learning improvement. Current
+verification is a regression gate only. DeepLog-style algebra/provenance work is
+still pending. Review DLM authorship/license before publishing.

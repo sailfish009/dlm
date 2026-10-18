@@ -1,12 +1,13 @@
-DLM v0.0069 derives its model from the local DLM v0.0067/0068 Maru port,
+DLM v0.0070 derives its model from the local DLM v0.0067/0068 Maru port,
 following v0.0066's deductive design. Confirm DLM authorship/license before public
 release; this NOTICE does not grant a license.
 
 Maru sources and the evaluator binaries derive from attila-lendvai/maru
 (https://github.com/attila-lendvai/maru), revision
 3566784a063abbff264a249d6b061cf18afccd06. See LICENSE.maru.
-The evaluator's vm-with-file-support.l is locally modified to include baseline
-Lisp source payloads and a native memory reader with external-file fallback.
-Those payloads reproduce upstream baseline behavior, not the modified loader.
+The compiler-image build tools generate a modified evaluator with embedded
+source payloads, memory reader, manifest, loader template and Maru generator.
+Subsequent --self builds retain the compiler-image functionality. Working source
+edits require rebuild mode; reproduce mode retains the embedded snapshot.
 
 DeepLog is a theoretical reference; no DeepLog implementation is included.

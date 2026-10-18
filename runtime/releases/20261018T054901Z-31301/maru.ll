@@ -27853,6 +27853,22 @@ L3:
 @m_ostr1766 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr1765 to ptr) }}
 @m_cstr1767 = private unnamed_addr constant [24014 x i8] c";;; -*- mode: lisp; coding: us-ascii -*-\0A\0A;;;\0A;;; types\0A;;;\0A;;;\0A;;; type-id-of: returns the type-id that the target VM is working with,\0A;;; i.e. the \22level-shifted name\22 of the type (an integer).\0A;;;\0A;;; type-of: returns a maru record holding the metadata for that type\0A;;; (i.e. its name, type-id, etc).\0A;;;\0A;;; the <foo> global definitions are also holding full maru type objects.\0A\0A(define-form is (type obj)\0A  ;; TODO use subtype? because this ignores inheritance\0A  `(= ,type (type-of ,obj)))\0A\0A(assert (not (= 'not-yet-bootstrapped type-of)))\0A\0A(define type-id-of type-of) ; we will replace type-of later\0A(define type-of 'not-yet-bootstrapped)\0A\0A(define %first-type-id\09\091) ; i.e. the first allocated type will be 1 (so that we can assert for non-zero type in the gc)\0A(define %last-type-id\09\09(- %first-type-id 1))\0A(define %types\09\09\09(array 16))\0A\0A(define-form types-do (var . body)\0A  `(for (__i__ %first-type-id %last-type-id)\0A     (let ((,var (array-at %types __i__)))\0A       ,@body)))\0A\0A(if-at-expand bootstrapping?\0A    (let ()\0A      ;; integrate with the host vm's type machinery to instantiate slave objects\0A      ;; in the framework of the host while we are being bootstrapped.\0A      (define-function allocate-type-id ()\0A        (eval-in-host '(allocate-type-id)))\0A\0A      (define-function allocate-type-id/slave ()\0A        (incr %last-type-id))\0A\0A      (define %type-id-map/host->slave (array 16)))\0A\0A  (define-function allocate-type-id ()\0A    (incr %last-type-id)))\0A\0A(define-function %make-accessor-forms (type-name slot-names slot-index raw-slot-access?)\0A  (when slot-names\0A    (cons (let* ((slot-name (car slot-names))\0A                 (accessor-name (concat-symbol type-name (concat-symbol '- slot-name))))\0A            (if raw-slot-access?\0A                `(define-form ,accessor-name (obj)\0A                   (list 'oop-at obj ,slot-index))\0A              `(define-form ,accessor-name (obj)\0A                 (list 'slot-value ',type-name ',slot-name obj))))\0A          (%make-accessor-forms type-name (cdr slot-names) (+ 1 slot-index) raw-slot-access?))))\0A\0A(define <type>)\0A(define <record>)\0A\0A(if-at-expand bootstrapping?\0A    (let ()\0A      ;; if we want to e.g. use the host's multimethods on the slave's types\0A      ;; (for example in the compiler) while we are being bootstrapped, then\0A      ;; we need to \22bind\22 the slave's <type> and <record> to their\0A      ;; respective versions in the host.\0A      (define type-id-of-<type>\09\09(eval-in-host '(<type>-id <type>)))\0A      (define type-id-of-<record>\09(eval-in-host '(<type>-id <record>)))\0A      (define slots-of-<type>\09\09(eval-in-host '(<record>-direct-slots <type>)))\0A      (define slots-of-<record>\09\09(eval-in-host '(<record>-direct-slots <record>))))\0A\0A  (define type-id-of-<type>\09\09(allocate-type-id))\0A  (define type-id-of-<record>\09\09(allocate-type-id))\0A  (define slots-of-<type>\09\09'(id name))\0A  (define slots-of-<record>\09\09'(super direct-slots effective-slots)))\0A\0A;; define temporary, non-typechecking accessors for <type> and <record>\0A(eval `(let ()\0A         ,@(%make-accessor-forms\09'<type>\09\09slots-of-<type>\09\090\09\09\09\09true)\0A         ,@(%make-accessor-forms\09'<record>\09slots-of-<record>\09(list-length slots-of-<type>)\09true)))\0A\0A(assert <type>-name)\0A\0A(if-at-expand bootstrapping?\0A;;;\0A;;; bootstrap is happening, i.e. <type> and <record> is mapped into the slave from the host in early.l\0A;;;\0A    (let ()\0A      (set <type>\09\09(eval-in-host '<type>))\0A      (set <record>\09\09(eval-in-host '<record>))\0A\0A      (let ((slave-id (allocate-type-id/slave)))\0A        (set (array-at %type-id-map/host->slave (<type>-id <type>)) slave-id)\0A        (set (array-at %types slave-id) <type>))\0A\0A      (let ((slave-id (allocate-type-id/slave)))\0A        (set (array-at %type-id-map/host->slave (<type>-id <record>)) slave-id)\0A        (set (array-at %types slave-id) <record>))\0A\0A      (define-function <type>-slave-id (type)\0A        (let* ((type-id  (<type>-id type))\0A               (slave-id (array-at %type-id-map/host->slave type-id)))\0A          (assert slave-id \22no host->slave mapping exists for host type-id: \22 type-id \22?!\22)\0A          slave-id))\0A\0A      (define-function register-type (type)\0A        ;; while bootstrapping we instantiate types in the host (so that we can use e.g. method dispatch),\0A        ;; and keep an additional host-id->slave-id map.\0A        (let ((slave-id\09(allocate-type-id/slave))\0A              (host-id\09(<type>-id type)))\0A          (verbosity 3 (warn \22register-type: \22type\22, \22host-id\22 -> \22slave-id\22\5Cn\22))\0A          (set (array-at %type-id-map/host->slave host-id) slave-id)\0A          (set (array-at %types slave-id) type)\0A          (eval-in-host `(register-type ',type))))\0A\0A      (define-function type-object-for-id (host-id)\0A        (or (array-at %types (let ((slave-id (array-at %type-id-map/host->slave host-id)))\0A                               ;; we could make this smarter and only do the remap when there's an entry...\0A                               ;; but do we want to? wouldn't that hide some nasty bugs?\0A                               (assert slave-id \22type-object-for-id: no host->slave mapping exists for host type-id: \22host-id\22, type: \22(array-at %types host-id))\0A                               slave-id))\0A            (error \22type-object-for-id has failed for type id \22host-id\22, known types are: \22%types))))\0A;;;\0A;;; we are not being bootstrapped, therefore we need to instantiate <type> and <record> ourselves\0A;;;\0A  (define-function register-type (type)\0A    (set (array-at %types (<type>-id type)) type))\0A\0A  (define-function type-object-for-id (type-id)\0A    (or (array-at %types type-id)\0A        (error \22type-object-for-id has failed for type id \22type-id\22, known types are: \22%types)))\0A\0A  (define-function %bootstrap-type (type-name type-id type-type-id slot-count)\0A    (let ((type-obj (allocate type-type-id slot-count)))\0A      (set (<type>-id\09type-obj)\09type-id)\0A      (set (<type>-name\09type-obj)\09type-name)\0A      (register-type type-obj)\0A      type-obj))\0A\0A  (define-function %bootstrap-record (type-name type-id super direct-slots)\0A    (let ((type-obj (%bootstrap-type type-name type-id type-id-of-<record> (+ (list-length slots-of-<type>)\0A                                                                              (list-length slots-of-<record>)))))\0A      (set (<record>-super\09\09type-obj)\09\09super)\0A      (set (<record>-direct-slots\09type-obj)\09\09direct-slots)\0A      (set (<record>-effective-slots\09type-obj)\09\09'not-yet-bootstrapped)\0A      type-obj))\0A\0A  (set <type>\09(%bootstrap-record '<type>\09\09type-id-of-<type>\09()\09slots-of-<type>))\0A  (set <record>\09(%bootstrap-record '<record>\09\09type-id-of-<record>\09<type>\09slots-of-<record>)))\0A\0A(assert (and <type> <record>))\0A(assert (= (<type>-id <type>) %first-type-id))\0A(assert (= (<type>-id <record>) (+ %first-type-id 1)))\0A\0A(assert (= (type-object-for-id (<type>-id <type>)) <type>))\0A(assert (= (type-object-for-id (<type>-id <record>)) <record>))\0A\0A(verbosity 2\0A  (warn \22<type> is instantiated: \22\09<type>\09\09\22, id: \22\09(<type>-id <type>)\22\5Cn\22)\0A  (warn \22<record> is instantiated: \22\09<record>\09\22, id: \22\09(<type>-id <record>)\22\5Cn\22))\0A\0A(assert (= 'not-yet-bootstrapped type-of))\0A\0A(define-function type-of (obj)\0A  (type-object-for-id (type-id-of obj)))\0A\0A(assert (not (= 'not-yet-bootstrapped type-of)))\0A(assert (= (type-of <type>) <record>))\0A(assert (= (type-of <record>) <record>))\0A\0A(define-function name-of-type (type)\0A  (<type>-name type))\0A\0A(define-function type-name-of (obj)\0A  (name-of-type (type-of obj)))\0A\0A(define subtype?) ; forward\0A\0A(define-function record-inherits-from? (type super)\0A  (and type\0A       (or (= type super)\0A           (and (subtype? (type-of type) <record>)\0A                (record-inherits-from? (<record>-super type) super)))))\0A\0A(define-function subtype? (subtype supertype)\0A  (assert (and subtype supertype))\0A  (or (= subtype supertype)\0A      (record-inherits-from? subtype supertype)))\0A\0A(assert (subtype? (type-of <type>) <record>))\0A(assert (subtype? <record> <type>))\0A(assert (not (subtype? <type> <record>)))\0A\0A(define-function sanity-check-record-slots (record slots)\0A  (let ((f slots))\0A    (while (pair? f)\0A      (unless (symbol? (car f))\0A        (error \22slot is not symbol?: \22(car f)))\0A      (when (member? (car f) (cdr f))\0A        (error \22slot '\22(car f)\22' multiply-defined in record: \22record\22 \22slots))\0A      (set f (cdr f)))))\0A\0A(define-function %record/compute-effective-slots (type)\0A  (and type\0A       (subtype? (type-of type) <record>)\0A       (concat-list (%record/compute-effective-slots (<record>-super type))\0A                    (<record>-direct-slots type))))\0A\0A(define-function record/compute-effective-slots (type)\0A  ;;(print \22record/compute-effective-slots for type \22 (<type>-name type) \22 of type \22 (<type>-name (type-of type)) \22 ?= <record>\22 (= type <record>) \22\5Cn\22) ; TODO delme\0A  (assert (subtype? (type-of type) <record>) \22record/compute-effective-slots called with a non-record type \22 type)\0A  (let ((slots (%record/compute-effective-slots type)))\0A    (sanity-check-record-slots type slots)\0A    slots))\0A\0A(when-at-expand (not bootstrapping?)\0A  (set (<record>-effective-slots <type>)\09(record/compute-effective-slots <type>))\0A  (set (<record>-effective-slots <record>)\09(record/compute-effective-slots <record>)))\0A\0A(assert (equal slots-of-<type> (<record>-effective-slots <type>)))\0A(assert (equal (concat-list slots-of-<type> slots-of-<record>) (<record>-effective-slots <record>)))\0A\0A(define-function record/effective-slot-count (type)\0A  (list-length (<record>-effective-slots type)))\0A\0A(define-function record/slot-index (type slot-name)\0A  (assert (is <record> type))\0A  (let ((i 0)\0A        (list (<record>-effective-slots type)))\0A    (while (and (pair? list)\0A                (not (= slot-name (car list))))\0A      (set list (cdr list))\0A      (incr i))\0A    (or (and (pair? list)\0A             i)\0A        (error \22record-slot-index has failed for type \22type\22, slot-name \22slot-name))))\0A\0A;; now that <type> and <record> is instantiated, we can implement type checking in the accessors.\0A;; let's also redefine the basic accessors that we have defined earlier.\0A(define-function %accessor-typecheck (expected-type-id slot-name object)\0A  (unless (= (type-id-of object) expected-type-id)\0A    (let ((expected-type (type-object-for-id expected-type-id))\0A          (actual-type (type-of object)))\0A      (unless (subtype? actual-type expected-type)\0A        ;; (warn \22about to process an %accessor-typecheck failure, which may fail to properly print the error output\5Cnslot name is \22slot-name\22, expected-type-id is \22expected-type-id\22, object's actual type id is \22(type-id-of object)\22\5Cn\22)\0A        (error \22type check failed for record slot accessor: expected type \22expected-type\22, slot name \22slot-name\22, got \22 actual-type))))\0A  object)\0A\0A;; slot-value is a \22choke-point\22 that we can override while loading and expanding\0A;; the level-shifted code. see compile-begin for more details, or compiled peg parsers\0A;; that inhibit the expansion of slot-value while generating the maru code.\0A(define-form slot-value (type-name slot-name object)\0A  (let* ((type (eval type-name *env*))\0A         (slot-index (record/slot-index type slot-name)))\0A    `(oop-at\0A      ,(if (feature typecheck-slot-access)\0A           `(%accessor-typecheck ,(<type>-id type) ',slot-name ,object)\0A         object)\0A      ,slot-index)))\0A\0A;; sometimes (see e.g. compiled peg parsers) we prevent slot-value to get expanded to keep\0A;; the generated code a little less fragile to changes in the object layout. in those\0A;; situations, at a later time, when the generated code is expanded, we may\0A;; encounter set-slot-value forms, so let's provide them, too.\0A(define-form set-slot-value (type-name slot-name object value)\0A  (let* ((type (eval type-name *env*))\0A         (slot-index (record/slot-index type slot-name)))\0A    `(set-oop-at\0A      ,(if (feature typecheck-slot-access)\0A           `(%accessor-typecheck ,(<type>-id type) ',slot-name ,object)\0A         object)\0A      ,slot-index\0A      ,value)))\0A\0A(define-function type/slot-count-of-instances (type)\0A  (cond\0A    ((subtype? (type-of type) <record>)\09(record/effective-slot-count type))\0A    ((subtype? (type-of type) <type>)\090)\0A    (else\09\09\09\09(error \22type/slot-count-of-instances: called with something unexpected: \22 type))))\0A\0A(define-function %make-record-accessors (type raw-slot-access?)\0A  (assert (subtype? (type-of type) <record>) \22%make-record-accessors called with a non-record type \22 type)\0A  (%make-accessor-forms (<type>-name type)\0A                        (<record>-direct-slots type)\0A                        (or (and (<record>-super type)\0A                                 (subtype? (<record>-super type) <record>)\0A                                 (record/effective-slot-count (<record>-super type)))\0A                            0)\0A                        raw-slot-access?))\0A\0A;; redefine the preliminary bootstrap accessors with full featured ones\0A(eval `(let ()\0A         ,@(%make-record-accessors <type> false)\0A         ,@(%make-record-accessors <record> false)))\0A\0A(verbosity 2 (warn \22type registry is alive\5Cn\22))\0A\0A;;; at this point the type registry is bootstrapped, containing two types: <type> and <record>\0A\0A(assert (= (type-of <type>)\09<record>))\0A(assert (= (type-of <record>)\09<record>))\0A\0A(assert (= 2 (list-length (<record>-effective-slots <type>))))\0A(assert (= (+ 3 (list-length (<record>-effective-slots <type>))) (list-length (<record>-effective-slots <record>))))\0A\0A(define-function new-type-instance (name type)\0A  (assert (subtype? type <type>))\0A  (let ((id (allocate-type-id))\0A        (result (allocate (<type>-id type) (type/slot-count-of-instances type))))\0A    (verbosity 3 (warn \22new <type> instance: \22 name \22, id: \22 id\22\5Cn\22))\0A    (set (<type>-name\09result) name)\0A    (set (<type>-id\09result) id)\0A    (register-type result)\0A    result))\0A\0A(define-function new-<type> (name)\0A  (new-type-instance name <type>))\0A\0A(define-form define-type (name)\0A  (let ((type (new-<type> name)))\0A    ;; TODO we want this to be defined already when the upcoming forms get expanded. but it feels like a kludge...\0A    (eval `(define ,name ,type))\0A    `(define ,name ,type)))\0A\0A(define-function new-<record> (name super slots)\0A  (assert (or (not super) (and (not (pair? super)) (subtype? (type-of super) <type>))))\0A  (let ((type (new-type-instance name <record>)))\0A    (set (<record>-super\09\09type) super)\0A    (set (<record>-direct-slots\09\09type) slots)\0A    (set (<record>-effective-slots\09type) (record/compute-effective-slots type))\0A    type))\0A\0A;; args: name super slots . props\0A(define-form define-record (name . rest)\0A  (let ((super (pop rest))\0A        (slots (pop rest))\0A        (props rest))\0A    (set slots (map-with expand slots *env*))\0A    (set slots (list-remove () slots))\0A    (let ((record-type\09\09(new-<record> name (eval super) slots))\0A          (raw-slot-access?\09false))\0A      (list-do prop props\0A        (case prop\0A          (raw-slot-access\09(set raw-slot-access? true))\0A          (else\09\09\09(error \22define-record: unexpected property \22prop))))\0A      ;; so that it's already available at expand time...\0A      (eval `(define ,name ,record-type))\0A      ;; ...and at runtime.\0A      `(let ((type-obj ,record-type))\0A         (define ,name type-obj)\0A         ,@(%make-record-accessors record-type raw-slot-access?)\0A         type-obj))))\0A\0A;;; immediate type (i.e. a word with some tag bits)\0A\0A(define-record <immediate-type> <type> (tag-value tag-width))\0A\0A(define-function new-<immediate-type> (name tag-value tag-width)\0A  (let ((type (new-type-instance name <immediate-type>)))\0A    (set (<immediate-type>-tag-value\09type) tag-value)\0A    (set (<immediate-type>-tag-width\09type) tag-width)\0A    type))\0A\0A(define-form define-immediate (name tag-value tag-width)\0A  `(define ,name ,(new-<immediate-type> name (eval tag-value) (eval tag-width))))\0A\0A;;; boxed type (i.e. a full object with a header)\0A\0A(define-record <boxed-type> <type>\0A  ;; NOTE: it's possible to allocate heap objects of any length and\0A  ;; then set whatever type we want on them. so, it's possible to\0A  ;; e.g. allocate a large opaque object, put <symbol> as its type,\0A  ;; and memcpy an arbitrary long cstring into the object payload.\0A\0A  ;; TODO this ONE-WORD? thing is silly. either rename to\0A  ;; SINGLE-WORD?, or come up with some alternative that generalizes\0A  ;; better. how could (box <some-boxed-type> payload) work when the\0A  ;; payload is not a single word, but something longer that needs to\0A  ;; be memcpy'd into the object's body? maybe payload should then be\0A  ;; a lisp <array> whose elements get copied?\0A  (one-word?))\0A\0A(define-function new-<boxed-type> (name one-word?)\0A  (let ((type (new-type-instance name <boxed-type>)))\0A    (set (<boxed-type>-one-word? type) one-word?)\0A    type))\0A\0A;; TODO rename to define-boxed-cell, or maybe define-boxed-cell-type\0A(define-form define-boxed-word (name)\0A  `(define ,name ,(new-<boxed-type> name true)))\0A\0A(define-form define-boxed (name)\0A  `(define ,name ,(new-<boxed-type> name false)))\0A\0A;;; classes\0A\0A(define-form define-class (name basis fields)\0A  ;; TODO source-level compatibility. decide whether to delme.\0A  ;; TODO accessor regression: there used to be <peg>-result, now there's only a <parser>-result (inheritance)\0A  `(define-record ,name ,basis ,fields))\0A\0A;;; field accesors\0A\0A(define-function make-instance-accessors (var-name type-name slots)\0A  (when (pair? slots)\0A    (cons `(,(concat-symbols var-name '. (car slots))\0A             ()\0A             ((_)\0A              `(slot-value ,type-name ,(car slots) ,var-name)))\0A          (make-instance-accessors var-name type-name (cdr slots)))))\0A\0A;; Bind symbol macros for each slot on VAR-NAME.SLOT-NAME.  TODO is\0A;; this really what we want? instead of e.g. binding the slot names as\0A;; local variables?\0A(define-form with-instance-accessors (var-name type-name . body)\0A  (let ((accessors\09())\0A        (super\09\09(eval type-name *env*)))\0A    (while (is <record> super)\0A      (list-do accessor (make-instance-accessors var-name\0A                                                 (<type>-name super)\0A                                                 (<record>-direct-slots super))\0A        (push accessors accessor))\0A      (set super (<record>-super super)))\0A    `(with-forms ,accessors\0A       ,@body)))\0A\0A;;; constructors\0A\0A(define-form new (type-name . inits)\0A  (let* ((i -1)\0A         (type (eval type-name *env*))\0A         (allocate-form `(allocate ,(<type>-id type) ,(type/slot-count-of-instances type))))\0A    ;; TODO singletons for types whose instances have no slots?\0A    (if inits\0A        `(let ((_self_ ,allocate-form))\0A           ;; TODO the usefulness of this is questionable... delme and rename make to new?\0A           ,@(map (lambda (_init_)\0A                    (list 'set-oop-at '_self_ (incr i) _init_))\0A                  inits)\0A           _self_)\0A      allocate-form)))\0A\0A(define-form new* (type . inits)\0A  ;; this one doesn't need to know the type at expand-time\0A  (let ((i -1))\0A    `(let* ((_type_ ,type)\0A            (_self_ (allocate (<type>-id _type_)\0A                              (type/slot-count-of-instances _type_))))\0A       ,@(map (lambda (_init_) (list 'set-oop-at '_self_ (set i (+ i 1)) _init_)) inits)\0A       _self_)))\0A\0A(define-function %make-make-inits (env prefix inits)\0A  (when inits\0A    (let ((entry (first inits)))\0A      (when (= (first entry) 'when-at-expand) ; well, if we look at it as a DSL... or is it a KLUDGE?\0A        (set entry (expand entry env)))\0A      (when entry\0A        (cons `(set ,(concat-symbol prefix (first entry)) ,(second entry))\0A              (%make-make-inits env prefix (cdr inits)))))))\0A\0A(define-form make (type . inits)\0A  `(let ((self (new ,type)))\0A     (with-instance-accessors self ,type\0A       ,@(%make-make-inits *env* 'self. inits)\0A       self)))\0A\0A;;; built-in types\0A\0A;; NOTE the vm-functions provided by the eval executable assume\0A;; a certain memory layout for the built-in types.\0A;; what actually happens is encoded in the executable, and if you change any of these\0A;; then you need to bootstrap to reflect the changes in the next executable.\0A;; types are represented in the target as successive integers.\0A\0A;; NOTE these type definitions also encode the object layout in the\0A;; target, which may or may not be a good idea. maybe there should be\0A;; separate define-object-layout forms in the target code for that?\0A\0A;; TODO type objects and their accessors should be serialized into the\0A;; compiled binary and this should be wrapped in a big (when-at-expand\0A;; bootstrapping? ...). this would also reflect the fact that editing\0A;; these and bringing it out of sync with the level-shifted binary is\0A;; not an option without grave consequences. such a setup would\0A;; hopefully also simplify the bootstrapping dance above.\0A(define-type\09\09<data>)\09\09\09\09\09; some blob; used for stuff like the elements of <string> and <array>\0A\0A(define-immediate\09<undefined>\09\090 ())\09\09; nil tag-width means that it's an entire word of a well-known value; in this case zero\0A(if-at-expand true\0A  (define-immediate\09<long>\09\09\091 1)\0A  (define-boxed-word\09<long>))\09\09\09\09; provides a full-word integer, but bootstrap is about 25% slower\0A(define-record\09\09<fixed>\09\09\09() (function))\0A;;(define-boxed\09\09<symbol>)\09\09\09\09; a cstr is inline into the object's body\0A(define-record\09\09<symbol>\09\09() (name))\0A\0A(define-record\09\09<array>\09\09\09() (size elements)) ; an array of oop's\0A(define-record\09\09<memory-block>\09\09() (size elements)) ; an array of raw bytes\0A(define-record\09\09<string>\09\09() (size elements))\0A;; TODO rename body to program-code, or maybe machine-code is better\0A;; TODO harmonize name with <target-function>, but how? <function> and <t/function>\0A(define-record\09\09<expr>\09\09\09() (parameters body env ctx\0A                                                     (when-at-expand (feature track-expr-names)\09name)\0A                                                     (when-at-expand (feature profiler)\09\09profiler-counter)))\0A(define-record\09\09<form>\09\09\09() (function symbol))\09; these are expander lambda's\0A(define-record\09\09<variable>\09\09() (name value env index))\0A(define-record\09\09<env>\09\09\09() (parent level offset bindings stable\0A                                                     (when-at-expand (feature debug-info)\09\09name)))\0A(define-record\09\09<context>\09\09() (home env bindings callee))\0A(define-record\09\09<pair>\09\09\09() (head tail))\0A\0A;; a heap object with a function pointer, and optionally a name.\0A;; TODO rename to <lower-function>\0A(define-record <target-function> ()\0A  (program-code\0A   (when-at-expand (feature track-expr-names)\09name)\0A   (when-at-expand (feature profiler)\09\09profiler-counter)))\0A\0A;; a word/cell/pointer in the lower realm, boxed, so that it can be\0A;; stored in the maru heap.\0A(define-boxed-word <lower-cell>)\0A\0A(define-boxed-word <cell-64>)\0A\0A;; TODO why are some of these here, and some are vm-functions? unify one way or another!\0A;;(define-function undefined?\09(obj)\09(= <undefined>\09(type-of obj)))\0A(define-function long?\09\09(obj)\09(= <long>\09(type-of obj)))\0A(define-function expr?\09\09(obj)\09(= <expr>\09(type-of obj)))\0A(define-function variable?\09(obj)\09(= <variable>\09(type-of obj)))\0A\0A(when-at-expand bootstrapping?\0A  ;; host-slave leakage: let's map the following host types to their\0A  ;; respective slave equivalents, so that calling the slave's TYPE-OF\0A  ;; on one of their instances will return the slave type object\0A  ;; instead of that of the host's. this is mainly needed to\0A  ;; seamlessly interact with the data returned by the host's reader\0A  ;; while we are inside the slave; e.g. to be able to install\0A  ;; <selector> methods on these types in the slave, and expect them\0A  ;; to be called when e.g. DO-PRINT is called in the slave on some\0A  ;; source code returned by the host's reader.\0A  (list-do entry\0A           `((\22\22\09,<string>)\0A             (42\09,<long>)\0A             (t\09\09,<symbol>)\0A             ((1)\09,<pair>)\0A             (()\09,<undefined>)\0A             )\0A    (apply (lambda (instance type)\0A             (set (array-at %type-id-map/host->slave (type-id-of instance))\0A                  (<type>-slave-id type))\0A             (assert (= (type-of instance) type)))\0A           entry))\0A  (verbosity 2\0A    (warn \22host->slave type mapping:\5Cn\22)\0A    (types-do type\0A      (let ((id (<type>-id type)))\0A        (warn \22  \22type\22: \22 id \22 -> \22(array-at %type-id-map/host->slave id)\22\5Cn\22)))))\0A\00"
 @m_ostr1768 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 48027, ptr bitcast ([24014 x i8]* @m_cstr1767 to ptr) }}
+@m_cstr1769 = private unnamed_addr constant [17 x i8] c"image/generate.l\00"
+@m_ostr1770 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1769 to ptr) }}
+@m_cstr1771 = private unnamed_addr constant [1718 x i8] c";;; -*- mode: lisp; coding: us-ascii -*-\0A(require \22source/files.l\22)\0A(require \22image/manifest.l\22)\0A\0A(define-function image-write (stream text)\0A  (for (i 0 (string-length text))\0A    (file-write-byte-or-die (string-at text i) stream)))\0A\0A(define-function image-quote (stream text)\0A  (file-write-byte-or-die ?\5C\22 stream)\0A  (for (i 0 (string-length text))\0A    (let ((c (string-at text i)))\0A      (if (or (= c ?\5C\22) (= c ?\5C\5C))\0A          (file-write-byte-or-die ?\5C\5C stream))\0A      (file-write-byte-or-die c stream)))\0A  (file-write-byte-or-die ?\5C\22 stream))\0A\0A(define-function image-marker? (text pos marker)\0A  (let ((same true) (n (string-length marker)))\0A    (if (> (+ pos n) (string-length text)) false\0A      (begin\0A        (for (j 0 n)\0A          (if (!= (string-at text (+ pos j)) (string-at marker j))\0A              (set same false)))\0A        same))))\0A\0A(define-function image-table (stream)\0A  (image-write stream \22(define-function embedded-source (path)\5Cn  (cond\5Cn\22)\0A  (list-do path *image-files*\0A    (image-write stream \22    ((embedded-path=? path \22)\0A    (image-quote stream path)\0A    (image-write stream \22) \22)\0A    (image-quote stream (image-source path))\0A    (image-write stream \22)\5Cn\22))\0A  (image-write stream \22    (else 0)))\5Cn\22))\0A\0A(let ((template (image-source \22image/vm-template.l\22))\0A      (marker \22@@TABLE@@\22)\0A      (out (file-open-or-die \22candidate-vm.l\22 \22w\22))\0A      (i 0))\0A  (while (< i (string-length template))\0A    (if (image-marker? template i marker)\0A        (begin (image-table out) (set i (+ i (string-length marker))))\0A      (begin (file-write-byte-or-die (string-at template i) out)\0A             (set i (+ i 1)))))\0A  (file-close-or-die out))\0A(println \22Generated candidate-vm.l from embedded sources using Maru\22)\0A\00"
+@m_ostr1772 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3435, ptr bitcast ([1718 x i8]* @m_cstr1771 to ptr) }}
+@m_cstr1773 = private unnamed_addr constant [17 x i8] c"image/manifest.l\00"
+@m_ostr1774 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1773 to ptr) }}
+@m_cstr1775 = private unnamed_addr constant [1711 x i8] c"(define *image-files* (list \22boot.l\22 \22source/ansiterm.l\22 \22source/bootstrapping/early.l\22 \22source/bootstrapping/host-ready.l\22 \22source/bootstrapping/late.l\22 \22source/bootstrapping/prepare.l\22 \22source/c/cffi.l\22 \22source/c/cgrov.l\22 \22source/compiler/emit-early.l\22 \22source/compiler/emit-late.l\22 \22source/compiler/emit-llvm.l\22 \22source/compiler/emit-objects-llvm.l\22 \22source/compiler/target.l\22 \22source/control-structures.l\22 \22source/conversion-lower.l\22 \22source/conversion-min.l\22 \22source/conversion.l\22 \22source/debug-min.l\22 \22source/destructuring.l\22 \22source/env-lower.l\22 \22source/env-min.l\22 \22source/evaluator/arrays.l\22 \22source/evaluator/constructors.l\22 \22source/evaluator/eval.l\22 \22source/evaluator/gc.l\22 \22source/evaluator/printer.l\22 \22source/evaluator/reader.l\22 \22source/evaluator/types.l\22 \22source/evaluator/vm-early.l\22 \22source/evaluator/vm-functions.l\22 \22source/evaluator/vm-late.l\22 \22source/evaluator/vm-with-file-support.l\22 \22source/evaluator/vm.l\22 \22source/files.l\22 \22source/generic.l\22 \22source/iteration-min.l\22 \22source/list-basic.l\22 \22source/list-min.l\22 \22source/math-min.l\22 \22source/platforms/linux/eval.l\22 \22source/platforms/linux/linux.cgrov.x86_64-unknown-linux-gnu.l\22 \22source/platforms/linux/linux.l\22 \22source/platforms/linux/streams.l\22 \22source/platforms/linux/syscall-llvm.l\22 \22source/platforms/linux/syscall.l\22 \22source/platforms/linux/vm-functions.l\22 \22source/platforms/load-platform.l\22 \22source/platforms/platform-c-based.l\22 \22source/platforms/platform-common.l\22 \22source/platforms/run-compiler.l\22 \22source/printing.l\22 \22source/selector.l\22 \22source/sequences-basic.l\22 \22source/sequences-min.l\22 \22source/streams-min-late.l\22 \22source/streams-min.l\22 \22source/types.l\22 \22image/generate.l\22 \22image/manifest.l\22 \22image/vm-template.l\22 \22image/eval.l\22))\0A\00"
+@m_ostr1776 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3421, ptr bitcast ([1711 x i8]* @m_cstr1775 to ptr) }}
+@m_cstr1777 = private unnamed_addr constant [20 x i8] c"image/vm-template.l\00"
+@m_ostr1778 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr1777 to ptr) }}
+@m_cstr1779 = private unnamed_addr constant [9674 x i8] c";;; -*- mode: lisp; coding: us-ascii -*-\0A\0A;; TODO FIXME file-stream returns an instance of a type that is not\0A;; available at runtime in the interpreter, yet, we bind its value to\0A;; *standard-output* & co... it's and extra complexity that this type\0A;; id will have quite a gap in the type id's (4-5). without fixing\0A;; this situation the streams will be an object of an unknown type in\0A;; the evaluator, or even worse: a different type gets loaded and\0A;; assigned the same type id. need to think more about the compilation\0A;; of types, because the current setup is clearly inadequate.\0A\0A(define-form initialize-stream (target-name our-name)\0A  (assert (symbol? our-name)) ; symbol macros should be expanded after the call form macros\0A  `(gc/let* ((stream (file-stream ,target-name)))\0A     (debug (platform/diag-print \22initializing \22 (string ,(symbol->string our-name)) \22\5Cn\22))\0A     (set ,our-name stream)\0A     ;; the maru-user env was create earlier, let's set it there, too.\0A     ;; TODO clarify: why in maru-user?\0A     (set (variable-value *maru* ,(concat-symbol 'symbol/ our-name))\0A          stream)))\0A\0A(define-function initialize-streams (in-handle out-handle err-handle)\0A  ;; NOTE: a WITH-FORMS is tempting here, but the body of WITH-FORMS'\0A  ;; is not executed in the right env. years later: not sure what that\0A  ;; means, but a WITH-FORMS indeed seems to lead to a backtrace.\0A  ;; TODO rename to *input*?\0A  ;; TODO do we need a *debug-input*?\0A  (initialize-stream in-handle\09*standard-input*)\0A  (initialize-stream out-handle\09*standard-output*)\0A  (initialize-stream err-handle\09*error-output*)\0A  (initialize-stream err-handle\09*debug-output*))\0A\0A(define-vm-function repl-stream ((input _ *standard-input*)\0A                                        (output _ *standard-output*)\0A                                        (interactive? _ true))\0A  (safety 1 (assert (gc/valid-maru-value? input) (gc/valid-maru-value? output)))\0A  ;; This won't work as-is now that we have a linux platform where\0A  ;; there's no fscanf and the streams are not of type <libc-stream>...\0A  ;; (unless interactive?\0A  ;;   (let ((libc-handle (unbox <lower-cell> (<libc-stream>-handle input))))\0A  ;;     (libc/fscanf libc-handle \22#!%*[^\5Cx0a\5Cx0d]\22))) ; drop the possible #!./eval first line of the file\0A  (gc/let* (exp\0A            result)\0A    (while (let ()\0A             (when interactive?\0A               ($put-all output \22maru> \22)\0A               (platform/flush-streams))\0A             (not (= +end+ (set exp (read input)))))\0A      (unless (= +end+ exp)\0A        (set result (expand-encode-eval exp))\0A        (when interactive?\0A          (do-print output result false)\0A          ($put output ?\5Cn)             ; newline\0A          (platform/flush-streams))))\0A    (when interactive?\0A      ($put-all output \22\5Cnmorituri te salutant\5Cn\22))\0A\0A    ;; FIXME this is somewhat arbitrary\0A    (if (long? result)\0A\09result\0A      (box <long> 0))))\0A\0A(define-form with-input-from-file (args . body)\0A  (let ((var\09\09(first args))\0A        (file-name\09(second args)))\0A    ;; file-open is a vm-function, we need to unbox its return value\0A    `(let ((__file-handle\09(unbox <lower-cell> (file-open-or-die ,file-name \22r\22))))\0A       (gc/let* ((,var\09\09(file-stream __file-handle)))\0A         (let ((__result\09,@body))\0A           (file-close __file-handle)\0A           __result)))))\0A\0A;;; -*- mode: lisp; coding: us-ascii -*-\0A(define-record <embedded-stream> <stream> (data position))\0A\0A(define-function embedded-stream (data)\0A  (make/opaque <embedded-stream> (data (string->C-string data)) (position 0)))\0A\0A(define-method $at-end? <embedded-stream> ()\0A  (= 0 (byte-at self.data self.position)))\0A\0A(define-method $peek <embedded-stream> ()\0A  (let ((c (byte-at self.data self.position)))\0A    (if (= c 0) +end+ c)))\0A\0A(define-method $next <embedded-stream> ()\0A  (let ((c (byte-at self.data self.position)))\0A    (if (= c 0) +end+\0A      (begin (set self.position (+ self.position 1)) c))))\0A\0A(define-function embedded-path=? (a b)\0A  (let ((i 0) (b (string->C-string b)))\0A    (while (and (!= 0 (byte-at a i)) (= (byte-at a i) (byte-at b i)))\0A      (set i (+ i 1)))\0A    (= (byte-at a i) (byte-at b i))))\0A\0A\0A@@TABLE@@\0A(define-vm-function image-source ((path <string>))\0A  (let ((text (embedded-source (string->C-string path))))\0A    (or text (error \22no image source: \22 path))))\0A\0A(define-vm-function (load ()) ((path <string>))\0A  (let ((payload (embedded-source (string->C-string path))))\0A    (if payload\0A        (gc/let* ((stream (embedded-stream payload)))\0A          (expand-encode-eval-stream stream))\0A      (with-input-from-file (stream path)\0A        (expand-encode-eval-stream stream)))))\0A\0A(define-function embedded-or-file-repl (path)\0A  (let ((payload (embedded-source (string->C-string path))))\0A    (if payload\0A        (gc/let* ((stream (embedded-stream payload)))\0A          (repl-stream stream *standard-output* false))\0A      (with-input-from-file (stream path)\0A        (repl-stream stream *standard-output* false)))))\0A\0A(define-function process-command-line-arguments (argc argv)\0A  (debug-print \22start processing argv\22)\0A\0A  ;; *command-line-arguments*\0A  (let ((cla-var (environment-define *globals* (string->symbol \22*command-line-arguments*\22) ())))\0A    ;; initialize *cla*\0A    (gc/let* ((tmp ()))\0A      (let ((idx argc))\0A        ;; we skip the first, i.e. the name of the executable\0A        (while (< 0 (decr idx))\0A          (set tmp (cons () tmp))\0A          (put/head tmp (C-string->string (oop-at argv idx)))\0A          (debug-print \22processing argv \22(box <long> idx)\22 = \22(get/head tmp))))\0A      (set (<variable>-value cla-var) tmp))\0A\0A    (debug-print \22*command-line-arguments* is initialized to: \22 (<variable>-value cla-var))\0A\0A    ;; TODO shouldn't the processing be moved into the upper? into boot.l?\0A\0A    ;; process *cla*\0A    (let ((exit-code 0)\0A          cla)\0A      (gc/let* (arg\0A                tmp)\0A        (with-forms ((pop-cla (_ '(set (<variable>-value cla-var) (set cla (get/tail cla))))))\0A          (while (and (= 0 exit-code)\0A                      (pair? (set cla (<variable>-value cla-var))))\0A            (set arg (get/head cla))\0A            (pop-cla)\0A            (cond\0A              ;; -v\0A              ((string= \22-v\22 arg)\0A               (incr *verbosity*)\0A               ;; KLUDGE propagate the value from the target up into\0A               ;; the evaluator by hand. ideally this should be done\0A               ;; automatically.\0A               (set tmp (box <long> *verbosity*))\0A               (set (variable-value *maru* symbol/*verbosity*) tmp))\0A\0A              ((string= \22-d\22 arg)\0A               (if-at-expand (feature debug-output)\0A                   (set *debug-output-enabled?* true)\0A                 (platform/diag-print \22WARNING: (feature debug-output) was not enabled while compiling this build, ignoring -d\5Cn\22)))\0A\0A              ;; -O\0A              ((string= \22-O\22 arg)\0A               (incr *optimised*)\0A               ;; KLUDGE propagate the value from the target up into\0A               ;; the evaluator by hand. ideally this should be done\0A               ;; automatically.\0A               (set tmp (box <long> *optimised*))\0A               (set (variable-value *maru* symbol/*optimised*) tmp))\0A\0A              ;; -p\0A              ((string= \22-p\22 arg)\0A               (if-at-expand (feature profiler)\0A                   (let ((usecs 1000))\0A                     (install_profiler_handler\0A                      (<target-function>-program-code profiler/take-sample))\0A                     (set_profiler_interval usecs)\0A                     (platform/diag-print \22enabled profiling at every \22usecs\22 uSec(s)\22))\0A                 (platform/diag-print \22WARNING: this build has no profiler, ignoring -p\5Cn\22)))\0A\0A              ;; -\0A              ((string= \22-\22 arg)\0A               (repl-stream *standard-input* *standard-output* true))\0A\0A              ;; --call to call a function\0A              ((string= \22--call\22 arg)\0A               (debug-print \22processing a --call\22)\0A               (unless (pair? cla)\0A                 (fatal \22--call requires an argument\22))\0A               (set arg (get/head cla))\0A               (pop-cla)\0A               (let ((sym (string->symbol arg)))\0A                 (gc/let* ((form (cons sym ())))\0A                   (expand-encode-eval form))))\0A\0A              ;; --define to define a variable\0A              ((string= \22--define\22 arg)\0A               (debug-print \22processing a --define\22)\0A               (unless (and (pair? cla)\0A                            (pair? (get/tail cla)))\0A                 (fatal \22--define requires two arguments\22))\0A               (gc/let* ((name\09(first  cla))\0A                         (value\09(second cla)))\0A                 (pop-cla)\0A                 (pop-cla)\0A                 ;; convert to long when possible\0A                 (cond\0A                   ((string= value \22true\22)\0A                    (set value symbol/true))\0A                   ((string= value \22false\22)\0A                    (set value ()))\0A                   (else\0A                    (let ((i (string->long* value 10)))\0A                      (unless (= +end+ i)\0A                        (set value (box <long> i))))))\0A                 (environment-define *globals*\0A                                     (string->symbol name)\0A                                     value)))\0A\0A              ;; read file as a program\0A              (else\0A               (verbosity 1 (print-all *debug-output* \22loading file: \22arg\22\5Ct(as a CLA)\5Cn\22))\0A               (let ()\0A                 (set exit-code (unbox <long> (embedded-or-file-repl arg)))\0A                 (when (or (<= 2 *verbosity*)\0A                           (not (= 0 exit-code)))\0A                   (print-all *debug-output* \22exit-code of file \22arg\22: \22(box <long> exit-code)\22\5Cn\22))))))))\0A\0A      exit-code)))\0A\00"
+@m_ostr1780 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19347, ptr bitcast ([9674 x i8]* @m_cstr1779 to ptr) }}
+@m_cstr1781 = private unnamed_addr constant [13 x i8] c"image/eval.l\00"
+@m_ostr1782 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr1781 to ptr) }}
+@m_cstr1783 = private unnamed_addr constant [1150 x i8] c";;; -*- mode: lisp; coding: us-ascii -*-\0A\0A(load \22source/evaluator/vm-early.l\22)\0A(load \22source/debug-min.l\22)\0A(load \22source/evaluator/vm.l\22)\0A\0A;;;\0A;;; garbage collector\0A;;; ----------------------------------------------------------------\0A\0A(load \22source/evaluator/eval.l\22)\0A\0A(define-function %syscall-rc-assert (syscall-number rc)\0A  (or (<= 0 rc) (error \22syscall*: \22(box <long> syscall-number)\22 returned with: \22(box <long> rc)\22\5Cn\22))\0A  rc)\0A\0A(load \22source/platforms/linux/vm-functions.l\22)\0A(load \22source/platforms/linux/streams.l\22)\0A(load \22candidate-vm.l\22)\0A\0A(define-function main (argc argv)\0A  (debug (platform/diag-print \22linux main is alive\5Cn\22))\0A  (main/common argc argv\0A               linux/STDIN_FILENO linux/STDOUT_FILENO linux/STDERR_FILENO\0A               (lambda ()\0A                 (environment-define *maru*\0A                                     (string->symbol \22feature/platform/linux\22)\0A                                     symbol/true)\0A                 (environment-define *maru*\0A                                     (string->symbol \22feature/platform/posix\22)\0A                                     symbol/true))))\0A\0A(load \22source/evaluator/vm-late.l\22)\0A\00"
+@m_ostr1784 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 2299, ptr bitcast ([1150 x i8]* @m_cstr1783 to ptr) }}
 define %oop @m_embedded-source.code(%oop %path) {
 	%t0 = alloca %oop
 	%t1 = alloca %oop
@@ -27912,6 +27928,10 @@ define %oop @m_embedded-source.code(%oop %path) {
 	%t55 = alloca %oop
 	%t56 = alloca %oop
 	%t57 = alloca %oop
+	%t58 = alloca %oop
+	%t59 = alloca %oop
+	%t60 = alloca %oop
+	%t61 = alloca %oop
 	store %oop %path, %oop* %t0
 	%r1 = load %oop, %oop* %t0
 	%r2 = getelementptr %"<header>", %"<header>"* @m_ostr1542, i32 1
@@ -28540,256 +28560,483 @@ L169:
 	store %oop %r399, %oop* %t57
 	br label %L171
 L170:
-	%r400 = inttoptr %word 0 to %oop
-	store %oop %r400, %oop* %t57
+	%r400 = load %oop, %oop* %t0
+	%r401 = getelementptr %"<header>", %"<header>"* @m_ostr1770, i32 1
+	%r402 = call %oop @"m_embedded-path=?.code"(%oop %r400, %oop %r401)
+	%r405 = ptrtoint %oop %r402 to %word
+	%r404 = icmp ne %word %r405, 0
+	br i1 %r404, label %L172, label %L173
+L172:
+	%r406 = getelementptr %"<header>", %"<header>"* @m_ostr1772, i32 1
+	store %oop %r406, %oop* %t58
+	br label %L174
+L173:
+	%r407 = load %oop, %oop* %t0
+	%r408 = getelementptr %"<header>", %"<header>"* @m_ostr1774, i32 1
+	%r409 = call %oop @"m_embedded-path=?.code"(%oop %r407, %oop %r408)
+	%r412 = ptrtoint %oop %r409 to %word
+	%r411 = icmp ne %word %r412, 0
+	br i1 %r411, label %L175, label %L176
+L175:
+	%r413 = getelementptr %"<header>", %"<header>"* @m_ostr1776, i32 1
+	store %oop %r413, %oop* %t59
+	br label %L177
+L176:
+	%r414 = load %oop, %oop* %t0
+	%r415 = getelementptr %"<header>", %"<header>"* @m_ostr1778, i32 1
+	%r416 = call %oop @"m_embedded-path=?.code"(%oop %r414, %oop %r415)
+	%r419 = ptrtoint %oop %r416 to %word
+	%r418 = icmp ne %word %r419, 0
+	br i1 %r418, label %L178, label %L179
+L178:
+	%r420 = getelementptr %"<header>", %"<header>"* @m_ostr1780, i32 1
+	store %oop %r420, %oop* %t60
+	br label %L180
+L179:
+	%r421 = load %oop, %oop* %t0
+	%r422 = getelementptr %"<header>", %"<header>"* @m_ostr1782, i32 1
+	%r423 = call %oop @"m_embedded-path=?.code"(%oop %r421, %oop %r422)
+	%r426 = ptrtoint %oop %r423 to %word
+	%r425 = icmp ne %word %r426, 0
+	br i1 %r425, label %L181, label %L182
+L181:
+	%r427 = getelementptr %"<header>", %"<header>"* @m_ostr1784, i32 1
+	store %oop %r427, %oop* %t61
+	br label %L183
+L182:
+	%r428 = inttoptr %word 0 to %oop
+	store %oop %r428, %oop* %t61
+	br label %L183
+L183:
+	%r429 = load %oop, %oop* %t61
+	store %oop %r429, %oop* %t60
+	br label %L180
+L180:
+	%r430 = load %oop, %oop* %t60
+	store %oop %r430, %oop* %t59
+	br label %L177
+L177:
+	%r431 = load %oop, %oop* %t59
+	store %oop %r431, %oop* %t58
+	br label %L174
+L174:
+	%r432 = load %oop, %oop* %t58
+	store %oop %r432, %oop* %t57
 	br label %L171
 L171:
-	%r401 = load %oop, %oop* %t57
-	store %oop %r401, %oop* %t56
+	%r433 = load %oop, %oop* %t57
+	store %oop %r433, %oop* %t56
 	br label %L168
 L168:
-	%r402 = load %oop, %oop* %t56
-	store %oop %r402, %oop* %t55
+	%r434 = load %oop, %oop* %t56
+	store %oop %r434, %oop* %t55
 	br label %L165
 L165:
-	%r403 = load %oop, %oop* %t55
-	store %oop %r403, %oop* %t54
+	%r435 = load %oop, %oop* %t55
+	store %oop %r435, %oop* %t54
 	br label %L162
 L162:
-	%r404 = load %oop, %oop* %t54
-	store %oop %r404, %oop* %t53
+	%r436 = load %oop, %oop* %t54
+	store %oop %r436, %oop* %t53
 	br label %L159
 L159:
-	%r405 = load %oop, %oop* %t53
-	store %oop %r405, %oop* %t52
+	%r437 = load %oop, %oop* %t53
+	store %oop %r437, %oop* %t52
 	br label %L156
 L156:
-	%r406 = load %oop, %oop* %t52
-	store %oop %r406, %oop* %t51
+	%r438 = load %oop, %oop* %t52
+	store %oop %r438, %oop* %t51
 	br label %L153
 L153:
-	%r407 = load %oop, %oop* %t51
-	store %oop %r407, %oop* %t50
+	%r439 = load %oop, %oop* %t51
+	store %oop %r439, %oop* %t50
 	br label %L150
 L150:
-	%r408 = load %oop, %oop* %t50
-	store %oop %r408, %oop* %t49
+	%r440 = load %oop, %oop* %t50
+	store %oop %r440, %oop* %t49
 	br label %L147
 L147:
-	%r409 = load %oop, %oop* %t49
-	store %oop %r409, %oop* %t48
+	%r441 = load %oop, %oop* %t49
+	store %oop %r441, %oop* %t48
 	br label %L144
 L144:
-	%r410 = load %oop, %oop* %t48
-	store %oop %r410, %oop* %t47
+	%r442 = load %oop, %oop* %t48
+	store %oop %r442, %oop* %t47
 	br label %L141
 L141:
-	%r411 = load %oop, %oop* %t47
-	store %oop %r411, %oop* %t46
+	%r443 = load %oop, %oop* %t47
+	store %oop %r443, %oop* %t46
 	br label %L138
 L138:
-	%r412 = load %oop, %oop* %t46
-	store %oop %r412, %oop* %t45
+	%r444 = load %oop, %oop* %t46
+	store %oop %r444, %oop* %t45
 	br label %L135
 L135:
-	%r413 = load %oop, %oop* %t45
-	store %oop %r413, %oop* %t44
+	%r445 = load %oop, %oop* %t45
+	store %oop %r445, %oop* %t44
 	br label %L132
 L132:
-	%r414 = load %oop, %oop* %t44
-	store %oop %r414, %oop* %t43
+	%r446 = load %oop, %oop* %t44
+	store %oop %r446, %oop* %t43
 	br label %L129
 L129:
-	%r415 = load %oop, %oop* %t43
-	store %oop %r415, %oop* %t42
+	%r447 = load %oop, %oop* %t43
+	store %oop %r447, %oop* %t42
 	br label %L126
 L126:
-	%r416 = load %oop, %oop* %t42
-	store %oop %r416, %oop* %t41
+	%r448 = load %oop, %oop* %t42
+	store %oop %r448, %oop* %t41
 	br label %L123
 L123:
-	%r417 = load %oop, %oop* %t41
-	store %oop %r417, %oop* %t40
+	%r449 = load %oop, %oop* %t41
+	store %oop %r449, %oop* %t40
 	br label %L120
 L120:
-	%r418 = load %oop, %oop* %t40
-	store %oop %r418, %oop* %t39
+	%r450 = load %oop, %oop* %t40
+	store %oop %r450, %oop* %t39
 	br label %L117
 L117:
-	%r419 = load %oop, %oop* %t39
-	store %oop %r419, %oop* %t38
+	%r451 = load %oop, %oop* %t39
+	store %oop %r451, %oop* %t38
 	br label %L114
 L114:
-	%r420 = load %oop, %oop* %t38
-	store %oop %r420, %oop* %t37
+	%r452 = load %oop, %oop* %t38
+	store %oop %r452, %oop* %t37
 	br label %L111
 L111:
-	%r421 = load %oop, %oop* %t37
-	store %oop %r421, %oop* %t36
+	%r453 = load %oop, %oop* %t37
+	store %oop %r453, %oop* %t36
 	br label %L108
 L108:
-	%r422 = load %oop, %oop* %t36
-	store %oop %r422, %oop* %t35
+	%r454 = load %oop, %oop* %t36
+	store %oop %r454, %oop* %t35
 	br label %L105
 L105:
-	%r423 = load %oop, %oop* %t35
-	store %oop %r423, %oop* %t34
+	%r455 = load %oop, %oop* %t35
+	store %oop %r455, %oop* %t34
 	br label %L102
 L102:
-	%r424 = load %oop, %oop* %t34
-	store %oop %r424, %oop* %t33
+	%r456 = load %oop, %oop* %t34
+	store %oop %r456, %oop* %t33
 	br label %L99
 L99:
-	%r425 = load %oop, %oop* %t33
-	store %oop %r425, %oop* %t32
+	%r457 = load %oop, %oop* %t33
+	store %oop %r457, %oop* %t32
 	br label %L96
 L96:
-	%r426 = load %oop, %oop* %t32
-	store %oop %r426, %oop* %t31
+	%r458 = load %oop, %oop* %t32
+	store %oop %r458, %oop* %t31
 	br label %L93
 L93:
-	%r427 = load %oop, %oop* %t31
-	store %oop %r427, %oop* %t30
+	%r459 = load %oop, %oop* %t31
+	store %oop %r459, %oop* %t30
 	br label %L90
 L90:
-	%r428 = load %oop, %oop* %t30
-	store %oop %r428, %oop* %t29
+	%r460 = load %oop, %oop* %t30
+	store %oop %r460, %oop* %t29
 	br label %L87
 L87:
-	%r429 = load %oop, %oop* %t29
-	store %oop %r429, %oop* %t28
+	%r461 = load %oop, %oop* %t29
+	store %oop %r461, %oop* %t28
 	br label %L84
 L84:
-	%r430 = load %oop, %oop* %t28
-	store %oop %r430, %oop* %t27
+	%r462 = load %oop, %oop* %t28
+	store %oop %r462, %oop* %t27
 	br label %L81
 L81:
-	%r431 = load %oop, %oop* %t27
-	store %oop %r431, %oop* %t26
+	%r463 = load %oop, %oop* %t27
+	store %oop %r463, %oop* %t26
 	br label %L78
 L78:
-	%r432 = load %oop, %oop* %t26
-	store %oop %r432, %oop* %t25
+	%r464 = load %oop, %oop* %t26
+	store %oop %r464, %oop* %t25
 	br label %L75
 L75:
-	%r433 = load %oop, %oop* %t25
-	store %oop %r433, %oop* %t24
+	%r465 = load %oop, %oop* %t25
+	store %oop %r465, %oop* %t24
 	br label %L72
 L72:
-	%r434 = load %oop, %oop* %t24
-	store %oop %r434, %oop* %t23
+	%r466 = load %oop, %oop* %t24
+	store %oop %r466, %oop* %t23
 	br label %L69
 L69:
-	%r435 = load %oop, %oop* %t23
-	store %oop %r435, %oop* %t22
+	%r467 = load %oop, %oop* %t23
+	store %oop %r467, %oop* %t22
 	br label %L66
 L66:
-	%r436 = load %oop, %oop* %t22
-	store %oop %r436, %oop* %t21
+	%r468 = load %oop, %oop* %t22
+	store %oop %r468, %oop* %t21
 	br label %L63
 L63:
-	%r437 = load %oop, %oop* %t21
-	store %oop %r437, %oop* %t20
+	%r469 = load %oop, %oop* %t21
+	store %oop %r469, %oop* %t20
 	br label %L60
 L60:
-	%r438 = load %oop, %oop* %t20
-	store %oop %r438, %oop* %t19
+	%r470 = load %oop, %oop* %t20
+	store %oop %r470, %oop* %t19
 	br label %L57
 L57:
-	%r439 = load %oop, %oop* %t19
-	store %oop %r439, %oop* %t18
+	%r471 = load %oop, %oop* %t19
+	store %oop %r471, %oop* %t18
 	br label %L54
 L54:
-	%r440 = load %oop, %oop* %t18
-	store %oop %r440, %oop* %t17
+	%r472 = load %oop, %oop* %t18
+	store %oop %r472, %oop* %t17
 	br label %L51
 L51:
-	%r441 = load %oop, %oop* %t17
-	store %oop %r441, %oop* %t16
+	%r473 = load %oop, %oop* %t17
+	store %oop %r473, %oop* %t16
 	br label %L48
 L48:
-	%r442 = load %oop, %oop* %t16
-	store %oop %r442, %oop* %t15
+	%r474 = load %oop, %oop* %t16
+	store %oop %r474, %oop* %t15
 	br label %L45
 L45:
-	%r443 = load %oop, %oop* %t15
-	store %oop %r443, %oop* %t14
+	%r475 = load %oop, %oop* %t15
+	store %oop %r475, %oop* %t14
 	br label %L42
 L42:
-	%r444 = load %oop, %oop* %t14
-	store %oop %r444, %oop* %t13
+	%r476 = load %oop, %oop* %t14
+	store %oop %r476, %oop* %t13
 	br label %L39
 L39:
-	%r445 = load %oop, %oop* %t13
-	store %oop %r445, %oop* %t12
+	%r477 = load %oop, %oop* %t13
+	store %oop %r477, %oop* %t12
 	br label %L36
 L36:
-	%r446 = load %oop, %oop* %t12
-	store %oop %r446, %oop* %t11
+	%r478 = load %oop, %oop* %t12
+	store %oop %r478, %oop* %t11
 	br label %L33
 L33:
-	%r447 = load %oop, %oop* %t11
-	store %oop %r447, %oop* %t10
+	%r479 = load %oop, %oop* %t11
+	store %oop %r479, %oop* %t10
 	br label %L30
 L30:
-	%r448 = load %oop, %oop* %t10
-	store %oop %r448, %oop* %t9
+	%r480 = load %oop, %oop* %t10
+	store %oop %r480, %oop* %t9
 	br label %L27
 L27:
-	%r449 = load %oop, %oop* %t9
-	store %oop %r449, %oop* %t8
+	%r481 = load %oop, %oop* %t9
+	store %oop %r481, %oop* %t8
 	br label %L24
 L24:
-	%r450 = load %oop, %oop* %t8
-	store %oop %r450, %oop* %t7
+	%r482 = load %oop, %oop* %t8
+	store %oop %r482, %oop* %t7
 	br label %L21
 L21:
-	%r451 = load %oop, %oop* %t7
-	store %oop %r451, %oop* %t6
+	%r483 = load %oop, %oop* %t7
+	store %oop %r483, %oop* %t6
 	br label %L18
 L18:
-	%r452 = load %oop, %oop* %t6
-	store %oop %r452, %oop* %t5
+	%r484 = load %oop, %oop* %t6
+	store %oop %r484, %oop* %t5
 	br label %L15
 L15:
-	%r453 = load %oop, %oop* %t5
-	store %oop %r453, %oop* %t4
+	%r485 = load %oop, %oop* %t5
+	store %oop %r485, %oop* %t4
 	br label %L12
 L12:
-	%r454 = load %oop, %oop* %t4
-	store %oop %r454, %oop* %t3
+	%r486 = load %oop, %oop* %t4
+	store %oop %r486, %oop* %t3
 	br label %L9
 L9:
-	%r455 = load %oop, %oop* %t3
-	store %oop %r455, %oop* %t2
+	%r487 = load %oop, %oop* %t3
+	store %oop %r487, %oop* %t2
 	br label %L6
 L6:
-	%r456 = load %oop, %oop* %t2
-	store %oop %r456, %oop* %t1
+	%r488 = load %oop, %oop* %t2
+	store %oop %r488, %oop* %t1
 	br label %L3
 L3:
-	%r457 = load %oop, %oop* %t1
-	ret %oop %r457
+	%r489 = load %oop, %oop* %t1
+	ret %oop %r489
 }
-@m_cstr1769 = private unnamed_addr constant [16 x i8] c"embedded-source\00"
-@m_ostr1770 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr1769 to ptr) }}
-@m_embedded-source = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @m_embedded-source.code to %oop), %"<string-h>"* @m_ostr1770 }}
-@m_cstr1771 = private unnamed_addr constant [5 x i8] c"load\00"
-@m_ostr1772 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr1771 to ptr) }}
-@m_cstr1773 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr1774 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1773 to ptr) }}
-@m_cstr1775 = private unnamed_addr constant [5 x i8] c"path\00"
-@m_ostr1776 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr1775 to ptr) }}
-@m_cstr1777 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr1778 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1777 to ptr) }}
-@m_cstr1779 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr1780 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr1779 to ptr) }}
-@m_cstr1781 = private unnamed_addr constant [5 x i8] c"load\00"
-@m_ostr1782 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr1781 to ptr) }}
-@m_cstr1783 = private unnamed_addr constant [5 x i8] c"load\00"
-@m_ostr1784 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr1783 to ptr) }}
-@m_cstr1785 = private unnamed_addr constant [2 x i8] c"r\00"
-@m_ostr1786 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr1785 to ptr) }}
+@m_cstr1785 = private unnamed_addr constant [16 x i8] c"embedded-source\00"
+@m_ostr1786 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr1785 to ptr) }}
+@m_embedded-source = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @m_embedded-source.code to %oop), %"<string-h>"* @m_ostr1786 }}
+@m_cstr1787 = private unnamed_addr constant [18 x i8] c"no image source: \00"
+@m_ostr1788 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1787 to ptr) }}
+define %oop @m_image-source.code(%oop %path) {
+	%t0 = alloca %oop
+	%t1 = alloca %oop
+	%t2 = alloca %oop
+	store %oop %path, %oop* %t0
+	%r1 = load %oop, %oop* %t0
+	%r2 = call %oop @"m_%string->C-string.code"(%oop %r1)
+	%r4 = call %oop @m_embedded-source.code(%oop %r2)
+	store %oop %r4, %oop* %t1
+	%r6 = inttoptr %word 0 to %oop
+	store %oop %r6, %oop* %t2
+	%r7 = load %oop, %oop* %t1
+	store %oop %r7, %oop* %t2
+	%r8 = inttoptr %word 0 to %oop
+	%r12 = ptrtoint %oop %r8 to %word
+	%r11 = ptrtoint %oop %r7 to %word
+	%r10 = icmp eq %word %r12, %r11
+	%r9 = inttoptr i1 %r10 to %oop
+	%r14 = ptrtoint %oop %r9 to %word
+	%r13 = icmp ne %word %r14, 0
+	br i1 %r13, label %L2, label %L1
+L2:
+	%r15 = call %oop @m_error-prologue.code()
+	%r17 = getelementptr %"<header>", %"<header>"* @m_ostr1788, i32 1
+	%r18 = call %oop @"m_%error.code"(%oop %r17)
+	%r20 = load %oop, %oop* %t0
+	%r21 = call %oop @"m_%error.code"(%oop %r20)
+	%r23 = call %oop @m_error-epilogue.code()
+	store %oop %r23, %oop* %t2
+	%r25 = inttoptr %word 0 to %oop
+	%r29 = ptrtoint %oop %r25 to %word
+	%r28 = ptrtoint %oop %r23 to %word
+	%r27 = icmp eq %word %r29, %r28
+	%r26 = inttoptr i1 %r27 to %oop
+	%r31 = ptrtoint %oop %r26 to %word
+	%r30 = icmp ne %word %r31, 0
+	br i1 %r30, label %L3, label %L1
+L3:
+	br label %L1
+L1:
+	%r32 = load %oop, %oop* %t2
+	ret %oop %r32
+}
+@m_cstr1789 = private unnamed_addr constant [13 x i8] c"image-source\00"
+@m_ostr1790 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr1789 to ptr) }}
+@m_image-source = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @m_image-source.code to %oop), %"<string-h>"* @m_ostr1790 }}
+@m_cstr1791 = private unnamed_addr constant [13 x i8] c"image-source\00"
+@m_ostr1792 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr1791 to ptr) }}
+@m_cstr1793 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr1794 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1793 to ptr) }}
+@m_cstr1795 = private unnamed_addr constant [5 x i8] c"path\00"
+@m_ostr1796 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr1795 to ptr) }}
+@m_cstr1797 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr1798 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1797 to ptr) }}
+@m_cstr1799 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr1800 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr1799 to ptr) }}
+@m_cstr1801 = private unnamed_addr constant [13 x i8] c"image-source\00"
+@m_ostr1802 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr1801 to ptr) }}
+@m_cstr1803 = private unnamed_addr constant [13 x i8] c"image-source\00"
+@m_ostr1804 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr1803 to ptr) }}
+define %oop @"m_image-source/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
+	%t1 = alloca %oop
+	%t0 = alloca %oop
+	%t3 = alloca %oop
+	%t2 = alloca %oop
+	%t4 = alloca %oop
+	%t5 = alloca %oop
+	store %oop %-args-, %oop* %t0
+	store %oop %-ctx-, %oop* %t1
+	%r1 = load %oop, %oop* %t0
+	store %oop %r1, %oop* %t2
+	%r2 = inttoptr %word 0 to %oop
+	store %oop %r2, %oop* %t3
+	%r3 = load %oop, %oop* %t2
+	%r4 = call %oop @"m_pair?.code"(%oop %r3)
+	%r7 = ptrtoint %oop %r4 to %word
+	%r6 = icmp ne %word %r7, 0
+	br i1 %r6, label %L1, label %L2
+L1:
+	%r8 = inttoptr %word 0 to %oop
+	%r9 = load %oop, %oop* %t2
+	%r13 = bitcast %oop %r9 to [0 x %oop]*
+	%r12 = ptrtoint %oop %r8 to %word
+	%r11 = getelementptr [0 x %oop], [0 x %oop]* %r13, %word 0, %word %r12
+	%r10 = load %oop, %oop* %r11
+	store %oop %r10, %oop* %t3
+	%r14 = inttoptr %word 0 to %oop
+	store %oop %r14, %oop* %t5
+	%r15 = load %oop, %oop* %t3
+	%r16 = call %oop @"m_string?.code"(%oop %r15)
+	store %oop %r16, %oop* %t5
+	%r18 = inttoptr %word 0 to %oop
+	%r22 = ptrtoint %oop %r18 to %word
+	%r21 = ptrtoint %oop %r16 to %word
+	%r20 = icmp eq %word %r22, %r21
+	%r19 = inttoptr i1 %r20 to %oop
+	%r24 = ptrtoint %oop %r19 to %word
+	%r23 = icmp ne %word %r24, 0
+	br i1 %r23, label %L5, label %L4
+L5:
+	%r25 = call %oop @m_error-prologue.code()
+	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr1792, i32 1
+	%r28 = call %oop @"m_%error.code"(%oop %r27)
+	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr1794, i32 1
+	%r31 = call %oop @"m_%error.code"(%oop %r30)
+	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr1796, i32 1
+	%r34 = call %oop @"m_%error.code"(%oop %r33)
+	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr1798, i32 1
+	%r37 = call %oop @"m_%error.code"(%oop %r36)
+	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr1800, i32 1
+	%r40 = call %oop @"m_%error.code"(%oop %r39)
+	%r42 = call %oop @m_error-epilogue.code()
+	store %oop %r42, %oop* %t5
+	%r44 = inttoptr %word 0 to %oop
+	%r48 = ptrtoint %oop %r44 to %word
+	%r47 = ptrtoint %oop %r42 to %word
+	%r46 = icmp eq %word %r48, %r47
+	%r45 = inttoptr i1 %r46 to %oop
+	%r50 = ptrtoint %oop %r45 to %word
+	%r49 = icmp ne %word %r50, 0
+	br i1 %r49, label %L6, label %L4
+L6:
+	br label %L4
+L4:
+	%r51 = load %oop, %oop* %t5
+	%r52 = inttoptr %word 1 to %oop
+	%r53 = load %oop, %oop* %t2
+	%r57 = bitcast %oop %r53 to [0 x %oop]*
+	%r56 = ptrtoint %oop %r52 to %word
+	%r55 = getelementptr [0 x %oop], [0 x %oop]* %r57, %word 0, %word %r56
+	%r54 = load %oop, %oop* %r55
+	store %oop %r54, %oop* %t2
+	store %oop %r54, %oop* %t4
+	br label %L3
+L2:
+	%r58 = getelementptr %"<header>", %"<header>"* @m_ostr1802, i32 1
+	%r59 = load %oop, %oop* %t0
+	%r60 = call %oop @"m_%not-enough-arguments.code"(%oop %r58, %oop %r59)
+	store %oop %r60, %oop* %t4
+	br label %L3
+L3:
+	%r62 = load %oop, %oop* %t4
+	%r63 = load %oop, %oop* %t2
+	%r65 = ptrtoint %oop %r63 to %word
+	%r64 = icmp ne %word %r65, 0
+	br i1 %r64, label %L7, label %L8
+L7:
+	%r66 = getelementptr %"<header>", %"<header>"* @m_ostr1804, i32 1
+	%r67 = load %oop, %oop* %t0
+	%r68 = call %oop @"m_%too-many-arguments.code"(%oop %r66, %oop %r67)
+	store %oop %r68, %oop* %t4
+	br label %L9
+L8:
+	%r70 = inttoptr %word 0 to %oop
+	store %oop %r70, %oop* %t4
+	br label %L9
+L9:
+	%r71 = load %oop, %oop* %t4
+	%r72 = load %oop, %oop* %t3
+	%r73 = call %oop @m_image-source.code(%oop %r72)
+	ret %oop %r73
+}
+@m_cstr1805 = private unnamed_addr constant [28 x i8] c"image-source/evaluator-stub\00"
+@m_ostr1806 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 55, ptr bitcast ([28 x i8]* @m_cstr1805 to ptr) }}
+@"m_image-source/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_image-source/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1806 }}
+@m_cstr1807 = private unnamed_addr constant [5 x i8] c"load\00"
+@m_ostr1808 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr1807 to ptr) }}
+@m_cstr1809 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr1810 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1809 to ptr) }}
+@m_cstr1811 = private unnamed_addr constant [5 x i8] c"path\00"
+@m_ostr1812 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr1811 to ptr) }}
+@m_cstr1813 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr1814 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1813 to ptr) }}
+@m_cstr1815 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr1816 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr1815 to ptr) }}
+@m_cstr1817 = private unnamed_addr constant [5 x i8] c"load\00"
+@m_ostr1818 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr1817 to ptr) }}
+@m_cstr1819 = private unnamed_addr constant [5 x i8] c"load\00"
+@m_ostr1820 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr1819 to ptr) }}
+@m_cstr1821 = private unnamed_addr constant [2 x i8] c"r\00"
+@m_ostr1822 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr1821 to ptr) }}
 define %oop @"m_load/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -28834,15 +29081,15 @@ L1:
 	br i1 %r23, label %L5, label %L4
 L5:
 	%r25 = call %oop @m_error-prologue.code()
-	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr1772, i32 1
+	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr1808, i32 1
 	%r28 = call %oop @"m_%error.code"(%oop %r27)
-	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr1774, i32 1
+	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr1810, i32 1
 	%r31 = call %oop @"m_%error.code"(%oop %r30)
-	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr1776, i32 1
+	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr1812, i32 1
 	%r34 = call %oop @"m_%error.code"(%oop %r33)
-	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr1778, i32 1
+	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr1814, i32 1
 	%r37 = call %oop @"m_%error.code"(%oop %r36)
-	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr1780, i32 1
+	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr1816, i32 1
 	%r40 = call %oop @"m_%error.code"(%oop %r39)
 	%r42 = call %oop @m_error-epilogue.code()
 	store %oop %r42, %oop* %t5
@@ -28868,7 +29115,7 @@ L4:
 	store %oop %r54, %oop* %t4
 	br label %L3
 L2:
-	%r58 = getelementptr %"<header>", %"<header>"* @m_ostr1782, i32 1
+	%r58 = getelementptr %"<header>", %"<header>"* @m_ostr1818, i32 1
 	%r59 = load %oop, %oop* %t0
 	%r60 = call %oop @"m_%not-enough-arguments.code"(%oop %r58, %oop %r59)
 	store %oop %r60, %oop* %t4
@@ -28880,7 +29127,7 @@ L3:
 	%r64 = icmp ne %word %r65, 0
 	br i1 %r64, label %L7, label %L8
 L7:
-	%r66 = getelementptr %"<header>", %"<header>"* @m_ostr1784, i32 1
+	%r66 = getelementptr %"<header>", %"<header>"* @m_ostr1820, i32 1
 	%r67 = load %oop, %oop* %t0
 	%r68 = call %oop @"m_%too-many-arguments.code"(%oop %r66, %oop %r67)
 	store %oop %r68, %oop* %t4
@@ -28918,7 +29165,7 @@ L10:
 L11:
 	%r95 = inttoptr %word 0 to %oop
 	%r96 = load %oop, %oop* %t3
-	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr1786, i32 1
+	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr1822, i32 1
 	%r98 = call %oop @m_file-open-or-die.code(%oop %r96, %oop %r97)
 	%r103 = bitcast %oop %r98 to [0 x %oop]*
 	%r102 = ptrtoint %oop %r95 to %word
@@ -28948,11 +29195,11 @@ L12:
 	%r123 = load %oop, %oop* %t5
 	ret %oop %r123
 }
-@m_cstr1787 = private unnamed_addr constant [20 x i8] c"load/evaluator-stub\00"
-@m_ostr1788 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr1787 to ptr) }}
-@"m_load/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_load/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1788 }}
-@m_cstr1789 = private unnamed_addr constant [2 x i8] c"r\00"
-@m_ostr1790 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr1789 to ptr) }}
+@m_cstr1823 = private unnamed_addr constant [20 x i8] c"load/evaluator-stub\00"
+@m_ostr1824 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr1823 to ptr) }}
+@"m_load/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_load/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1824 }}
+@m_cstr1825 = private unnamed_addr constant [2 x i8] c"r\00"
+@m_ostr1826 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr1825 to ptr) }}
 define %oop @m_embedded-or-file-repl.code(%oop %path) {
 	%t0 = alloca %oop
 	%t1 = alloca %oop
@@ -28992,7 +29239,7 @@ L1:
 L2:
 	%r29 = inttoptr %word 0 to %oop
 	%r30 = load %oop, %oop* %t0
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr1790, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr1826, i32 1
 	%r32 = call %oop @m_file-open-or-die.code(%oop %r30, %oop %r31)
 	%r37 = bitcast %oop %r32 to [0 x %oop]*
 	%r36 = ptrtoint %oop %r29 to %word
@@ -29026,45 +29273,45 @@ L3:
 	%r62 = load %oop, %oop* %t2
 	ret %oop %r62
 }
-@m_cstr1791 = private unnamed_addr constant [22 x i8] c"embedded-or-file-repl\00"
-@m_ostr1792 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 43, ptr bitcast ([22 x i8]* @m_cstr1791 to ptr) }}
-@m_embedded-or-file-repl = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @m_embedded-or-file-repl.code to %oop), %"<string-h>"* @m_ostr1792 }}
-@m_cstr1793 = private unnamed_addr constant [25 x i8] c"*command-line-arguments*\00"
-@m_ostr1794 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr1793 to ptr) }}
-@m_cstr1795 = private unnamed_addr constant [3 x i8] c"-v\00"
-@m_ostr1796 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1795 to ptr) }}
-@m_cstr1797 = private unnamed_addr constant [3 x i8] c"-d\00"
-@m_ostr1798 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1797 to ptr) }}
-@m_cstr1799 = private unnamed_addr constant [89 x i8] c"WARNING: (feature debug-output) was not enabled while compiling this build, ignoring -d\0A\00"
-@m_cstr1800 = private unnamed_addr constant [3 x i8] c"-O\00"
-@m_ostr1801 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1800 to ptr) }}
-@m_cstr1802 = private unnamed_addr constant [3 x i8] c"-p\00"
-@m_ostr1803 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1802 to ptr) }}
-@m_cstr1804 = private unnamed_addr constant [50 x i8] c"WARNING: this build has no profiler, ignoring -p\0A\00"
-@m_cstr1805 = private unnamed_addr constant [2 x i8] c"-\00"
-@m_ostr1806 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr1805 to ptr) }}
-@m_cstr1807 = private unnamed_addr constant [7 x i8] c"--call\00"
-@m_ostr1808 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1807 to ptr) }}
-@m_cstr1809 = private unnamed_addr constant [28 x i8] c"--call requires an argument\00"
-@m_cstr1810 = private unnamed_addr constant [2 x i8] c"\0A\00"
-@m_cstr1811 = private unnamed_addr constant [9 x i8] c"--define\00"
-@m_ostr1812 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr1811 to ptr) }}
-@m_cstr1813 = private unnamed_addr constant [32 x i8] c"--define requires two arguments\00"
-@m_cstr1814 = private unnamed_addr constant [2 x i8] c"\0A\00"
-@m_cstr1815 = private unnamed_addr constant [5 x i8] c"true\00"
-@m_ostr1816 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr1815 to ptr) }}
-@m_cstr1817 = private unnamed_addr constant [6 x i8] c"false\00"
-@m_ostr1818 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1817 to ptr) }}
-@m_cstr1819 = private unnamed_addr constant [15 x i8] c"loading file: \00"
-@m_ostr1820 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr1819 to ptr) }}
-@m_cstr1821 = private unnamed_addr constant [13 x i8] c"\09(as a CLA)\0A\00"
-@m_ostr1822 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr1821 to ptr) }}
-@m_cstr1823 = private unnamed_addr constant [19 x i8] c"exit-code of file \00"
-@m_ostr1824 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 37, ptr bitcast ([19 x i8]* @m_cstr1823 to ptr) }}
-@m_cstr1825 = private unnamed_addr constant [3 x i8] c": \00"
-@m_ostr1826 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1825 to ptr) }}
-@m_cstr1827 = private unnamed_addr constant [2 x i8] c"\0A\00"
-@m_ostr1828 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr1827 to ptr) }}
+@m_cstr1827 = private unnamed_addr constant [22 x i8] c"embedded-or-file-repl\00"
+@m_ostr1828 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 43, ptr bitcast ([22 x i8]* @m_cstr1827 to ptr) }}
+@m_embedded-or-file-repl = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @m_embedded-or-file-repl.code to %oop), %"<string-h>"* @m_ostr1828 }}
+@m_cstr1829 = private unnamed_addr constant [25 x i8] c"*command-line-arguments*\00"
+@m_ostr1830 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr1829 to ptr) }}
+@m_cstr1831 = private unnamed_addr constant [3 x i8] c"-v\00"
+@m_ostr1832 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1831 to ptr) }}
+@m_cstr1833 = private unnamed_addr constant [3 x i8] c"-d\00"
+@m_ostr1834 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1833 to ptr) }}
+@m_cstr1835 = private unnamed_addr constant [89 x i8] c"WARNING: (feature debug-output) was not enabled while compiling this build, ignoring -d\0A\00"
+@m_cstr1836 = private unnamed_addr constant [3 x i8] c"-O\00"
+@m_ostr1837 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1836 to ptr) }}
+@m_cstr1838 = private unnamed_addr constant [3 x i8] c"-p\00"
+@m_ostr1839 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1838 to ptr) }}
+@m_cstr1840 = private unnamed_addr constant [50 x i8] c"WARNING: this build has no profiler, ignoring -p\0A\00"
+@m_cstr1841 = private unnamed_addr constant [2 x i8] c"-\00"
+@m_ostr1842 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr1841 to ptr) }}
+@m_cstr1843 = private unnamed_addr constant [7 x i8] c"--call\00"
+@m_ostr1844 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1843 to ptr) }}
+@m_cstr1845 = private unnamed_addr constant [28 x i8] c"--call requires an argument\00"
+@m_cstr1846 = private unnamed_addr constant [2 x i8] c"\0A\00"
+@m_cstr1847 = private unnamed_addr constant [9 x i8] c"--define\00"
+@m_ostr1848 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr1847 to ptr) }}
+@m_cstr1849 = private unnamed_addr constant [32 x i8] c"--define requires two arguments\00"
+@m_cstr1850 = private unnamed_addr constant [2 x i8] c"\0A\00"
+@m_cstr1851 = private unnamed_addr constant [5 x i8] c"true\00"
+@m_ostr1852 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr1851 to ptr) }}
+@m_cstr1853 = private unnamed_addr constant [6 x i8] c"false\00"
+@m_ostr1854 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1853 to ptr) }}
+@m_cstr1855 = private unnamed_addr constant [15 x i8] c"loading file: \00"
+@m_ostr1856 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr1855 to ptr) }}
+@m_cstr1857 = private unnamed_addr constant [13 x i8] c"\09(as a CLA)\0A\00"
+@m_ostr1858 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr1857 to ptr) }}
+@m_cstr1859 = private unnamed_addr constant [19 x i8] c"exit-code of file \00"
+@m_ostr1860 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 37, ptr bitcast ([19 x i8]* @m_cstr1859 to ptr) }}
+@m_cstr1861 = private unnamed_addr constant [3 x i8] c": \00"
+@m_ostr1862 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1861 to ptr) }}
+@m_cstr1863 = private unnamed_addr constant [2 x i8] c"\0A\00"
+@m_ostr1864 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr1863 to ptr) }}
 define %oop @m_process-command-line-arguments.code(%oop %argc, %oop %argv) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -29090,7 +29337,7 @@ define %oop @m_process-command-line-arguments.code(%oop %argc, %oop %argv) {
 	store %oop %argv, %oop* %t1
 	%r1 = inttoptr %word 0 to %oop
 	%r2 = load %oop, %oop* @"m_*globals*"
-	%r3 = getelementptr %"<header>", %"<header>"* @m_ostr1794, i32 1
+	%r3 = getelementptr %"<header>", %"<header>"* @m_ostr1830, i32 1
 	%r4 = call %oop @"m_string->symbol.code"(%oop %r3)
 	%r6 = inttoptr %word 0 to %oop
 	%r7 = call %oop @m_environment-define.code(%oop %r2, %oop %r4, %oop %r6)
@@ -29191,7 +29438,7 @@ L4:
 	%r86 = getelementptr [0 x %oop], [0 x %oop]* %r88, %word 0, %word %r87
 	store %oop %r79, %oop* %r86
 	%r85 = bitcast %oop %r79 to %oop
-	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr1796, i32 1
+	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr1832, i32 1
 	%r90 = load %oop, %oop* %t5
 	%r91 = call %oop @"m_string=.code"(%oop %r89, %oop %r90)
 	%r94 = ptrtoint %oop %r91 to %word
@@ -29224,7 +29471,7 @@ L7:
 	store %oop %r115, %oop* %t7
 	br label %L9
 L8:
-	%r117 = getelementptr %"<header>", %"<header>"* @m_ostr1798, i32 1
+	%r117 = getelementptr %"<header>", %"<header>"* @m_ostr1834, i32 1
 	%r118 = load %oop, %oop* %t5
 	%r119 = call %oop @"m_string=.code"(%oop %r117, %oop %r118)
 	%r122 = ptrtoint %oop %r119 to %word
@@ -29233,7 +29480,7 @@ L8:
 L10:
 	%r123 = inttoptr %word 1 to %oop
 	%r124 = inttoptr %word 2 to %oop
-	%r125 = getelementptr [89 x i8], [89 x i8]* @m_cstr1799, %word 0, %word 0
+	%r125 = getelementptr [89 x i8], [89 x i8]* @m_cstr1835, %word 0, %word 0
 	%r127 = inttoptr %word 88 to %oop
 	%r128 = call %oop asm sideeffect "syscall",
 	"={rax}, {rax}, {rdi}, {rsi}, {rdx},~{rdi},~{rsi},~{rdx},~{r10},~{r8},~{r9},~{rcx},~{r11},~{memory}"
@@ -29241,7 +29488,7 @@ L10:
 	store %oop %r128, %oop* %t8
 	br label %L12
 L11:
-	%r129 = getelementptr %"<header>", %"<header>"* @m_ostr1801, i32 1
+	%r129 = getelementptr %"<header>", %"<header>"* @m_ostr1837, i32 1
 	%r130 = load %oop, %oop* %t5
 	%r131 = call %oop @"m_string=.code"(%oop %r129, %oop %r130)
 	%r134 = ptrtoint %oop %r131 to %word
@@ -29274,7 +29521,7 @@ L13:
 	store %oop %r155, %oop* %t9
 	br label %L15
 L14:
-	%r157 = getelementptr %"<header>", %"<header>"* @m_ostr1803, i32 1
+	%r157 = getelementptr %"<header>", %"<header>"* @m_ostr1839, i32 1
 	%r158 = load %oop, %oop* %t5
 	%r159 = call %oop @"m_string=.code"(%oop %r157, %oop %r158)
 	%r162 = ptrtoint %oop %r159 to %word
@@ -29283,7 +29530,7 @@ L14:
 L16:
 	%r163 = inttoptr %word 1 to %oop
 	%r164 = inttoptr %word 2 to %oop
-	%r165 = getelementptr [50 x i8], [50 x i8]* @m_cstr1804, %word 0, %word 0
+	%r165 = getelementptr [50 x i8], [50 x i8]* @m_cstr1840, %word 0, %word 0
 	%r167 = inttoptr %word 49 to %oop
 	%r168 = call %oop asm sideeffect "syscall",
 	"={rax}, {rax}, {rdi}, {rsi}, {rdx},~{rdi},~{rsi},~{rdx},~{r10},~{r8},~{r9},~{rcx},~{r11},~{memory}"
@@ -29291,7 +29538,7 @@ L16:
 	store %oop %r168, %oop* %t10
 	br label %L18
 L17:
-	%r169 = getelementptr %"<header>", %"<header>"* @m_ostr1806, i32 1
+	%r169 = getelementptr %"<header>", %"<header>"* @m_ostr1842, i32 1
 	%r170 = load %oop, %oop* %t5
 	%r171 = call %oop @"m_string=.code"(%oop %r169, %oop %r170)
 	%r174 = ptrtoint %oop %r171 to %word
@@ -29309,7 +29556,7 @@ L19:
 	store %oop %r184, %oop* %t11
 	br label %L21
 L20:
-	%r186 = getelementptr %"<header>", %"<header>"* @m_ostr1808, i32 1
+	%r186 = getelementptr %"<header>", %"<header>"* @m_ostr1844, i32 1
 	%r187 = load %oop, %oop* %t5
 	%r188 = call %oop @"m_string=.code"(%oop %r186, %oop %r187)
 	%r191 = ptrtoint %oop %r188 to %word
@@ -29330,14 +29577,14 @@ L26:
 	%r199 = call %oop @m_fatal-prologue.code()
 	%r201 = inttoptr %word 1 to %oop
 	%r202 = inttoptr %word 2 to %oop
-	%r203 = getelementptr [28 x i8], [28 x i8]* @m_cstr1809, %word 0, %word 0
+	%r203 = getelementptr [28 x i8], [28 x i8]* @m_cstr1845, %word 0, %word 0
 	%r205 = inttoptr %word 27 to %oop
 	%r206 = call %oop asm sideeffect "syscall",
 	"={rax}, {rax}, {rdi}, {rsi}, {rdx},~{rdi},~{rsi},~{rdx},~{r10},~{r8},~{r9},~{rcx},~{r11},~{memory}"
 	(%oop %r201, %oop %r202, %oop %r203, %oop %r205)
 	%r207 = inttoptr %word 1 to %oop
 	%r208 = inttoptr %word 2 to %oop
-	%r209 = getelementptr [2 x i8], [2 x i8]* @m_cstr1810, %word 0, %word 0
+	%r209 = getelementptr [2 x i8], [2 x i8]* @m_cstr1846, %word 0, %word 0
 	%r211 = inttoptr %word 1 to %oop
 	%r212 = call %oop asm sideeffect "syscall",
 	"={rax}, {rax}, {rdi}, {rsi}, {rdx},~{rdi},~{rsi},~{rdx},~{r10},~{r8},~{r9},~{rcx},~{r11},~{memory}"
@@ -29389,7 +29636,7 @@ L27:
 	store %oop %r253, %oop* %t12
 	br label %L24
 L23:
-	%r254 = getelementptr %"<header>", %"<header>"* @m_ostr1812, i32 1
+	%r254 = getelementptr %"<header>", %"<header>"* @m_ostr1848, i32 1
 	%r255 = load %oop, %oop* %t5
 	%r256 = call %oop @"m_string=.code"(%oop %r254, %oop %r255)
 	%r259 = ptrtoint %oop %r256 to %word
@@ -29442,14 +29689,14 @@ L32:
 	%r291 = call %oop @m_fatal-prologue.code()
 	%r293 = inttoptr %word 1 to %oop
 	%r294 = inttoptr %word 2 to %oop
-	%r295 = getelementptr [32 x i8], [32 x i8]* @m_cstr1813, %word 0, %word 0
+	%r295 = getelementptr [32 x i8], [32 x i8]* @m_cstr1849, %word 0, %word 0
 	%r297 = inttoptr %word 31 to %oop
 	%r298 = call %oop asm sideeffect "syscall",
 	"={rax}, {rax}, {rdi}, {rsi}, {rdx},~{rdi},~{rsi},~{rdx},~{r10},~{r8},~{r9},~{rcx},~{r11},~{memory}"
 	(%oop %r293, %oop %r294, %oop %r295, %oop %r297)
 	%r299 = inttoptr %word 1 to %oop
 	%r300 = inttoptr %word 2 to %oop
-	%r301 = getelementptr [2 x i8], [2 x i8]* @m_cstr1814, %word 0, %word 0
+	%r301 = getelementptr [2 x i8], [2 x i8]* @m_cstr1850, %word 0, %word 0
 	%r303 = inttoptr %word 1 to %oop
 	%r304 = call %oop asm sideeffect "syscall",
 	"={rax}, {rax}, {rdi}, {rsi}, {rdx},~{rdi},~{rsi},~{rdx},~{r10},~{r8},~{r9},~{rcx},~{r11},~{memory}"
@@ -29501,7 +29748,7 @@ L33:
 	store %oop %r337, %oop* %r344
 	%r343 = bitcast %oop %r337 to %oop
 	%r347 = load %oop, %oop* %t15
-	%r348 = getelementptr %"<header>", %"<header>"* @m_ostr1816, i32 1
+	%r348 = getelementptr %"<header>", %"<header>"* @m_ostr1852, i32 1
 	%r349 = call %oop @"m_string=.code"(%oop %r347, %oop %r348)
 	%r352 = ptrtoint %oop %r349 to %word
 	%r351 = icmp ne %word %r352, 0
@@ -29513,7 +29760,7 @@ L37:
 	br label %L39
 L38:
 	%r354 = load %oop, %oop* %t15
-	%r355 = getelementptr %"<header>", %"<header>"* @m_ostr1818, i32 1
+	%r355 = getelementptr %"<header>", %"<header>"* @m_ostr1854, i32 1
 	%r356 = call %oop @"m_string=.code"(%oop %r354, %oop %r355)
 	%r359 = ptrtoint %oop %r356 to %word
 	%r358 = icmp ne %word %r359, 0
@@ -29597,7 +29844,7 @@ L46:
 	%r413 = load %oop, %oop* @"m_*maru*"
 	%r414 = load %oop, %oop* @"m_symbol/*debug-output*"
 	%r415 = call %oop @m_variable-value.code(%oop %r413, %oop %r414)
-	%r417 = getelementptr %"<header>", %"<header>"* @m_ostr1820, i32 1
+	%r417 = getelementptr %"<header>", %"<header>"* @m_ostr1856, i32 1
 	%r418 = inttoptr %word 0 to %oop
 	%r419 = call %oop @m_do-print.code(%oop %r415, %oop %r417, %oop %r418)
 	%r421 = load %oop, %oop* @"m_*maru*"
@@ -29609,7 +29856,7 @@ L46:
 	%r429 = load %oop, %oop* @"m_*maru*"
 	%r430 = load %oop, %oop* @"m_symbol/*debug-output*"
 	%r431 = call %oop @m_variable-value.code(%oop %r429, %oop %r430)
-	%r433 = getelementptr %"<header>", %"<header>"* @m_ostr1822, i32 1
+	%r433 = getelementptr %"<header>", %"<header>"* @m_ostr1858, i32 1
 	%r434 = inttoptr %word 0 to %oop
 	%r435 = call %oop @m_do-print.code(%oop %r431, %oop %r433, %oop %r434)
 	store %oop %r435, %oop* %t14
@@ -29676,7 +29923,7 @@ L49:
 	%r481 = load %oop, %oop* @"m_*maru*"
 	%r482 = load %oop, %oop* @"m_symbol/*debug-output*"
 	%r483 = call %oop @m_variable-value.code(%oop %r481, %oop %r482)
-	%r485 = getelementptr %"<header>", %"<header>"* @m_ostr1824, i32 1
+	%r485 = getelementptr %"<header>", %"<header>"* @m_ostr1860, i32 1
 	%r486 = inttoptr %word 0 to %oop
 	%r487 = call %oop @m_do-print.code(%oop %r483, %oop %r485, %oop %r486)
 	%r489 = load %oop, %oop* @"m_*maru*"
@@ -29688,7 +29935,7 @@ L49:
 	%r497 = load %oop, %oop* @"m_*maru*"
 	%r498 = load %oop, %oop* @"m_symbol/*debug-output*"
 	%r499 = call %oop @m_variable-value.code(%oop %r497, %oop %r498)
-	%r501 = getelementptr %"<header>", %"<header>"* @m_ostr1826, i32 1
+	%r501 = getelementptr %"<header>", %"<header>"* @m_ostr1862, i32 1
 	%r502 = inttoptr %word 0 to %oop
 	%r503 = call %oop @m_do-print.code(%oop %r499, %oop %r501, %oop %r502)
 	%r505 = load %oop, %oop* @"m_*maru*"
@@ -29710,7 +29957,7 @@ L49:
 	%r523 = load %oop, %oop* @"m_*maru*"
 	%r524 = load %oop, %oop* @"m_symbol/*debug-output*"
 	%r525 = call %oop @m_variable-value.code(%oop %r523, %oop %r524)
-	%r527 = getelementptr %"<header>", %"<header>"* @m_ostr1828, i32 1
+	%r527 = getelementptr %"<header>", %"<header>"* @m_ostr1864, i32 1
 	%r528 = inttoptr %word 0 to %oop
 	%r529 = call %oop @m_do-print.code(%oop %r525, %oop %r527, %oop %r528)
 	store %oop %r529, %oop* %t14
@@ -29807,25 +30054,25 @@ L6:
 	%r582 = load %oop, %oop* %t3
 	ret %oop %r582
 }
-@m_cstr1829 = private unnamed_addr constant [31 x i8] c"process-command-line-arguments\00"
-@m_ostr1830 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 61, ptr bitcast ([31 x i8]* @m_cstr1829 to ptr) }}
-@m_process-command-line-arguments = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @m_process-command-line-arguments.code to %oop), %"<string-h>"* @m_ostr1830 }}
-@m_cstr1831 = private unnamed_addr constant [7 x i8] c"define\00"
-@m_ostr1832 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1831 to ptr) }}
-@m_cstr1833 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr1834 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1833 to ptr) }}
-@m_cstr1835 = private unnamed_addr constant [9 x i8] c"variable\00"
-@m_ostr1836 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr1835 to ptr) }}
-@m_cstr1837 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr1838 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1837 to ptr) }}
-@m_cstr1839 = private unnamed_addr constant [11 x i8] c"<variable>\00"
-@m_ostr1840 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr1839 to ptr) }}
-@m_cstr1841 = private unnamed_addr constant [7 x i8] c"define\00"
-@m_ostr1842 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1841 to ptr) }}
-@m_cstr1843 = private unnamed_addr constant [7 x i8] c"define\00"
-@m_ostr1844 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1843 to ptr) }}
-@m_cstr1845 = private unnamed_addr constant [7 x i8] c"define\00"
-@m_ostr1846 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1845 to ptr) }}
+@m_cstr1865 = private unnamed_addr constant [31 x i8] c"process-command-line-arguments\00"
+@m_ostr1866 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 61, ptr bitcast ([31 x i8]* @m_cstr1865 to ptr) }}
+@m_process-command-line-arguments = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @m_process-command-line-arguments.code to %oop), %"<string-h>"* @m_ostr1866 }}
+@m_cstr1867 = private unnamed_addr constant [7 x i8] c"define\00"
+@m_ostr1868 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1867 to ptr) }}
+@m_cstr1869 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr1870 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1869 to ptr) }}
+@m_cstr1871 = private unnamed_addr constant [9 x i8] c"variable\00"
+@m_ostr1872 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr1871 to ptr) }}
+@m_cstr1873 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr1874 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1873 to ptr) }}
+@m_cstr1875 = private unnamed_addr constant [11 x i8] c"<variable>\00"
+@m_ostr1876 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr1875 to ptr) }}
+@m_cstr1877 = private unnamed_addr constant [7 x i8] c"define\00"
+@m_ostr1878 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1877 to ptr) }}
+@m_cstr1879 = private unnamed_addr constant [7 x i8] c"define\00"
+@m_ostr1880 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1879 to ptr) }}
+@m_cstr1881 = private unnamed_addr constant [7 x i8] c"define\00"
+@m_ostr1882 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1881 to ptr) }}
 define %oop @"m_define/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -29877,15 +30124,15 @@ L1:
 	br i1 %r29, label %L5, label %L4
 L5:
 	%r31 = call %oop @m_error-prologue.code()
-	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr1832, i32 1
+	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr1868, i32 1
 	%r34 = call %oop @"m_%error.code"(%oop %r33)
-	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr1834, i32 1
+	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr1870, i32 1
 	%r37 = call %oop @"m_%error.code"(%oop %r36)
-	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr1836, i32 1
+	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr1872, i32 1
 	%r40 = call %oop @"m_%error.code"(%oop %r39)
-	%r42 = getelementptr %"<header>", %"<header>"* @m_ostr1838, i32 1
+	%r42 = getelementptr %"<header>", %"<header>"* @m_ostr1874, i32 1
 	%r43 = call %oop @"m_%error.code"(%oop %r42)
-	%r45 = getelementptr %"<header>", %"<header>"* @m_ostr1840, i32 1
+	%r45 = getelementptr %"<header>", %"<header>"* @m_ostr1876, i32 1
 	%r46 = call %oop @"m_%error.code"(%oop %r45)
 	%r48 = call %oop @m_error-epilogue.code()
 	store %oop %r48, %oop* %t6
@@ -29911,7 +30158,7 @@ L4:
 	store %oop %r60, %oop* %t5
 	br label %L3
 L2:
-	%r64 = getelementptr %"<header>", %"<header>"* @m_ostr1842, i32 1
+	%r64 = getelementptr %"<header>", %"<header>"* @m_ostr1878, i32 1
 	%r65 = load %oop, %oop* %t0
 	%r66 = call %oop @"m_%not-enough-arguments.code"(%oop %r64, %oop %r65)
 	store %oop %r66, %oop* %t5
@@ -29941,7 +30188,7 @@ L7:
 	store %oop %r82, %oop* %t5
 	br label %L9
 L8:
-	%r86 = getelementptr %"<header>", %"<header>"* @m_ostr1844, i32 1
+	%r86 = getelementptr %"<header>", %"<header>"* @m_ostr1880, i32 1
 	%r87 = load %oop, %oop* %t0
 	%r88 = call %oop @"m_%not-enough-arguments.code"(%oop %r86, %oop %r87)
 	store %oop %r88, %oop* %t5
@@ -29953,7 +30200,7 @@ L9:
 	%r92 = icmp ne %word %r93, 0
 	br i1 %r92, label %L10, label %L11
 L10:
-	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr1846, i32 1
+	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr1882, i32 1
 	%r95 = load %oop, %oop* %t0
 	%r96 = call %oop @"m_%too-many-arguments.code"(%oop %r94, %oop %r95)
 	store %oop %r96, %oop* %t5
@@ -30074,9 +30321,9 @@ L18:
 	%r180 = load %oop, %oop* %t5
 	ret %oop %r180
 }
-@m_cstr1847 = private unnamed_addr constant [22 x i8] c"define/evaluator-stub\00"
-@m_ostr1848 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 43, ptr bitcast ([22 x i8]* @m_cstr1847 to ptr) }}
-@"m_define/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_define/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1848 }}
+@m_cstr1883 = private unnamed_addr constant [22 x i8] c"define/evaluator-stub\00"
+@m_ostr1884 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 43, ptr bitcast ([22 x i8]* @m_cstr1883 to ptr) }}
+@"m_define/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_define/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1884 }}
 define %oop @"m_eval/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -30177,25 +30424,25 @@ L9:
 	%r65 = load %oop, %oop* %t5
 	ret %oop %r65
 }
-@m_cstr1849 = private unnamed_addr constant [20 x i8] c"eval/evaluator-stub\00"
-@m_ostr1850 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr1849 to ptr) }}
-@"m_eval/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_eval/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1850 }}
-@m_cstr1851 = private unnamed_addr constant [7 x i8] c"lambda\00"
-@m_ostr1852 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1851 to ptr) }}
-@m_cstr1853 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr1854 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1853 to ptr) }}
-@m_cstr1855 = private unnamed_addr constant [4 x i8] c"env\00"
-@m_ostr1856 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1855 to ptr) }}
-@m_cstr1857 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr1858 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1857 to ptr) }}
-@m_cstr1859 = private unnamed_addr constant [6 x i8] c"<env>\00"
-@m_ostr1860 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1859 to ptr) }}
-@m_cstr1861 = private unnamed_addr constant [7 x i8] c"lambda\00"
-@m_ostr1862 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1861 to ptr) }}
-@m_cstr1863 = private unnamed_addr constant [7 x i8] c"lambda\00"
-@m_ostr1864 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1863 to ptr) }}
-@m_cstr1865 = private unnamed_addr constant [50 x i8] c"lambda vm-function: parameters is of wrong type: \00"
-@m_ostr1866 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 99, ptr bitcast ([50 x i8]* @m_cstr1865 to ptr) }}
+@m_cstr1885 = private unnamed_addr constant [20 x i8] c"eval/evaluator-stub\00"
+@m_ostr1886 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr1885 to ptr) }}
+@"m_eval/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_eval/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1886 }}
+@m_cstr1887 = private unnamed_addr constant [7 x i8] c"lambda\00"
+@m_ostr1888 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1887 to ptr) }}
+@m_cstr1889 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr1890 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1889 to ptr) }}
+@m_cstr1891 = private unnamed_addr constant [4 x i8] c"env\00"
+@m_ostr1892 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1891 to ptr) }}
+@m_cstr1893 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr1894 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1893 to ptr) }}
+@m_cstr1895 = private unnamed_addr constant [6 x i8] c"<env>\00"
+@m_ostr1896 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1895 to ptr) }}
+@m_cstr1897 = private unnamed_addr constant [7 x i8] c"lambda\00"
+@m_ostr1898 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1897 to ptr) }}
+@m_cstr1899 = private unnamed_addr constant [7 x i8] c"lambda\00"
+@m_ostr1900 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1899 to ptr) }}
+@m_cstr1901 = private unnamed_addr constant [50 x i8] c"lambda vm-function: parameters is of wrong type: \00"
+@m_ostr1902 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 99, ptr bitcast ([50 x i8]* @m_cstr1901 to ptr) }}
 define %oop @"m_lambda/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -30248,15 +30495,15 @@ L1:
 	br i1 %r30, label %L5, label %L4
 L5:
 	%r32 = call %oop @m_error-prologue.code()
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr1852, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr1888, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr1854, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr1890, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr1856, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr1892, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
-	%r43 = getelementptr %"<header>", %"<header>"* @m_ostr1858, i32 1
+	%r43 = getelementptr %"<header>", %"<header>"* @m_ostr1894, i32 1
 	%r44 = call %oop @"m_%error.code"(%oop %r43)
-	%r46 = getelementptr %"<header>", %"<header>"* @m_ostr1860, i32 1
+	%r46 = getelementptr %"<header>", %"<header>"* @m_ostr1896, i32 1
 	%r47 = call %oop @"m_%error.code"(%oop %r46)
 	%r49 = call %oop @m_error-epilogue.code()
 	store %oop %r49, %oop* %t7
@@ -30282,7 +30529,7 @@ L4:
 	store %oop %r61, %oop* %t6
 	br label %L3
 L2:
-	%r65 = getelementptr %"<header>", %"<header>"* @m_ostr1862, i32 1
+	%r65 = getelementptr %"<header>", %"<header>"* @m_ostr1898, i32 1
 	%r66 = load %oop, %oop* %t0
 	%r67 = call %oop @"m_%not-enough-arguments.code"(%oop %r65, %oop %r66)
 	store %oop %r67, %oop* %t6
@@ -30312,7 +30559,7 @@ L7:
 	store %oop %r83, %oop* %t6
 	br label %L9
 L8:
-	%r87 = getelementptr %"<header>", %"<header>"* @m_ostr1864, i32 1
+	%r87 = getelementptr %"<header>", %"<header>"* @m_ostr1900, i32 1
 	%r88 = load %oop, %oop* %t0
 	%r89 = call %oop @"m_%not-enough-arguments.code"(%oop %r87, %oop %r88)
 	store %oop %r89, %oop* %t6
@@ -30383,7 +30630,7 @@ L11:
 	br i1 %r138, label %L15, label %L10
 L15:
 	%r140 = call %oop @m_error-prologue.code()
-	%r142 = getelementptr %"<header>", %"<header>"* @m_ostr1866, i32 1
+	%r142 = getelementptr %"<header>", %"<header>"* @m_ostr1902, i32 1
 	%r143 = call %oop @"m_%error.code"(%oop %r142)
 	%r145 = load %oop, %oop* %t4
 	%r146 = call %oop @"m_%error.code"(%oop %r145)
@@ -30408,13 +30655,13 @@ L10:
 	%r162 = call %oop @m_expr.code(%oop %r158, %oop %r159, %oop %r160, %oop %r161)
 	ret %oop %r162
 }
-@m_cstr1867 = private unnamed_addr constant [22 x i8] c"lambda/evaluator-stub\00"
-@m_ostr1868 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 43, ptr bitcast ([22 x i8]* @m_cstr1867 to ptr) }}
-@"m_lambda/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_lambda/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1868 }}
-@m_cstr1869 = private unnamed_addr constant [4 x i8] c"let\00"
-@m_ostr1870 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1869 to ptr) }}
-@m_cstr1871 = private unnamed_addr constant [4 x i8] c"let\00"
-@m_ostr1872 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1871 to ptr) }}
+@m_cstr1903 = private unnamed_addr constant [22 x i8] c"lambda/evaluator-stub\00"
+@m_ostr1904 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 43, ptr bitcast ([22 x i8]* @m_cstr1903 to ptr) }}
+@"m_lambda/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_lambda/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1904 }}
+@m_cstr1905 = private unnamed_addr constant [4 x i8] c"let\00"
+@m_ostr1906 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1905 to ptr) }}
+@m_cstr1907 = private unnamed_addr constant [4 x i8] c"let\00"
+@m_ostr1908 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1907 to ptr) }}
 define %oop @"m_let/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -30462,7 +30709,7 @@ L1:
 	store %oop %r18, %oop* %t6
 	br label %L3
 L2:
-	%r22 = getelementptr %"<header>", %"<header>"* @m_ostr1870, i32 1
+	%r22 = getelementptr %"<header>", %"<header>"* @m_ostr1906, i32 1
 	%r23 = load %oop, %oop* %t0
 	%r24 = call %oop @"m_%not-enough-arguments.code"(%oop %r22, %oop %r23)
 	store %oop %r24, %oop* %t6
@@ -30492,7 +30739,7 @@ L4:
 	store %oop %r40, %oop* %t6
 	br label %L6
 L5:
-	%r44 = getelementptr %"<header>", %"<header>"* @m_ostr1872, i32 1
+	%r44 = getelementptr %"<header>", %"<header>"* @m_ostr1908, i32 1
 	%r45 = load %oop, %oop* %t0
 	%r46 = call %oop @"m_%not-enough-arguments.code"(%oop %r44, %oop %r45)
 	store %oop %r46, %oop* %t6
@@ -30633,25 +30880,25 @@ L18:
 	%r148 = load %oop, %oop* %t8
 	ret %oop %r148
 }
-@m_cstr1873 = private unnamed_addr constant [19 x i8] c"let/evaluator-stub\00"
-@m_ostr1874 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 37, ptr bitcast ([19 x i8]* @m_cstr1873 to ptr) }}
-@"m_let/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_let/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1874 }}
-@m_cstr1875 = private unnamed_addr constant [4 x i8] c"set\00"
-@m_ostr1876 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1875 to ptr) }}
-@m_cstr1877 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr1878 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1877 to ptr) }}
-@m_cstr1879 = private unnamed_addr constant [4 x i8] c"var\00"
-@m_ostr1880 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1879 to ptr) }}
-@m_cstr1881 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr1882 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1881 to ptr) }}
-@m_cstr1883 = private unnamed_addr constant [11 x i8] c"<variable>\00"
-@m_ostr1884 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr1883 to ptr) }}
-@m_cstr1885 = private unnamed_addr constant [4 x i8] c"set\00"
-@m_ostr1886 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1885 to ptr) }}
-@m_cstr1887 = private unnamed_addr constant [4 x i8] c"set\00"
-@m_ostr1888 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1887 to ptr) }}
-@m_cstr1889 = private unnamed_addr constant [4 x i8] c"set\00"
-@m_ostr1890 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1889 to ptr) }}
+@m_cstr1909 = private unnamed_addr constant [19 x i8] c"let/evaluator-stub\00"
+@m_ostr1910 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 37, ptr bitcast ([19 x i8]* @m_cstr1909 to ptr) }}
+@"m_let/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_let/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1910 }}
+@m_cstr1911 = private unnamed_addr constant [4 x i8] c"set\00"
+@m_ostr1912 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1911 to ptr) }}
+@m_cstr1913 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr1914 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1913 to ptr) }}
+@m_cstr1915 = private unnamed_addr constant [4 x i8] c"var\00"
+@m_ostr1916 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1915 to ptr) }}
+@m_cstr1917 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr1918 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1917 to ptr) }}
+@m_cstr1919 = private unnamed_addr constant [11 x i8] c"<variable>\00"
+@m_ostr1920 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr1919 to ptr) }}
+@m_cstr1921 = private unnamed_addr constant [4 x i8] c"set\00"
+@m_ostr1922 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1921 to ptr) }}
+@m_cstr1923 = private unnamed_addr constant [4 x i8] c"set\00"
+@m_ostr1924 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1923 to ptr) }}
+@m_cstr1925 = private unnamed_addr constant [4 x i8] c"set\00"
+@m_ostr1926 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1925 to ptr) }}
 define %oop @"m_set/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -30703,15 +30950,15 @@ L1:
 	br i1 %r29, label %L5, label %L4
 L5:
 	%r31 = call %oop @m_error-prologue.code()
-	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr1876, i32 1
+	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr1912, i32 1
 	%r34 = call %oop @"m_%error.code"(%oop %r33)
-	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr1878, i32 1
+	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr1914, i32 1
 	%r37 = call %oop @"m_%error.code"(%oop %r36)
-	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr1880, i32 1
+	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr1916, i32 1
 	%r40 = call %oop @"m_%error.code"(%oop %r39)
-	%r42 = getelementptr %"<header>", %"<header>"* @m_ostr1882, i32 1
+	%r42 = getelementptr %"<header>", %"<header>"* @m_ostr1918, i32 1
 	%r43 = call %oop @"m_%error.code"(%oop %r42)
-	%r45 = getelementptr %"<header>", %"<header>"* @m_ostr1884, i32 1
+	%r45 = getelementptr %"<header>", %"<header>"* @m_ostr1920, i32 1
 	%r46 = call %oop @"m_%error.code"(%oop %r45)
 	%r48 = call %oop @m_error-epilogue.code()
 	store %oop %r48, %oop* %t6
@@ -30737,7 +30984,7 @@ L4:
 	store %oop %r60, %oop* %t5
 	br label %L3
 L2:
-	%r64 = getelementptr %"<header>", %"<header>"* @m_ostr1886, i32 1
+	%r64 = getelementptr %"<header>", %"<header>"* @m_ostr1922, i32 1
 	%r65 = load %oop, %oop* %t0
 	%r66 = call %oop @"m_%not-enough-arguments.code"(%oop %r64, %oop %r65)
 	store %oop %r66, %oop* %t5
@@ -30767,7 +31014,7 @@ L7:
 	store %oop %r82, %oop* %t5
 	br label %L9
 L8:
-	%r86 = getelementptr %"<header>", %"<header>"* @m_ostr1888, i32 1
+	%r86 = getelementptr %"<header>", %"<header>"* @m_ostr1924, i32 1
 	%r87 = load %oop, %oop* %t0
 	%r88 = call %oop @"m_%not-enough-arguments.code"(%oop %r86, %oop %r87)
 	store %oop %r88, %oop* %t5
@@ -30779,7 +31026,7 @@ L9:
 	%r92 = icmp ne %word %r93, 0
 	br i1 %r92, label %L10, label %L11
 L10:
-	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr1890, i32 1
+	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr1926, i32 1
 	%r95 = load %oop, %oop* %t0
 	%r96 = call %oop @"m_%too-many-arguments.code"(%oop %r94, %oop %r95)
 	store %oop %r96, %oop* %t5
@@ -30914,9 +31161,9 @@ L15:
 	%r205 = load %oop, %oop* %t6
 	ret %oop %r205
 }
-@m_cstr1891 = private unnamed_addr constant [19 x i8] c"set/evaluator-stub\00"
-@m_ostr1892 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 37, ptr bitcast ([19 x i8]* @m_cstr1891 to ptr) }}
-@"m_set/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1892 }}
+@m_cstr1927 = private unnamed_addr constant [19 x i8] c"set/evaluator-stub\00"
+@m_ostr1928 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 37, ptr bitcast ([19 x i8]* @m_cstr1927 to ptr) }}
+@"m_set/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1928 }}
 define %oop @"m_while/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -30965,13 +31212,13 @@ L2:
 L3:
 	ret %oop %r24
 }
-@m_cstr1893 = private unnamed_addr constant [21 x i8] c"while/evaluator-stub\00"
-@m_ostr1894 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 41, ptr bitcast ([21 x i8]* @m_cstr1893 to ptr) }}
-@"m_while/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_while/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1894 }}
-@m_cstr1895 = private unnamed_addr constant [3 x i8] c"if\00"
-@m_ostr1896 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1895 to ptr) }}
-@m_cstr1897 = private unnamed_addr constant [3 x i8] c"if\00"
-@m_ostr1898 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1897 to ptr) }}
+@m_cstr1929 = private unnamed_addr constant [21 x i8] c"while/evaluator-stub\00"
+@m_ostr1930 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 41, ptr bitcast ([21 x i8]* @m_cstr1929 to ptr) }}
+@"m_while/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_while/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1930 }}
+@m_cstr1931 = private unnamed_addr constant [3 x i8] c"if\00"
+@m_ostr1932 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1931 to ptr) }}
+@m_cstr1933 = private unnamed_addr constant [3 x i8] c"if\00"
+@m_ostr1934 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr1933 to ptr) }}
 define %oop @"m_if/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -31014,7 +31261,7 @@ L1:
 	store %oop %r18, %oop* %t6
 	br label %L3
 L2:
-	%r22 = getelementptr %"<header>", %"<header>"* @m_ostr1896, i32 1
+	%r22 = getelementptr %"<header>", %"<header>"* @m_ostr1932, i32 1
 	%r23 = load %oop, %oop* %t0
 	%r24 = call %oop @"m_%not-enough-arguments.code"(%oop %r22, %oop %r23)
 	store %oop %r24, %oop* %t6
@@ -31044,7 +31291,7 @@ L4:
 	store %oop %r40, %oop* %t6
 	br label %L6
 L5:
-	%r44 = getelementptr %"<header>", %"<header>"* @m_ostr1898, i32 1
+	%r44 = getelementptr %"<header>", %"<header>"* @m_ostr1934, i32 1
 	%r45 = load %oop, %oop* %t0
 	%r46 = call %oop @"m_%not-enough-arguments.code"(%oop %r44, %oop %r45)
 	store %oop %r46, %oop* %t6
@@ -31097,9 +31344,9 @@ L9:
 	%r79 = load %oop, %oop* %t6
 	ret %oop %r79
 }
-@m_cstr1899 = private unnamed_addr constant [18 x i8] c"if/evaluator-stub\00"
-@m_ostr1900 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1899 to ptr) }}
-@"m_if/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_if/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1900 }}
+@m_cstr1935 = private unnamed_addr constant [18 x i8] c"if/evaluator-stub\00"
+@m_ostr1936 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1935 to ptr) }}
+@"m_if/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_if/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1936 }}
 define %oop @"m_or/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -31164,9 +31411,9 @@ L2:
 L3:
 	ret %oop %r36
 }
-@m_cstr1901 = private unnamed_addr constant [18 x i8] c"or/evaluator-stub\00"
-@m_ostr1902 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1901 to ptr) }}
-@"m_or/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_or/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1902 }}
+@m_cstr1937 = private unnamed_addr constant [18 x i8] c"or/evaluator-stub\00"
+@m_ostr1938 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1937 to ptr) }}
+@"m_or/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_or/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1938 }}
 define %oop @"m_and/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -31232,13 +31479,13 @@ L3:
 	%r40 = load %oop, %oop* %t2
 	ret %oop %r40
 }
-@m_cstr1903 = private unnamed_addr constant [19 x i8] c"and/evaluator-stub\00"
-@m_ostr1904 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 37, ptr bitcast ([19 x i8]* @m_cstr1903 to ptr) }}
-@"m_and/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_and/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1904 }}
-@m_cstr1905 = private unnamed_addr constant [6 x i8] c"quote\00"
-@m_ostr1906 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1905 to ptr) }}
-@m_cstr1907 = private unnamed_addr constant [6 x i8] c"quote\00"
-@m_ostr1908 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1907 to ptr) }}
+@m_cstr1939 = private unnamed_addr constant [19 x i8] c"and/evaluator-stub\00"
+@m_ostr1940 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 37, ptr bitcast ([19 x i8]* @m_cstr1939 to ptr) }}
+@"m_and/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_and/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1940 }}
+@m_cstr1941 = private unnamed_addr constant [6 x i8] c"quote\00"
+@m_ostr1942 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1941 to ptr) }}
+@m_cstr1943 = private unnamed_addr constant [6 x i8] c"quote\00"
+@m_ostr1944 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1943 to ptr) }}
 define %oop @"m_quote/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -31274,7 +31521,7 @@ L1:
 	store %oop %r16, %oop* %t4
 	br label %L3
 L2:
-	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr1906, i32 1
+	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr1942, i32 1
 	%r21 = load %oop, %oop* %t0
 	%r22 = call %oop @"m_%not-enough-arguments.code"(%oop %r20, %oop %r21)
 	store %oop %r22, %oop* %t4
@@ -31286,7 +31533,7 @@ L3:
 	%r26 = icmp ne %word %r27, 0
 	br i1 %r26, label %L4, label %L5
 L4:
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr1908, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr1944, i32 1
 	%r29 = load %oop, %oop* %t0
 	%r30 = call %oop @"m_%too-many-arguments.code"(%oop %r28, %oop %r29)
 	store %oop %r30, %oop* %t4
@@ -31300,13 +31547,13 @@ L6:
 	%r34 = load %oop, %oop* %t3
 	ret %oop %r34
 }
-@m_cstr1909 = private unnamed_addr constant [21 x i8] c"quote/evaluator-stub\00"
-@m_ostr1910 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 41, ptr bitcast ([21 x i8]* @m_cstr1909 to ptr) }}
-@"m_quote/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_quote/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1910 }}
-@m_cstr1911 = private unnamed_addr constant [4 x i8] c"not\00"
-@m_ostr1912 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1911 to ptr) }}
-@m_cstr1913 = private unnamed_addr constant [4 x i8] c"not\00"
-@m_ostr1914 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1913 to ptr) }}
+@m_cstr1945 = private unnamed_addr constant [21 x i8] c"quote/evaluator-stub\00"
+@m_ostr1946 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 41, ptr bitcast ([21 x i8]* @m_cstr1945 to ptr) }}
+@"m_quote/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_quote/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1946 }}
+@m_cstr1947 = private unnamed_addr constant [4 x i8] c"not\00"
+@m_ostr1948 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1947 to ptr) }}
+@m_cstr1949 = private unnamed_addr constant [4 x i8] c"not\00"
+@m_ostr1950 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr1949 to ptr) }}
 define %oop @"m_not/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -31342,7 +31589,7 @@ L1:
 	store %oop %r16, %oop* %t4
 	br label %L3
 L2:
-	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr1912, i32 1
+	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr1948, i32 1
 	%r21 = load %oop, %oop* %t0
 	%r22 = call %oop @"m_%not-enough-arguments.code"(%oop %r20, %oop %r21)
 	store %oop %r22, %oop* %t4
@@ -31354,7 +31601,7 @@ L3:
 	%r26 = icmp ne %word %r27, 0
 	br i1 %r26, label %L4, label %L5
 L4:
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr1914, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr1950, i32 1
 	%r29 = load %oop, %oop* %t0
 	%r30 = call %oop @"m_%too-many-arguments.code"(%oop %r28, %oop %r29)
 	store %oop %r30, %oop* %t4
@@ -31381,9 +31628,9 @@ L9:
 	%r39 = load %oop, %oop* %t4
 	ret %oop %r39
 }
-@m_cstr1915 = private unnamed_addr constant [19 x i8] c"not/evaluator-stub\00"
-@m_ostr1916 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 37, ptr bitcast ([19 x i8]* @m_cstr1915 to ptr) }}
-@"m_not/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_not/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1916 }}
+@m_cstr1951 = private unnamed_addr constant [19 x i8] c"not/evaluator-stub\00"
+@m_ostr1952 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 37, ptr bitcast ([19 x i8]* @m_cstr1951 to ptr) }}
+@"m_not/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_not/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1952 }}
 define %oop @"m_-/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -31495,9 +31742,9 @@ L9:
 	%r73 = inttoptr %word %r74 to %oop
 	ret %oop %r73
 }
-@m_cstr1917 = private unnamed_addr constant [17 x i8] c"-/evaluator-stub\00"
-@m_ostr1918 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1917 to ptr) }}
-@"m_-/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_-/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1918 }}
+@m_cstr1953 = private unnamed_addr constant [17 x i8] c"-/evaluator-stub\00"
+@m_ostr1954 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1953 to ptr) }}
+@"m_-/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_-/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1954 }}
 define %oop @"m_+/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -31550,11 +31797,11 @@ L3:
 	%r30 = inttoptr %word %r31 to %oop
 	ret %oop %r30
 }
-@m_cstr1919 = private unnamed_addr constant [17 x i8] c"+/evaluator-stub\00"
-@m_ostr1920 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1919 to ptr) }}
-@"m_+/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_+/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1920 }}
-@m_cstr1921 = private unnamed_addr constant [41 x i8] c"operator '/' needs at least one argument\00"
-@m_ostr1922 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 81, ptr bitcast ([41 x i8]* @m_cstr1921 to ptr) }}
+@m_cstr1955 = private unnamed_addr constant [17 x i8] c"+/evaluator-stub\00"
+@m_ostr1956 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1955 to ptr) }}
+@"m_+/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_+/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1956 }}
+@m_cstr1957 = private unnamed_addr constant [41 x i8] c"operator '/' needs at least one argument\00"
+@m_ostr1958 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 81, ptr bitcast ([41 x i8]* @m_cstr1957 to ptr) }}
 define %oop @"m_//evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -31628,7 +31875,7 @@ L6:
 	br label %L3
 L2:
 	%r49 = call %oop @m_error-prologue.code()
-	%r51 = getelementptr %"<header>", %"<header>"* @m_ostr1922, i32 1
+	%r51 = getelementptr %"<header>", %"<header>"* @m_ostr1958, i32 1
 	%r52 = call %oop @"m_%error.code"(%oop %r51)
 	%r54 = call %oop @m_error-epilogue.code()
 	store %oop %r54, %oop* %t2
@@ -31637,9 +31884,9 @@ L3:
 	%r56 = load %oop, %oop* %t2
 	ret %oop %r56
 }
-@m_cstr1923 = private unnamed_addr constant [17 x i8] c"//evaluator-stub\00"
-@m_ostr1924 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1923 to ptr) }}
-@"m_//evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_//evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1924 }}
+@m_cstr1959 = private unnamed_addr constant [17 x i8] c"//evaluator-stub\00"
+@m_ostr1960 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1959 to ptr) }}
+@"m_//evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_//evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1960 }}
 define %oop @"m_*/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -31692,11 +31939,11 @@ L3:
 	%r30 = inttoptr %word %r31 to %oop
 	ret %oop %r30
 }
-@m_cstr1925 = private unnamed_addr constant [17 x i8] c"*/evaluator-stub\00"
-@m_ostr1926 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1925 to ptr) }}
-@"m_*/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_*/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1926 }}
-@m_cstr1927 = private unnamed_addr constant [51 x i8] c"operator 'bitwise-and': called with zero arguments\00"
-@m_ostr1928 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 101, ptr bitcast ([51 x i8]* @m_cstr1927 to ptr) }}
+@m_cstr1961 = private unnamed_addr constant [17 x i8] c"*/evaluator-stub\00"
+@m_ostr1962 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1961 to ptr) }}
+@"m_*/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_*/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1962 }}
+@m_cstr1963 = private unnamed_addr constant [51 x i8] c"operator 'bitwise-and': called with zero arguments\00"
+@m_ostr1964 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 101, ptr bitcast ([51 x i8]* @m_cstr1963 to ptr) }}
 define %oop @"m_bitwise-and/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -31719,7 +31966,7 @@ define %oop @"m_bitwise-and/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	br i1 %r8, label %L2, label %L1
 L2:
 	%r10 = call %oop @m_error-prologue.code()
-	%r12 = getelementptr %"<header>", %"<header>"* @m_ostr1928, i32 1
+	%r12 = getelementptr %"<header>", %"<header>"* @m_ostr1964, i32 1
 	%r13 = call %oop @"m_%error.code"(%oop %r12)
 	%r15 = call %oop @m_error-epilogue.code()
 	store %oop %r15, %oop* %t2
@@ -31792,11 +32039,11 @@ L6:
 	%r66 = inttoptr %word %r67 to %oop
 	ret %oop %r66
 }
-@m_cstr1929 = private unnamed_addr constant [27 x i8] c"bitwise-and/evaluator-stub\00"
-@m_ostr1930 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 53, ptr bitcast ([27 x i8]* @m_cstr1929 to ptr) }}
-@"m_bitwise-and/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_bitwise-and/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1930 }}
-@m_cstr1931 = private unnamed_addr constant [50 x i8] c"operator 'bitwise-or': called with zero arguments\00"
-@m_ostr1932 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 99, ptr bitcast ([50 x i8]* @m_cstr1931 to ptr) }}
+@m_cstr1965 = private unnamed_addr constant [27 x i8] c"bitwise-and/evaluator-stub\00"
+@m_ostr1966 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 53, ptr bitcast ([27 x i8]* @m_cstr1965 to ptr) }}
+@"m_bitwise-and/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_bitwise-and/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1966 }}
+@m_cstr1967 = private unnamed_addr constant [50 x i8] c"operator 'bitwise-or': called with zero arguments\00"
+@m_ostr1968 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 99, ptr bitcast ([50 x i8]* @m_cstr1967 to ptr) }}
 define %oop @"m_bitwise-or/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -31819,7 +32066,7 @@ define %oop @"m_bitwise-or/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	br i1 %r8, label %L2, label %L1
 L2:
 	%r10 = call %oop @m_error-prologue.code()
-	%r12 = getelementptr %"<header>", %"<header>"* @m_ostr1932, i32 1
+	%r12 = getelementptr %"<header>", %"<header>"* @m_ostr1968, i32 1
 	%r13 = call %oop @"m_%error.code"(%oop %r12)
 	%r15 = call %oop @m_error-epilogue.code()
 	store %oop %r15, %oop* %t2
@@ -31892,11 +32139,11 @@ L6:
 	%r66 = inttoptr %word %r67 to %oop
 	ret %oop %r66
 }
-@m_cstr1933 = private unnamed_addr constant [26 x i8] c"bitwise-or/evaluator-stub\00"
-@m_ostr1934 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 51, ptr bitcast ([26 x i8]* @m_cstr1933 to ptr) }}
-@"m_bitwise-or/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_bitwise-or/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1934 }}
-@m_cstr1935 = private unnamed_addr constant [51 x i8] c"operator 'bitwise-xor': called with zero arguments\00"
-@m_ostr1936 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 101, ptr bitcast ([51 x i8]* @m_cstr1935 to ptr) }}
+@m_cstr1969 = private unnamed_addr constant [26 x i8] c"bitwise-or/evaluator-stub\00"
+@m_ostr1970 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 51, ptr bitcast ([26 x i8]* @m_cstr1969 to ptr) }}
+@"m_bitwise-or/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_bitwise-or/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1970 }}
+@m_cstr1971 = private unnamed_addr constant [51 x i8] c"operator 'bitwise-xor': called with zero arguments\00"
+@m_ostr1972 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 101, ptr bitcast ([51 x i8]* @m_cstr1971 to ptr) }}
 define %oop @"m_bitwise-xor/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -31919,7 +32166,7 @@ define %oop @"m_bitwise-xor/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	br i1 %r8, label %L2, label %L1
 L2:
 	%r10 = call %oop @m_error-prologue.code()
-	%r12 = getelementptr %"<header>", %"<header>"* @m_ostr1936, i32 1
+	%r12 = getelementptr %"<header>", %"<header>"* @m_ostr1972, i32 1
 	%r13 = call %oop @"m_%error.code"(%oop %r12)
 	%r15 = call %oop @m_error-epilogue.code()
 	store %oop %r15, %oop* %t2
@@ -31992,23 +32239,23 @@ L6:
 	%r66 = inttoptr %word %r67 to %oop
 	ret %oop %r66
 }
-@m_cstr1937 = private unnamed_addr constant [27 x i8] c"bitwise-xor/evaluator-stub\00"
-@m_ostr1938 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 53, ptr bitcast ([27 x i8]* @m_cstr1937 to ptr) }}
-@"m_bitwise-xor/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_bitwise-xor/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1938 }}
-@m_cstr1939 = private unnamed_addr constant [12 x i8] c"bitwise-not\00"
-@m_ostr1940 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr1939 to ptr) }}
-@m_cstr1941 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr1942 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1941 to ptr) }}
-@m_cstr1943 = private unnamed_addr constant [6 x i8] c"value\00"
-@m_ostr1944 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1943 to ptr) }}
-@m_cstr1945 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr1946 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1945 to ptr) }}
-@m_cstr1947 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr1948 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1947 to ptr) }}
-@m_cstr1949 = private unnamed_addr constant [12 x i8] c"bitwise-not\00"
-@m_ostr1950 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr1949 to ptr) }}
-@m_cstr1951 = private unnamed_addr constant [12 x i8] c"bitwise-not\00"
-@m_ostr1952 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr1951 to ptr) }}
+@m_cstr1973 = private unnamed_addr constant [27 x i8] c"bitwise-xor/evaluator-stub\00"
+@m_ostr1974 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 53, ptr bitcast ([27 x i8]* @m_cstr1973 to ptr) }}
+@"m_bitwise-xor/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_bitwise-xor/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1974 }}
+@m_cstr1975 = private unnamed_addr constant [12 x i8] c"bitwise-not\00"
+@m_ostr1976 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr1975 to ptr) }}
+@m_cstr1977 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr1978 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1977 to ptr) }}
+@m_cstr1979 = private unnamed_addr constant [6 x i8] c"value\00"
+@m_ostr1980 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1979 to ptr) }}
+@m_cstr1981 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr1982 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1981 to ptr) }}
+@m_cstr1983 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr1984 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1983 to ptr) }}
+@m_cstr1985 = private unnamed_addr constant [12 x i8] c"bitwise-not\00"
+@m_ostr1986 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr1985 to ptr) }}
+@m_cstr1987 = private unnamed_addr constant [12 x i8] c"bitwise-not\00"
+@m_ostr1988 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr1987 to ptr) }}
 define %oop @"m_bitwise-not/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -32050,15 +32297,15 @@ L1:
 	br i1 %r23, label %L5, label %L4
 L5:
 	%r25 = call %oop @m_error-prologue.code()
-	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr1940, i32 1
+	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr1976, i32 1
 	%r28 = call %oop @"m_%error.code"(%oop %r27)
-	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr1942, i32 1
+	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr1978, i32 1
 	%r31 = call %oop @"m_%error.code"(%oop %r30)
-	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr1944, i32 1
+	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr1980, i32 1
 	%r34 = call %oop @"m_%error.code"(%oop %r33)
-	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr1946, i32 1
+	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr1982, i32 1
 	%r37 = call %oop @"m_%error.code"(%oop %r36)
-	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr1948, i32 1
+	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr1984, i32 1
 	%r40 = call %oop @"m_%error.code"(%oop %r39)
 	%r42 = call %oop @m_error-epilogue.code()
 	store %oop %r42, %oop* %t5
@@ -32091,7 +32338,7 @@ L4:
 	store %oop %r60, %oop* %t4
 	br label %L3
 L2:
-	%r64 = getelementptr %"<header>", %"<header>"* @m_ostr1950, i32 1
+	%r64 = getelementptr %"<header>", %"<header>"* @m_ostr1986, i32 1
 	%r65 = load %oop, %oop* %t0
 	%r66 = call %oop @"m_%not-enough-arguments.code"(%oop %r64, %oop %r65)
 	store %oop %r66, %oop* %t4
@@ -32103,7 +32350,7 @@ L3:
 	%r70 = icmp ne %word %r71, 0
 	br i1 %r70, label %L7, label %L8
 L7:
-	%r72 = getelementptr %"<header>", %"<header>"* @m_ostr1952, i32 1
+	%r72 = getelementptr %"<header>", %"<header>"* @m_ostr1988, i32 1
 	%r73 = load %oop, %oop* %t0
 	%r74 = call %oop @"m_%too-many-arguments.code"(%oop %r72, %oop %r73)
 	store %oop %r74, %oop* %t4
@@ -32132,35 +32379,35 @@ L9:
 	%r90 = inttoptr %word %r91 to %oop
 	ret %oop %r90
 }
-@m_cstr1953 = private unnamed_addr constant [27 x i8] c"bitwise-not/evaluator-stub\00"
-@m_ostr1954 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 53, ptr bitcast ([27 x i8]* @m_cstr1953 to ptr) }}
-@"m_bitwise-not/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_bitwise-not/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1954 }}
-@m_cstr1955 = private unnamed_addr constant [14 x i8] c"bitwise-shift\00"
-@m_ostr1956 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr1955 to ptr) }}
-@m_cstr1957 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr1958 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1957 to ptr) }}
-@m_cstr1959 = private unnamed_addr constant [6 x i8] c"value\00"
-@m_ostr1960 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1959 to ptr) }}
-@m_cstr1961 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr1962 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1961 to ptr) }}
-@m_cstr1963 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr1964 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1963 to ptr) }}
-@m_cstr1965 = private unnamed_addr constant [14 x i8] c"bitwise-shift\00"
-@m_ostr1966 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr1965 to ptr) }}
-@m_cstr1967 = private unnamed_addr constant [14 x i8] c"bitwise-shift\00"
-@m_ostr1968 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr1967 to ptr) }}
-@m_cstr1969 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr1970 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1969 to ptr) }}
-@m_cstr1971 = private unnamed_addr constant [6 x i8] c"shift\00"
-@m_ostr1972 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1971 to ptr) }}
-@m_cstr1973 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr1974 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1973 to ptr) }}
-@m_cstr1975 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr1976 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1975 to ptr) }}
-@m_cstr1977 = private unnamed_addr constant [14 x i8] c"bitwise-shift\00"
-@m_ostr1978 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr1977 to ptr) }}
-@m_cstr1979 = private unnamed_addr constant [14 x i8] c"bitwise-shift\00"
-@m_ostr1980 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr1979 to ptr) }}
+@m_cstr1989 = private unnamed_addr constant [27 x i8] c"bitwise-not/evaluator-stub\00"
+@m_ostr1990 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 53, ptr bitcast ([27 x i8]* @m_cstr1989 to ptr) }}
+@"m_bitwise-not/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_bitwise-not/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1990 }}
+@m_cstr1991 = private unnamed_addr constant [14 x i8] c"bitwise-shift\00"
+@m_ostr1992 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr1991 to ptr) }}
+@m_cstr1993 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr1994 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1993 to ptr) }}
+@m_cstr1995 = private unnamed_addr constant [6 x i8] c"value\00"
+@m_ostr1996 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr1995 to ptr) }}
+@m_cstr1997 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr1998 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1997 to ptr) }}
+@m_cstr1999 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2000 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr1999 to ptr) }}
+@m_cstr2001 = private unnamed_addr constant [14 x i8] c"bitwise-shift\00"
+@m_ostr2002 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2001 to ptr) }}
+@m_cstr2003 = private unnamed_addr constant [14 x i8] c"bitwise-shift\00"
+@m_ostr2004 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2003 to ptr) }}
+@m_cstr2005 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2006 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2005 to ptr) }}
+@m_cstr2007 = private unnamed_addr constant [6 x i8] c"shift\00"
+@m_ostr2008 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2007 to ptr) }}
+@m_cstr2009 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2010 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2009 to ptr) }}
+@m_cstr2011 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2012 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2011 to ptr) }}
+@m_cstr2013 = private unnamed_addr constant [14 x i8] c"bitwise-shift\00"
+@m_ostr2014 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2013 to ptr) }}
+@m_cstr2015 = private unnamed_addr constant [14 x i8] c"bitwise-shift\00"
+@m_ostr2016 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2015 to ptr) }}
 define %oop @"m_bitwise-shift/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -32205,15 +32452,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr1956, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr1992, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr1958, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr1994, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr1960, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr1996, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr1962, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr1998, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr1964, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2000, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -32246,7 +32493,7 @@ L4:
 	store %oop %r61, %oop* %t5
 	br label %L3
 L2:
-	%r65 = getelementptr %"<header>", %"<header>"* @m_ostr1966, i32 1
+	%r65 = getelementptr %"<header>", %"<header>"* @m_ostr2002, i32 1
 	%r66 = load %oop, %oop* %t0
 	%r67 = call %oop @"m_%not-enough-arguments.code"(%oop %r65, %oop %r66)
 	store %oop %r67, %oop* %t5
@@ -32281,15 +32528,15 @@ L7:
 	br i1 %r90, label %L11, label %L10
 L11:
 	%r92 = call %oop @m_error-prologue.code()
-	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr1968, i32 1
+	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2004, i32 1
 	%r95 = call %oop @"m_%error.code"(%oop %r94)
-	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr1970, i32 1
+	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2006, i32 1
 	%r98 = call %oop @"m_%error.code"(%oop %r97)
-	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr1972, i32 1
+	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2008, i32 1
 	%r101 = call %oop @"m_%error.code"(%oop %r100)
-	%r103 = getelementptr %"<header>", %"<header>"* @m_ostr1974, i32 1
+	%r103 = getelementptr %"<header>", %"<header>"* @m_ostr2010, i32 1
 	%r104 = call %oop @"m_%error.code"(%oop %r103)
-	%r106 = getelementptr %"<header>", %"<header>"* @m_ostr1976, i32 1
+	%r106 = getelementptr %"<header>", %"<header>"* @m_ostr2012, i32 1
 	%r107 = call %oop @"m_%error.code"(%oop %r106)
 	%r109 = call %oop @m_error-epilogue.code()
 	store %oop %r109, %oop* %t6
@@ -32322,7 +32569,7 @@ L10:
 	store %oop %r127, %oop* %t5
 	br label %L9
 L8:
-	%r131 = getelementptr %"<header>", %"<header>"* @m_ostr1978, i32 1
+	%r131 = getelementptr %"<header>", %"<header>"* @m_ostr2014, i32 1
 	%r132 = load %oop, %oop* %t0
 	%r133 = call %oop @"m_%not-enough-arguments.code"(%oop %r131, %oop %r132)
 	store %oop %r133, %oop* %t5
@@ -32334,7 +32581,7 @@ L9:
 	%r137 = icmp ne %word %r138, 0
 	br i1 %r137, label %L13, label %L14
 L13:
-	%r139 = getelementptr %"<header>", %"<header>"* @m_ostr1980, i32 1
+	%r139 = getelementptr %"<header>", %"<header>"* @m_ostr2016, i32 1
 	%r140 = load %oop, %oop* %t0
 	%r141 = call %oop @"m_%too-many-arguments.code"(%oop %r139, %oop %r140)
 	store %oop %r141, %oop* %t5
@@ -32360,9 +32607,9 @@ L15:
 	%r155 = inttoptr %word %r156 to %oop
 	ret %oop %r155
 }
-@m_cstr1981 = private unnamed_addr constant [29 x i8] c"bitwise-shift/evaluator-stub\00"
-@m_ostr1982 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr1981 to ptr) }}
-@"m_bitwise-shift/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_bitwise-shift/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1982 }}
+@m_cstr2017 = private unnamed_addr constant [29 x i8] c"bitwise-shift/evaluator-stub\00"
+@m_ostr2018 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2017 to ptr) }}
+@"m_bitwise-shift/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_bitwise-shift/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2018 }}
 define %oop @"m_</evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -32453,9 +32700,9 @@ L6:
 	%r51 = load %oop, %oop* @"m_symbol/true"
 	ret %oop %r51
 }
-@m_cstr1983 = private unnamed_addr constant [17 x i8] c"</evaluator-stub\00"
-@m_ostr1984 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1983 to ptr) }}
-@"m_</evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_</evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1984 }}
+@m_cstr2019 = private unnamed_addr constant [17 x i8] c"</evaluator-stub\00"
+@m_ostr2020 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2019 to ptr) }}
+@"m_</evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_</evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2020 }}
 define %oop @"m_<=/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -32546,9 +32793,9 @@ L6:
 	%r51 = load %oop, %oop* @"m_symbol/true"
 	ret %oop %r51
 }
-@m_cstr1985 = private unnamed_addr constant [18 x i8] c"<=/evaluator-stub\00"
-@m_ostr1986 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1985 to ptr) }}
-@"m_<=/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_<=/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1986 }}
+@m_cstr2021 = private unnamed_addr constant [18 x i8] c"<=/evaluator-stub\00"
+@m_ostr2022 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2021 to ptr) }}
+@"m_<=/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_<=/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2022 }}
 define %oop @"m_>=/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -32639,9 +32886,9 @@ L6:
 	%r51 = load %oop, %oop* @"m_symbol/true"
 	ret %oop %r51
 }
-@m_cstr1987 = private unnamed_addr constant [18 x i8] c">=/evaluator-stub\00"
-@m_ostr1988 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1987 to ptr) }}
-@"m_>=/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_>=/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1988 }}
+@m_cstr2023 = private unnamed_addr constant [18 x i8] c">=/evaluator-stub\00"
+@m_ostr2024 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2023 to ptr) }}
+@"m_>=/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_>=/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2024 }}
 define %oop @"m_>/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -32732,9 +32979,9 @@ L6:
 	%r51 = load %oop, %oop* @"m_symbol/true"
 	ret %oop %r51
 }
-@m_cstr1989 = private unnamed_addr constant [17 x i8] c">/evaluator-stub\00"
-@m_ostr1990 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1989 to ptr) }}
-@"m_>/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_>/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1990 }}
+@m_cstr2025 = private unnamed_addr constant [17 x i8] c">/evaluator-stub\00"
+@m_ostr2026 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2025 to ptr) }}
+@"m_>/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_>/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2026 }}
 define %oop @"m_=/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -33061,21 +33308,21 @@ L3:
 	%r228 = load %oop, %oop* %t5
 	ret %oop %r228
 }
-@m_cstr1991 = private unnamed_addr constant [17 x i8] c"=/evaluator-stub\00"
-@m_ostr1992 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr1991 to ptr) }}
-@"m_=/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_=/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr1992 }}
-@m_cstr1993 = private unnamed_addr constant [5 x i8] c"exit\00"
-@m_ostr1994 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr1993 to ptr) }}
-@m_cstr1995 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr1996 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr1995 to ptr) }}
-@m_cstr1997 = private unnamed_addr constant [10 x i8] c"exit-code\00"
-@m_ostr1998 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr1997 to ptr) }}
-@m_cstr1999 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2000 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr1999 to ptr) }}
-@m_cstr2001 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2002 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2001 to ptr) }}
-@m_cstr2003 = private unnamed_addr constant [5 x i8] c"exit\00"
-@m_ostr2004 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2003 to ptr) }}
+@m_cstr2027 = private unnamed_addr constant [17 x i8] c"=/evaluator-stub\00"
+@m_ostr2028 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2027 to ptr) }}
+@"m_=/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_=/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2028 }}
+@m_cstr2029 = private unnamed_addr constant [5 x i8] c"exit\00"
+@m_ostr2030 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2029 to ptr) }}
+@m_cstr2031 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2032 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2031 to ptr) }}
+@m_cstr2033 = private unnamed_addr constant [10 x i8] c"exit-code\00"
+@m_ostr2034 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2033 to ptr) }}
+@m_cstr2035 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2036 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2035 to ptr) }}
+@m_cstr2037 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2038 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2037 to ptr) }}
+@m_cstr2039 = private unnamed_addr constant [5 x i8] c"exit\00"
+@m_ostr2040 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2039 to ptr) }}
 define %oop @"m_exit/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -33117,15 +33364,15 @@ L1:
 	br i1 %r23, label %L5, label %L4
 L5:
 	%r25 = call %oop @m_error-prologue.code()
-	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr1994, i32 1
+	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr2030, i32 1
 	%r28 = call %oop @"m_%error.code"(%oop %r27)
-	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr1996, i32 1
+	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr2032, i32 1
 	%r31 = call %oop @"m_%error.code"(%oop %r30)
-	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr1998, i32 1
+	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr2034, i32 1
 	%r34 = call %oop @"m_%error.code"(%oop %r33)
-	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr2000, i32 1
+	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr2036, i32 1
 	%r37 = call %oop @"m_%error.code"(%oop %r36)
-	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr2002, i32 1
+	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr2038, i32 1
 	%r40 = call %oop @"m_%error.code"(%oop %r39)
 	%r42 = call %oop @m_error-epilogue.code()
 	store %oop %r42, %oop* %t5
@@ -33169,7 +33416,7 @@ L3:
 	%r67 = icmp ne %word %r68, 0
 	br i1 %r67, label %L7, label %L8
 L7:
-	%r69 = getelementptr %"<header>", %"<header>"* @m_ostr2004, i32 1
+	%r69 = getelementptr %"<header>", %"<header>"* @m_ostr2040, i32 1
 	%r70 = load %oop, %oop* %t0
 	%r71 = call %oop @"m_%too-many-arguments.code"(%oop %r69, %oop %r70)
 	store %oop %r71, %oop* %t4
@@ -33186,9 +33433,9 @@ L9:
 	%r79 = call %oop @"m_platform/halt.code"(%oop %r78)
 	ret %oop %r79
 }
-@m_cstr2005 = private unnamed_addr constant [20 x i8] c"exit/evaluator-stub\00"
-@m_ostr2006 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr2005 to ptr) }}
-@"m_exit/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_exit/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2006 }}
+@m_cstr2041 = private unnamed_addr constant [20 x i8] c"exit/evaluator-stub\00"
+@m_ostr2042 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr2041 to ptr) }}
+@"m_exit/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_exit/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2042 }}
 define %oop @"m_warn/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -33222,13 +33469,13 @@ L3:
 	%r19 = call %oop @"m_platform/flush-streams.code"()
 	ret %oop %r19
 }
-@m_cstr2007 = private unnamed_addr constant [20 x i8] c"warn/evaluator-stub\00"
-@m_ostr2008 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr2007 to ptr) }}
-@"m_warn/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_warn/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2008 }}
-@m_cstr2009 = private unnamed_addr constant [8 x i8] c"type-of\00"
-@m_ostr2010 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2009 to ptr) }}
-@m_cstr2011 = private unnamed_addr constant [8 x i8] c"type-of\00"
-@m_ostr2012 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2011 to ptr) }}
+@m_cstr2043 = private unnamed_addr constant [20 x i8] c"warn/evaluator-stub\00"
+@m_ostr2044 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr2043 to ptr) }}
+@"m_warn/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_warn/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2044 }}
+@m_cstr2045 = private unnamed_addr constant [8 x i8] c"type-of\00"
+@m_ostr2046 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2045 to ptr) }}
+@m_cstr2047 = private unnamed_addr constant [8 x i8] c"type-of\00"
+@m_ostr2048 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2047 to ptr) }}
 define %oop @"m_type-of/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -33264,7 +33511,7 @@ L1:
 	store %oop %r16, %oop* %t4
 	br label %L3
 L2:
-	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2010, i32 1
+	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2046, i32 1
 	%r21 = load %oop, %oop* %t0
 	%r22 = call %oop @"m_%not-enough-arguments.code"(%oop %r20, %oop %r21)
 	store %oop %r22, %oop* %t4
@@ -33276,7 +33523,7 @@ L3:
 	%r26 = icmp ne %word %r27, 0
 	br i1 %r26, label %L4, label %L5
 L4:
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2012, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2048, i32 1
 	%r29 = load %oop, %oop* %t0
 	%r30 = call %oop @"m_%too-many-arguments.code"(%oop %r28, %oop %r29)
 	store %oop %r30, %oop* %t4
@@ -33301,13 +33548,13 @@ L6:
 	%r43 = inttoptr %word %r44 to %oop
 	ret %oop %r43
 }
-@m_cstr2013 = private unnamed_addr constant [23 x i8] c"type-of/evaluator-stub\00"
-@m_ostr2014 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2013 to ptr) }}
-@"m_type-of/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_type-of/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2014 }}
-@m_cstr2015 = private unnamed_addr constant [8 x i8] c"string?\00"
-@m_ostr2016 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2015 to ptr) }}
-@m_cstr2017 = private unnamed_addr constant [8 x i8] c"string?\00"
-@m_ostr2018 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2017 to ptr) }}
+@m_cstr2049 = private unnamed_addr constant [23 x i8] c"type-of/evaluator-stub\00"
+@m_ostr2050 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2049 to ptr) }}
+@"m_type-of/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_type-of/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2050 }}
+@m_cstr2051 = private unnamed_addr constant [8 x i8] c"string?\00"
+@m_ostr2052 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2051 to ptr) }}
+@m_cstr2053 = private unnamed_addr constant [8 x i8] c"string?\00"
+@m_ostr2054 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2053 to ptr) }}
 define %oop @"m_string?/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -33343,7 +33590,7 @@ L1:
 	store %oop %r16, %oop* %t4
 	br label %L3
 L2:
-	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2016, i32 1
+	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2052, i32 1
 	%r21 = load %oop, %oop* %t0
 	%r22 = call %oop @"m_%not-enough-arguments.code"(%oop %r20, %oop %r21)
 	store %oop %r22, %oop* %t4
@@ -33355,7 +33602,7 @@ L3:
 	%r26 = icmp ne %word %r27, 0
 	br i1 %r26, label %L4, label %L5
 L4:
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2018, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2054, i32 1
 	%r29 = load %oop, %oop* %t0
 	%r30 = call %oop @"m_%too-many-arguments.code"(%oop %r28, %oop %r29)
 	store %oop %r30, %oop* %t4
@@ -33396,13 +33643,13 @@ L7:
 	%r53 = load %oop, %oop* %t4
 	ret %oop %r53
 }
-@m_cstr2019 = private unnamed_addr constant [23 x i8] c"string?/evaluator-stub\00"
-@m_ostr2020 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2019 to ptr) }}
-@"m_string?/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string?/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2020 }}
-@m_cstr2021 = private unnamed_addr constant [8 x i8] c"symbol?\00"
-@m_ostr2022 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2021 to ptr) }}
-@m_cstr2023 = private unnamed_addr constant [8 x i8] c"symbol?\00"
-@m_ostr2024 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2023 to ptr) }}
+@m_cstr2055 = private unnamed_addr constant [23 x i8] c"string?/evaluator-stub\00"
+@m_ostr2056 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2055 to ptr) }}
+@"m_string?/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string?/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2056 }}
+@m_cstr2057 = private unnamed_addr constant [8 x i8] c"symbol?\00"
+@m_ostr2058 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2057 to ptr) }}
+@m_cstr2059 = private unnamed_addr constant [8 x i8] c"symbol?\00"
+@m_ostr2060 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2059 to ptr) }}
 define %oop @"m_symbol?/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -33438,7 +33685,7 @@ L1:
 	store %oop %r16, %oop* %t4
 	br label %L3
 L2:
-	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2022, i32 1
+	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2058, i32 1
 	%r21 = load %oop, %oop* %t0
 	%r22 = call %oop @"m_%not-enough-arguments.code"(%oop %r20, %oop %r21)
 	store %oop %r22, %oop* %t4
@@ -33450,7 +33697,7 @@ L3:
 	%r26 = icmp ne %word %r27, 0
 	br i1 %r26, label %L4, label %L5
 L4:
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2024, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2060, i32 1
 	%r29 = load %oop, %oop* %t0
 	%r30 = call %oop @"m_%too-many-arguments.code"(%oop %r28, %oop %r29)
 	store %oop %r30, %oop* %t4
@@ -33491,13 +33738,13 @@ L7:
 	%r53 = load %oop, %oop* %t4
 	ret %oop %r53
 }
-@m_cstr2025 = private unnamed_addr constant [23 x i8] c"symbol?/evaluator-stub\00"
-@m_ostr2026 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2025 to ptr) }}
-@"m_symbol?/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_symbol?/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2026 }}
-@m_cstr2027 = private unnamed_addr constant [6 x i8] c"pair?\00"
-@m_ostr2028 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2027 to ptr) }}
-@m_cstr2029 = private unnamed_addr constant [6 x i8] c"pair?\00"
-@m_ostr2030 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2029 to ptr) }}
+@m_cstr2061 = private unnamed_addr constant [23 x i8] c"symbol?/evaluator-stub\00"
+@m_ostr2062 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2061 to ptr) }}
+@"m_symbol?/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_symbol?/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2062 }}
+@m_cstr2063 = private unnamed_addr constant [6 x i8] c"pair?\00"
+@m_ostr2064 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2063 to ptr) }}
+@m_cstr2065 = private unnamed_addr constant [6 x i8] c"pair?\00"
+@m_ostr2066 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2065 to ptr) }}
 define %oop @"m_pair?/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -33533,7 +33780,7 @@ L1:
 	store %oop %r16, %oop* %t4
 	br label %L3
 L2:
-	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2028, i32 1
+	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2064, i32 1
 	%r21 = load %oop, %oop* %t0
 	%r22 = call %oop @"m_%not-enough-arguments.code"(%oop %r20, %oop %r21)
 	store %oop %r22, %oop* %t4
@@ -33545,7 +33792,7 @@ L3:
 	%r26 = icmp ne %word %r27, 0
 	br i1 %r26, label %L4, label %L5
 L4:
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2030, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2066, i32 1
 	%r29 = load %oop, %oop* %t0
 	%r30 = call %oop @"m_%too-many-arguments.code"(%oop %r28, %oop %r29)
 	store %oop %r30, %oop* %t4
@@ -33586,13 +33833,13 @@ L7:
 	%r53 = load %oop, %oop* %t4
 	ret %oop %r53
 }
-@m_cstr2031 = private unnamed_addr constant [21 x i8] c"pair?/evaluator-stub\00"
-@m_ostr2032 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 41, ptr bitcast ([21 x i8]* @m_cstr2031 to ptr) }}
-@"m_pair?/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_pair?/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2032 }}
-@m_cstr2033 = private unnamed_addr constant [7 x i8] c"array?\00"
-@m_ostr2034 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2033 to ptr) }}
-@m_cstr2035 = private unnamed_addr constant [7 x i8] c"array?\00"
-@m_ostr2036 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2035 to ptr) }}
+@m_cstr2067 = private unnamed_addr constant [21 x i8] c"pair?/evaluator-stub\00"
+@m_ostr2068 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 41, ptr bitcast ([21 x i8]* @m_cstr2067 to ptr) }}
+@"m_pair?/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_pair?/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2068 }}
+@m_cstr2069 = private unnamed_addr constant [7 x i8] c"array?\00"
+@m_ostr2070 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2069 to ptr) }}
+@m_cstr2071 = private unnamed_addr constant [7 x i8] c"array?\00"
+@m_ostr2072 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2071 to ptr) }}
 define %oop @"m_array?/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -33628,7 +33875,7 @@ L1:
 	store %oop %r16, %oop* %t4
 	br label %L3
 L2:
-	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2034, i32 1
+	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2070, i32 1
 	%r21 = load %oop, %oop* %t0
 	%r22 = call %oop @"m_%not-enough-arguments.code"(%oop %r20, %oop %r21)
 	store %oop %r22, %oop* %t4
@@ -33640,7 +33887,7 @@ L3:
 	%r26 = icmp ne %word %r27, 0
 	br i1 %r26, label %L4, label %L5
 L4:
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2036, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2072, i32 1
 	%r29 = load %oop, %oop* %t0
 	%r30 = call %oop @"m_%too-many-arguments.code"(%oop %r28, %oop %r29)
 	store %oop %r30, %oop* %t4
@@ -33681,9 +33928,9 @@ L7:
 	%r53 = load %oop, %oop* %t4
 	ret %oop %r53
 }
-@m_cstr2037 = private unnamed_addr constant [22 x i8] c"array?/evaluator-stub\00"
-@m_ostr2038 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 43, ptr bitcast ([22 x i8]* @m_cstr2037 to ptr) }}
-@"m_array?/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_array?/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2038 }}
+@m_cstr2073 = private unnamed_addr constant [22 x i8] c"array?/evaluator-stub\00"
+@m_ostr2074 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 43, ptr bitcast ([22 x i8]* @m_cstr2073 to ptr) }}
+@"m_array?/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_array?/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2074 }}
 define %oop @m_set-car.code(%oop %pair, %oop %value) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -33699,25 +33946,25 @@ define %oop @m_set-car.code(%oop %pair, %oop %value) {
 	%r4 = bitcast %oop %r1 to %oop
 	ret %oop %r4
 }
-@m_cstr2039 = private unnamed_addr constant [8 x i8] c"set-car\00"
-@m_ostr2040 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2039 to ptr) }}
-@m_set-car = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @m_set-car.code to %oop), %"<string-h>"* @m_ostr2040 }}
-@m_cstr2041 = private unnamed_addr constant [8 x i8] c"set-car\00"
-@m_ostr2042 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2041 to ptr) }}
-@m_cstr2043 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2044 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2043 to ptr) }}
-@m_cstr2045 = private unnamed_addr constant [5 x i8] c"pair\00"
-@m_ostr2046 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2045 to ptr) }}
-@m_cstr2047 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2048 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2047 to ptr) }}
-@m_cstr2049 = private unnamed_addr constant [7 x i8] c"<pair>\00"
-@m_ostr2050 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2049 to ptr) }}
-@m_cstr2051 = private unnamed_addr constant [8 x i8] c"set-car\00"
-@m_ostr2052 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2051 to ptr) }}
-@m_cstr2053 = private unnamed_addr constant [8 x i8] c"set-car\00"
-@m_ostr2054 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2053 to ptr) }}
-@m_cstr2055 = private unnamed_addr constant [8 x i8] c"set-car\00"
-@m_ostr2056 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2055 to ptr) }}
+@m_cstr2075 = private unnamed_addr constant [8 x i8] c"set-car\00"
+@m_ostr2076 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2075 to ptr) }}
+@m_set-car = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @m_set-car.code to %oop), %"<string-h>"* @m_ostr2076 }}
+@m_cstr2077 = private unnamed_addr constant [8 x i8] c"set-car\00"
+@m_ostr2078 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2077 to ptr) }}
+@m_cstr2079 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2080 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2079 to ptr) }}
+@m_cstr2081 = private unnamed_addr constant [5 x i8] c"pair\00"
+@m_ostr2082 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2081 to ptr) }}
+@m_cstr2083 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2084 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2083 to ptr) }}
+@m_cstr2085 = private unnamed_addr constant [7 x i8] c"<pair>\00"
+@m_ostr2086 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2085 to ptr) }}
+@m_cstr2087 = private unnamed_addr constant [8 x i8] c"set-car\00"
+@m_ostr2088 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2087 to ptr) }}
+@m_cstr2089 = private unnamed_addr constant [8 x i8] c"set-car\00"
+@m_ostr2090 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2089 to ptr) }}
+@m_cstr2091 = private unnamed_addr constant [8 x i8] c"set-car\00"
+@m_ostr2092 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2091 to ptr) }}
 define %oop @"m_set-car/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -33762,15 +34009,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2042, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2078, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2044, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2080, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2046, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2082, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2048, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2084, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2050, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2086, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -33796,7 +34043,7 @@ L4:
 	store %oop %r55, %oop* %t5
 	br label %L3
 L2:
-	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2052, i32 1
+	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2088, i32 1
 	%r60 = load %oop, %oop* %t0
 	%r61 = call %oop @"m_%not-enough-arguments.code"(%oop %r59, %oop %r60)
 	store %oop %r61, %oop* %t5
@@ -33826,7 +34073,7 @@ L7:
 	store %oop %r77, %oop* %t5
 	br label %L9
 L8:
-	%r81 = getelementptr %"<header>", %"<header>"* @m_ostr2054, i32 1
+	%r81 = getelementptr %"<header>", %"<header>"* @m_ostr2090, i32 1
 	%r82 = load %oop, %oop* %t0
 	%r83 = call %oop @"m_%not-enough-arguments.code"(%oop %r81, %oop %r82)
 	store %oop %r83, %oop* %t5
@@ -33838,7 +34085,7 @@ L9:
 	%r87 = icmp ne %word %r88, 0
 	br i1 %r87, label %L10, label %L11
 L10:
-	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2056, i32 1
+	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2092, i32 1
 	%r90 = load %oop, %oop* %t0
 	%r91 = call %oop @"m_%too-many-arguments.code"(%oop %r89, %oop %r90)
 	store %oop %r91, %oop* %t5
@@ -33854,9 +34101,9 @@ L12:
 	%r97 = call %oop @m_set-car.code(%oop %r95, %oop %r96)
 	ret %oop %r97
 }
-@m_cstr2057 = private unnamed_addr constant [23 x i8] c"set-car/evaluator-stub\00"
-@m_ostr2058 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2057 to ptr) }}
-@"m_set-car/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set-car/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2058 }}
+@m_cstr2093 = private unnamed_addr constant [23 x i8] c"set-car/evaluator-stub\00"
+@m_ostr2094 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2093 to ptr) }}
+@"m_set-car/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set-car/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2094 }}
 define %oop @m_set-cdr.code(%oop %pair, %oop %value) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -33872,25 +34119,25 @@ define %oop @m_set-cdr.code(%oop %pair, %oop %value) {
 	%r4 = bitcast %oop %r1 to %oop
 	ret %oop %r4
 }
-@m_cstr2059 = private unnamed_addr constant [8 x i8] c"set-cdr\00"
-@m_ostr2060 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2059 to ptr) }}
-@m_set-cdr = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @m_set-cdr.code to %oop), %"<string-h>"* @m_ostr2060 }}
-@m_cstr2061 = private unnamed_addr constant [8 x i8] c"set-cdr\00"
-@m_ostr2062 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2061 to ptr) }}
-@m_cstr2063 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2064 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2063 to ptr) }}
-@m_cstr2065 = private unnamed_addr constant [5 x i8] c"pair\00"
-@m_ostr2066 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2065 to ptr) }}
-@m_cstr2067 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2068 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2067 to ptr) }}
-@m_cstr2069 = private unnamed_addr constant [7 x i8] c"<pair>\00"
-@m_ostr2070 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2069 to ptr) }}
-@m_cstr2071 = private unnamed_addr constant [8 x i8] c"set-cdr\00"
-@m_ostr2072 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2071 to ptr) }}
-@m_cstr2073 = private unnamed_addr constant [8 x i8] c"set-cdr\00"
-@m_ostr2074 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2073 to ptr) }}
-@m_cstr2075 = private unnamed_addr constant [8 x i8] c"set-cdr\00"
-@m_ostr2076 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2075 to ptr) }}
+@m_cstr2095 = private unnamed_addr constant [8 x i8] c"set-cdr\00"
+@m_ostr2096 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2095 to ptr) }}
+@m_set-cdr = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @m_set-cdr.code to %oop), %"<string-h>"* @m_ostr2096 }}
+@m_cstr2097 = private unnamed_addr constant [8 x i8] c"set-cdr\00"
+@m_ostr2098 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2097 to ptr) }}
+@m_cstr2099 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2100 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2099 to ptr) }}
+@m_cstr2101 = private unnamed_addr constant [5 x i8] c"pair\00"
+@m_ostr2102 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2101 to ptr) }}
+@m_cstr2103 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2104 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2103 to ptr) }}
+@m_cstr2105 = private unnamed_addr constant [7 x i8] c"<pair>\00"
+@m_ostr2106 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2105 to ptr) }}
+@m_cstr2107 = private unnamed_addr constant [8 x i8] c"set-cdr\00"
+@m_ostr2108 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2107 to ptr) }}
+@m_cstr2109 = private unnamed_addr constant [8 x i8] c"set-cdr\00"
+@m_ostr2110 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2109 to ptr) }}
+@m_cstr2111 = private unnamed_addr constant [8 x i8] c"set-cdr\00"
+@m_ostr2112 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2111 to ptr) }}
 define %oop @"m_set-cdr/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -33935,15 +34182,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2062, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2098, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2064, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2100, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2066, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2102, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2068, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2104, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2070, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2106, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -33969,7 +34216,7 @@ L4:
 	store %oop %r55, %oop* %t5
 	br label %L3
 L2:
-	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2072, i32 1
+	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2108, i32 1
 	%r60 = load %oop, %oop* %t0
 	%r61 = call %oop @"m_%not-enough-arguments.code"(%oop %r59, %oop %r60)
 	store %oop %r61, %oop* %t5
@@ -33999,7 +34246,7 @@ L7:
 	store %oop %r77, %oop* %t5
 	br label %L9
 L8:
-	%r81 = getelementptr %"<header>", %"<header>"* @m_ostr2074, i32 1
+	%r81 = getelementptr %"<header>", %"<header>"* @m_ostr2110, i32 1
 	%r82 = load %oop, %oop* %t0
 	%r83 = call %oop @"m_%not-enough-arguments.code"(%oop %r81, %oop %r82)
 	store %oop %r83, %oop* %t5
@@ -34011,7 +34258,7 @@ L9:
 	%r87 = icmp ne %word %r88, 0
 	br i1 %r87, label %L10, label %L11
 L10:
-	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2076, i32 1
+	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2112, i32 1
 	%r90 = load %oop, %oop* %t0
 	%r91 = call %oop @"m_%too-many-arguments.code"(%oop %r89, %oop %r90)
 	store %oop %r91, %oop* %t5
@@ -34027,25 +34274,25 @@ L12:
 	%r97 = call %oop @m_set-cdr.code(%oop %r95, %oop %r96)
 	ret %oop %r97
 }
-@m_cstr2077 = private unnamed_addr constant [23 x i8] c"set-cdr/evaluator-stub\00"
-@m_ostr2078 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2077 to ptr) }}
-@"m_set-cdr/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set-cdr/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2078 }}
-@m_cstr2079 = private unnamed_addr constant [7 x i8] c"oop-at\00"
-@m_ostr2080 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2079 to ptr) }}
-@m_cstr2081 = private unnamed_addr constant [7 x i8] c"oop-at\00"
-@m_ostr2082 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2081 to ptr) }}
-@m_cstr2083 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2084 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2083 to ptr) }}
-@m_cstr2085 = private unnamed_addr constant [10 x i8] c"cellindex\00"
-@m_ostr2086 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2085 to ptr) }}
-@m_cstr2087 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2088 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2087 to ptr) }}
-@m_cstr2089 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2090 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2089 to ptr) }}
-@m_cstr2091 = private unnamed_addr constant [7 x i8] c"oop-at\00"
-@m_ostr2092 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2091 to ptr) }}
-@m_cstr2093 = private unnamed_addr constant [7 x i8] c"oop-at\00"
-@m_ostr2094 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2093 to ptr) }}
+@m_cstr2113 = private unnamed_addr constant [23 x i8] c"set-cdr/evaluator-stub\00"
+@m_ostr2114 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2113 to ptr) }}
+@"m_set-cdr/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set-cdr/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2114 }}
+@m_cstr2115 = private unnamed_addr constant [7 x i8] c"oop-at\00"
+@m_ostr2116 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2115 to ptr) }}
+@m_cstr2117 = private unnamed_addr constant [7 x i8] c"oop-at\00"
+@m_ostr2118 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2117 to ptr) }}
+@m_cstr2119 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2120 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2119 to ptr) }}
+@m_cstr2121 = private unnamed_addr constant [10 x i8] c"cellindex\00"
+@m_ostr2122 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2121 to ptr) }}
+@m_cstr2123 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2124 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2123 to ptr) }}
+@m_cstr2125 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2126 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2125 to ptr) }}
+@m_cstr2127 = private unnamed_addr constant [7 x i8] c"oop-at\00"
+@m_ostr2128 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2127 to ptr) }}
+@m_cstr2129 = private unnamed_addr constant [7 x i8] c"oop-at\00"
+@m_ostr2130 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2129 to ptr) }}
 define %oop @"m_oop-at/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -34085,7 +34332,7 @@ L1:
 	store %oop %r17, %oop* %t5
 	br label %L3
 L2:
-	%r21 = getelementptr %"<header>", %"<header>"* @m_ostr2080, i32 1
+	%r21 = getelementptr %"<header>", %"<header>"* @m_ostr2116, i32 1
 	%r22 = load %oop, %oop* %t0
 	%r23 = call %oop @"m_%not-enough-arguments.code"(%oop %r21, %oop %r22)
 	store %oop %r23, %oop* %t5
@@ -34120,15 +34367,15 @@ L4:
 	br i1 %r46, label %L8, label %L7
 L8:
 	%r48 = call %oop @m_error-prologue.code()
-	%r50 = getelementptr %"<header>", %"<header>"* @m_ostr2082, i32 1
+	%r50 = getelementptr %"<header>", %"<header>"* @m_ostr2118, i32 1
 	%r51 = call %oop @"m_%error.code"(%oop %r50)
-	%r53 = getelementptr %"<header>", %"<header>"* @m_ostr2084, i32 1
+	%r53 = getelementptr %"<header>", %"<header>"* @m_ostr2120, i32 1
 	%r54 = call %oop @"m_%error.code"(%oop %r53)
-	%r56 = getelementptr %"<header>", %"<header>"* @m_ostr2086, i32 1
+	%r56 = getelementptr %"<header>", %"<header>"* @m_ostr2122, i32 1
 	%r57 = call %oop @"m_%error.code"(%oop %r56)
-	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2088, i32 1
+	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2124, i32 1
 	%r60 = call %oop @"m_%error.code"(%oop %r59)
-	%r62 = getelementptr %"<header>", %"<header>"* @m_ostr2090, i32 1
+	%r62 = getelementptr %"<header>", %"<header>"* @m_ostr2126, i32 1
 	%r63 = call %oop @"m_%error.code"(%oop %r62)
 	%r65 = call %oop @m_error-epilogue.code()
 	store %oop %r65, %oop* %t6
@@ -34161,7 +34408,7 @@ L7:
 	store %oop %r83, %oop* %t5
 	br label %L6
 L5:
-	%r87 = getelementptr %"<header>", %"<header>"* @m_ostr2092, i32 1
+	%r87 = getelementptr %"<header>", %"<header>"* @m_ostr2128, i32 1
 	%r88 = load %oop, %oop* %t0
 	%r89 = call %oop @"m_%not-enough-arguments.code"(%oop %r87, %oop %r88)
 	store %oop %r89, %oop* %t5
@@ -34173,7 +34420,7 @@ L6:
 	%r93 = icmp ne %word %r94, 0
 	br i1 %r93, label %L10, label %L11
 L10:
-	%r95 = getelementptr %"<header>", %"<header>"* @m_ostr2094, i32 1
+	%r95 = getelementptr %"<header>", %"<header>"* @m_ostr2130, i32 1
 	%r96 = load %oop, %oop* %t0
 	%r97 = call %oop @"m_%too-many-arguments.code"(%oop %r95, %oop %r96)
 	store %oop %r97, %oop* %t5
@@ -34193,27 +34440,27 @@ L12:
 	%r104 = load %oop, %oop* %r105
 	ret %oop %r104
 }
-@m_cstr2095 = private unnamed_addr constant [22 x i8] c"oop-at/evaluator-stub\00"
-@m_ostr2096 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 43, ptr bitcast ([22 x i8]* @m_cstr2095 to ptr) }}
-@"m_oop-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_oop-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2096 }}
-@m_cstr2097 = private unnamed_addr constant [11 x i8] c"set-oop-at\00"
-@m_ostr2098 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2097 to ptr) }}
-@m_cstr2099 = private unnamed_addr constant [11 x i8] c"set-oop-at\00"
-@m_ostr2100 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2099 to ptr) }}
-@m_cstr2101 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2102 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2101 to ptr) }}
-@m_cstr2103 = private unnamed_addr constant [10 x i8] c"cellindex\00"
-@m_ostr2104 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2103 to ptr) }}
-@m_cstr2105 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2106 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2105 to ptr) }}
-@m_cstr2107 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2108 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2107 to ptr) }}
-@m_cstr2109 = private unnamed_addr constant [11 x i8] c"set-oop-at\00"
-@m_ostr2110 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2109 to ptr) }}
-@m_cstr2111 = private unnamed_addr constant [11 x i8] c"set-oop-at\00"
-@m_ostr2112 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2111 to ptr) }}
-@m_cstr2113 = private unnamed_addr constant [11 x i8] c"set-oop-at\00"
-@m_ostr2114 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2113 to ptr) }}
+@m_cstr2131 = private unnamed_addr constant [22 x i8] c"oop-at/evaluator-stub\00"
+@m_ostr2132 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 43, ptr bitcast ([22 x i8]* @m_cstr2131 to ptr) }}
+@"m_oop-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_oop-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2132 }}
+@m_cstr2133 = private unnamed_addr constant [11 x i8] c"set-oop-at\00"
+@m_ostr2134 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2133 to ptr) }}
+@m_cstr2135 = private unnamed_addr constant [11 x i8] c"set-oop-at\00"
+@m_ostr2136 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2135 to ptr) }}
+@m_cstr2137 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2138 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2137 to ptr) }}
+@m_cstr2139 = private unnamed_addr constant [10 x i8] c"cellindex\00"
+@m_ostr2140 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2139 to ptr) }}
+@m_cstr2141 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2142 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2141 to ptr) }}
+@m_cstr2143 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2144 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2143 to ptr) }}
+@m_cstr2145 = private unnamed_addr constant [11 x i8] c"set-oop-at\00"
+@m_ostr2146 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2145 to ptr) }}
+@m_cstr2147 = private unnamed_addr constant [11 x i8] c"set-oop-at\00"
+@m_ostr2148 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2147 to ptr) }}
+@m_cstr2149 = private unnamed_addr constant [11 x i8] c"set-oop-at\00"
+@m_ostr2150 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2149 to ptr) }}
 define %oop @"m_set-oop-at/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -34256,7 +34503,7 @@ L1:
 	store %oop %r18, %oop* %t6
 	br label %L3
 L2:
-	%r22 = getelementptr %"<header>", %"<header>"* @m_ostr2098, i32 1
+	%r22 = getelementptr %"<header>", %"<header>"* @m_ostr2134, i32 1
 	%r23 = load %oop, %oop* %t0
 	%r24 = call %oop @"m_%not-enough-arguments.code"(%oop %r22, %oop %r23)
 	store %oop %r24, %oop* %t6
@@ -34291,15 +34538,15 @@ L4:
 	br i1 %r47, label %L8, label %L7
 L8:
 	%r49 = call %oop @m_error-prologue.code()
-	%r51 = getelementptr %"<header>", %"<header>"* @m_ostr2100, i32 1
+	%r51 = getelementptr %"<header>", %"<header>"* @m_ostr2136, i32 1
 	%r52 = call %oop @"m_%error.code"(%oop %r51)
-	%r54 = getelementptr %"<header>", %"<header>"* @m_ostr2102, i32 1
+	%r54 = getelementptr %"<header>", %"<header>"* @m_ostr2138, i32 1
 	%r55 = call %oop @"m_%error.code"(%oop %r54)
-	%r57 = getelementptr %"<header>", %"<header>"* @m_ostr2104, i32 1
+	%r57 = getelementptr %"<header>", %"<header>"* @m_ostr2140, i32 1
 	%r58 = call %oop @"m_%error.code"(%oop %r57)
-	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2106, i32 1
+	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2142, i32 1
 	%r61 = call %oop @"m_%error.code"(%oop %r60)
-	%r63 = getelementptr %"<header>", %"<header>"* @m_ostr2108, i32 1
+	%r63 = getelementptr %"<header>", %"<header>"* @m_ostr2144, i32 1
 	%r64 = call %oop @"m_%error.code"(%oop %r63)
 	%r66 = call %oop @m_error-epilogue.code()
 	store %oop %r66, %oop* %t7
@@ -34332,7 +34579,7 @@ L7:
 	store %oop %r84, %oop* %t6
 	br label %L6
 L5:
-	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2110, i32 1
+	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2146, i32 1
 	%r89 = load %oop, %oop* %t0
 	%r90 = call %oop @"m_%not-enough-arguments.code"(%oop %r88, %oop %r89)
 	store %oop %r90, %oop* %t6
@@ -34362,7 +34609,7 @@ L10:
 	store %oop %r106, %oop* %t6
 	br label %L12
 L11:
-	%r110 = getelementptr %"<header>", %"<header>"* @m_ostr2112, i32 1
+	%r110 = getelementptr %"<header>", %"<header>"* @m_ostr2148, i32 1
 	%r111 = load %oop, %oop* %t0
 	%r112 = call %oop @"m_%not-enough-arguments.code"(%oop %r110, %oop %r111)
 	store %oop %r112, %oop* %t6
@@ -34374,7 +34621,7 @@ L12:
 	%r116 = icmp ne %word %r117, 0
 	br i1 %r116, label %L13, label %L14
 L13:
-	%r118 = getelementptr %"<header>", %"<header>"* @m_ostr2114, i32 1
+	%r118 = getelementptr %"<header>", %"<header>"* @m_ostr2150, i32 1
 	%r119 = load %oop, %oop* %t0
 	%r120 = call %oop @"m_%too-many-arguments.code"(%oop %r118, %oop %r119)
 	store %oop %r120, %oop* %t6
@@ -34396,9 +34643,9 @@ L15:
 	%r128 = bitcast %oop %r125 to %oop
 	ret %oop %r128
 }
-@m_cstr2115 = private unnamed_addr constant [26 x i8] c"set-oop-at/evaluator-stub\00"
-@m_ostr2116 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 51, ptr bitcast ([26 x i8]* @m_cstr2115 to ptr) }}
-@"m_set-oop-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set-oop-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2116 }}
+@m_cstr2151 = private unnamed_addr constant [26 x i8] c"set-oop-at/evaluator-stub\00"
+@m_ostr2152 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 51, ptr bitcast ([26 x i8]* @m_cstr2151 to ptr) }}
+@"m_set-oop-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set-oop-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2152 }}
 define %oop @"m_lower-cell->long.code"(%oop %value) {
 	%t0 = alloca %oop
 	store %oop %value, %oop* %t0
@@ -34415,23 +34662,23 @@ define %oop @"m_lower-cell->long.code"(%oop %value) {
 	%r8 = inttoptr %word %r9 to %oop
 	ret %oop %r8
 }
-@m_cstr2117 = private unnamed_addr constant [17 x i8] c"lower-cell->long\00"
-@m_ostr2118 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2117 to ptr) }}
-@"m_lower-cell->long" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @"m_lower-cell->long.code" to %oop), %"<string-h>"* @m_ostr2118 }}
-@m_cstr2119 = private unnamed_addr constant [17 x i8] c"lower-cell->long\00"
-@m_ostr2120 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2119 to ptr) }}
-@m_cstr2121 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2122 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2121 to ptr) }}
-@m_cstr2123 = private unnamed_addr constant [6 x i8] c"value\00"
-@m_ostr2124 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2123 to ptr) }}
-@m_cstr2125 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2126 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2125 to ptr) }}
-@m_cstr2127 = private unnamed_addr constant [13 x i8] c"<lower-cell>\00"
-@m_ostr2128 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2127 to ptr) }}
-@m_cstr2129 = private unnamed_addr constant [17 x i8] c"lower-cell->long\00"
-@m_ostr2130 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2129 to ptr) }}
-@m_cstr2131 = private unnamed_addr constant [17 x i8] c"lower-cell->long\00"
-@m_ostr2132 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2131 to ptr) }}
+@m_cstr2153 = private unnamed_addr constant [17 x i8] c"lower-cell->long\00"
+@m_ostr2154 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2153 to ptr) }}
+@"m_lower-cell->long" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @"m_lower-cell->long.code" to %oop), %"<string-h>"* @m_ostr2154 }}
+@m_cstr2155 = private unnamed_addr constant [17 x i8] c"lower-cell->long\00"
+@m_ostr2156 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2155 to ptr) }}
+@m_cstr2157 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2158 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2157 to ptr) }}
+@m_cstr2159 = private unnamed_addr constant [6 x i8] c"value\00"
+@m_ostr2160 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2159 to ptr) }}
+@m_cstr2161 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2162 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2161 to ptr) }}
+@m_cstr2163 = private unnamed_addr constant [13 x i8] c"<lower-cell>\00"
+@m_ostr2164 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2163 to ptr) }}
+@m_cstr2165 = private unnamed_addr constant [17 x i8] c"lower-cell->long\00"
+@m_ostr2166 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2165 to ptr) }}
+@m_cstr2167 = private unnamed_addr constant [17 x i8] c"lower-cell->long\00"
+@m_ostr2168 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2167 to ptr) }}
 define %oop @"m_lower-cell->long/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -34478,15 +34725,15 @@ L1:
 	br i1 %r28, label %L5, label %L4
 L5:
 	%r30 = call %oop @m_error-prologue.code()
-	%r32 = getelementptr %"<header>", %"<header>"* @m_ostr2120, i32 1
+	%r32 = getelementptr %"<header>", %"<header>"* @m_ostr2156, i32 1
 	%r33 = call %oop @"m_%error.code"(%oop %r32)
-	%r35 = getelementptr %"<header>", %"<header>"* @m_ostr2122, i32 1
+	%r35 = getelementptr %"<header>", %"<header>"* @m_ostr2158, i32 1
 	%r36 = call %oop @"m_%error.code"(%oop %r35)
-	%r38 = getelementptr %"<header>", %"<header>"* @m_ostr2124, i32 1
+	%r38 = getelementptr %"<header>", %"<header>"* @m_ostr2160, i32 1
 	%r39 = call %oop @"m_%error.code"(%oop %r38)
-	%r41 = getelementptr %"<header>", %"<header>"* @m_ostr2126, i32 1
+	%r41 = getelementptr %"<header>", %"<header>"* @m_ostr2162, i32 1
 	%r42 = call %oop @"m_%error.code"(%oop %r41)
-	%r44 = getelementptr %"<header>", %"<header>"* @m_ostr2128, i32 1
+	%r44 = getelementptr %"<header>", %"<header>"* @m_ostr2164, i32 1
 	%r45 = call %oop @"m_%error.code"(%oop %r44)
 	%r47 = call %oop @m_error-epilogue.code()
 	store %oop %r47, %oop* %t5
@@ -34519,7 +34766,7 @@ L4:
 	store %oop %r65, %oop* %t4
 	br label %L3
 L2:
-	%r69 = getelementptr %"<header>", %"<header>"* @m_ostr2130, i32 1
+	%r69 = getelementptr %"<header>", %"<header>"* @m_ostr2166, i32 1
 	%r70 = load %oop, %oop* %t0
 	%r71 = call %oop @"m_%not-enough-arguments.code"(%oop %r69, %oop %r70)
 	store %oop %r71, %oop* %t4
@@ -34531,7 +34778,7 @@ L3:
 	%r75 = icmp ne %word %r76, 0
 	br i1 %r75, label %L7, label %L8
 L7:
-	%r77 = getelementptr %"<header>", %"<header>"* @m_ostr2132, i32 1
+	%r77 = getelementptr %"<header>", %"<header>"* @m_ostr2168, i32 1
 	%r78 = load %oop, %oop* %t0
 	%r79 = call %oop @"m_%too-many-arguments.code"(%oop %r77, %oop %r78)
 	store %oop %r79, %oop* %t4
@@ -34546,9 +34793,9 @@ L9:
 	%r84 = call %oop @"m_lower-cell->long.code"(%oop %r83)
 	ret %oop %r84
 }
-@m_cstr2133 = private unnamed_addr constant [32 x i8] c"lower-cell->long/evaluator-stub\00"
-@m_ostr2134 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 63, ptr bitcast ([32 x i8]* @m_cstr2133 to ptr) }}
-@"m_lower-cell->long/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_lower-cell->long/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2134 }}
+@m_cstr2169 = private unnamed_addr constant [32 x i8] c"lower-cell->long/evaluator-stub\00"
+@m_ostr2170 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 63, ptr bitcast ([32 x i8]* @m_cstr2169 to ptr) }}
+@"m_lower-cell->long/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_lower-cell->long/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2170 }}
 define %oop @"m_long->lower-cell.code"(%oop %value) {
 	%t0 = alloca %oop
 	store %oop %value, %oop* %t0
@@ -34557,23 +34804,23 @@ define %oop @"m_long->lower-cell.code"(%oop %value) {
 	%r3 = call %oop @"m_%allocate-boxed-word.code"(%oop %r1, %oop %r2)
 	ret %oop %r3
 }
-@m_cstr2135 = private unnamed_addr constant [17 x i8] c"long->lower-cell\00"
-@m_ostr2136 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2135 to ptr) }}
-@"m_long->lower-cell" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @"m_long->lower-cell.code" to %oop), %"<string-h>"* @m_ostr2136 }}
-@m_cstr2137 = private unnamed_addr constant [17 x i8] c"long->lower-cell\00"
-@m_ostr2138 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2137 to ptr) }}
-@m_cstr2139 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2140 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2139 to ptr) }}
-@m_cstr2141 = private unnamed_addr constant [6 x i8] c"value\00"
-@m_ostr2142 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2141 to ptr) }}
-@m_cstr2143 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2144 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2143 to ptr) }}
-@m_cstr2145 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2146 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2145 to ptr) }}
-@m_cstr2147 = private unnamed_addr constant [17 x i8] c"long->lower-cell\00"
-@m_ostr2148 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2147 to ptr) }}
-@m_cstr2149 = private unnamed_addr constant [17 x i8] c"long->lower-cell\00"
-@m_ostr2150 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2149 to ptr) }}
+@m_cstr2171 = private unnamed_addr constant [17 x i8] c"long->lower-cell\00"
+@m_ostr2172 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2171 to ptr) }}
+@"m_long->lower-cell" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @"m_long->lower-cell.code" to %oop), %"<string-h>"* @m_ostr2172 }}
+@m_cstr2173 = private unnamed_addr constant [17 x i8] c"long->lower-cell\00"
+@m_ostr2174 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2173 to ptr) }}
+@m_cstr2175 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2176 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2175 to ptr) }}
+@m_cstr2177 = private unnamed_addr constant [6 x i8] c"value\00"
+@m_ostr2178 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2177 to ptr) }}
+@m_cstr2179 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2180 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2179 to ptr) }}
+@m_cstr2181 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2182 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2181 to ptr) }}
+@m_cstr2183 = private unnamed_addr constant [17 x i8] c"long->lower-cell\00"
+@m_ostr2184 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2183 to ptr) }}
+@m_cstr2185 = private unnamed_addr constant [17 x i8] c"long->lower-cell\00"
+@m_ostr2186 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2185 to ptr) }}
 define %oop @"m_long->lower-cell/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -34615,15 +34862,15 @@ L1:
 	br i1 %r23, label %L5, label %L4
 L5:
 	%r25 = call %oop @m_error-prologue.code()
-	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr2138, i32 1
+	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr2174, i32 1
 	%r28 = call %oop @"m_%error.code"(%oop %r27)
-	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr2140, i32 1
+	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr2176, i32 1
 	%r31 = call %oop @"m_%error.code"(%oop %r30)
-	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr2142, i32 1
+	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr2178, i32 1
 	%r34 = call %oop @"m_%error.code"(%oop %r33)
-	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr2144, i32 1
+	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr2180, i32 1
 	%r37 = call %oop @"m_%error.code"(%oop %r36)
-	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr2146, i32 1
+	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr2182, i32 1
 	%r40 = call %oop @"m_%error.code"(%oop %r39)
 	%r42 = call %oop @m_error-epilogue.code()
 	store %oop %r42, %oop* %t5
@@ -34656,7 +34903,7 @@ L4:
 	store %oop %r60, %oop* %t4
 	br label %L3
 L2:
-	%r64 = getelementptr %"<header>", %"<header>"* @m_ostr2148, i32 1
+	%r64 = getelementptr %"<header>", %"<header>"* @m_ostr2184, i32 1
 	%r65 = load %oop, %oop* %t0
 	%r66 = call %oop @"m_%not-enough-arguments.code"(%oop %r64, %oop %r65)
 	store %oop %r66, %oop* %t4
@@ -34668,7 +34915,7 @@ L3:
 	%r70 = icmp ne %word %r71, 0
 	br i1 %r70, label %L7, label %L8
 L7:
-	%r72 = getelementptr %"<header>", %"<header>"* @m_ostr2150, i32 1
+	%r72 = getelementptr %"<header>", %"<header>"* @m_ostr2186, i32 1
 	%r73 = load %oop, %oop* %t0
 	%r74 = call %oop @"m_%too-many-arguments.code"(%oop %r72, %oop %r73)
 	store %oop %r74, %oop* %t4
@@ -34683,23 +34930,23 @@ L9:
 	%r79 = call %oop @"m_long->lower-cell.code"(%oop %r78)
 	ret %oop %r79
 }
-@m_cstr2151 = private unnamed_addr constant [32 x i8] c"long->lower-cell/evaluator-stub\00"
-@m_ostr2152 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 63, ptr bitcast ([32 x i8]* @m_cstr2151 to ptr) }}
-@"m_long->lower-cell/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_long->lower-cell/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2152 }}
-@m_cstr2153 = private unnamed_addr constant [13 x i8] c"array-length\00"
-@m_ostr2154 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2153 to ptr) }}
-@m_cstr2155 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2156 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2155 to ptr) }}
-@m_cstr2157 = private unnamed_addr constant [4 x i8] c"arg\00"
-@m_ostr2158 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2157 to ptr) }}
-@m_cstr2159 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2160 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2159 to ptr) }}
-@m_cstr2161 = private unnamed_addr constant [8 x i8] c"<array>\00"
-@m_ostr2162 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2161 to ptr) }}
-@m_cstr2163 = private unnamed_addr constant [13 x i8] c"array-length\00"
-@m_ostr2164 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2163 to ptr) }}
-@m_cstr2165 = private unnamed_addr constant [13 x i8] c"array-length\00"
-@m_ostr2166 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2165 to ptr) }}
+@m_cstr2187 = private unnamed_addr constant [32 x i8] c"long->lower-cell/evaluator-stub\00"
+@m_ostr2188 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 63, ptr bitcast ([32 x i8]* @m_cstr2187 to ptr) }}
+@"m_long->lower-cell/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_long->lower-cell/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2188 }}
+@m_cstr2189 = private unnamed_addr constant [13 x i8] c"array-length\00"
+@m_ostr2190 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2189 to ptr) }}
+@m_cstr2191 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2192 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2191 to ptr) }}
+@m_cstr2193 = private unnamed_addr constant [4 x i8] c"arg\00"
+@m_ostr2194 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2193 to ptr) }}
+@m_cstr2195 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2196 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2195 to ptr) }}
+@m_cstr2197 = private unnamed_addr constant [8 x i8] c"<array>\00"
+@m_ostr2198 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2197 to ptr) }}
+@m_cstr2199 = private unnamed_addr constant [13 x i8] c"array-length\00"
+@m_ostr2200 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2199 to ptr) }}
+@m_cstr2201 = private unnamed_addr constant [13 x i8] c"array-length\00"
+@m_ostr2202 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2201 to ptr) }}
 define %oop @"m_array-length/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -34741,15 +34988,15 @@ L1:
 	br i1 %r23, label %L5, label %L4
 L5:
 	%r25 = call %oop @m_error-prologue.code()
-	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr2154, i32 1
+	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr2190, i32 1
 	%r28 = call %oop @"m_%error.code"(%oop %r27)
-	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr2156, i32 1
+	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr2192, i32 1
 	%r31 = call %oop @"m_%error.code"(%oop %r30)
-	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr2158, i32 1
+	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr2194, i32 1
 	%r34 = call %oop @"m_%error.code"(%oop %r33)
-	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr2160, i32 1
+	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr2196, i32 1
 	%r37 = call %oop @"m_%error.code"(%oop %r36)
-	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr2162, i32 1
+	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr2198, i32 1
 	%r40 = call %oop @"m_%error.code"(%oop %r39)
 	%r42 = call %oop @m_error-epilogue.code()
 	store %oop %r42, %oop* %t5
@@ -34775,7 +35022,7 @@ L4:
 	store %oop %r54, %oop* %t4
 	br label %L3
 L2:
-	%r58 = getelementptr %"<header>", %"<header>"* @m_ostr2164, i32 1
+	%r58 = getelementptr %"<header>", %"<header>"* @m_ostr2200, i32 1
 	%r59 = load %oop, %oop* %t0
 	%r60 = call %oop @"m_%not-enough-arguments.code"(%oop %r58, %oop %r59)
 	store %oop %r60, %oop* %t4
@@ -34787,7 +35034,7 @@ L3:
 	%r64 = icmp ne %word %r65, 0
 	br i1 %r64, label %L7, label %L8
 L7:
-	%r66 = getelementptr %"<header>", %"<header>"* @m_ostr2166, i32 1
+	%r66 = getelementptr %"<header>", %"<header>"* @m_ostr2202, i32 1
 	%r67 = load %oop, %oop* %t0
 	%r68 = call %oop @"m_%too-many-arguments.code"(%oop %r66, %oop %r67)
 	store %oop %r68, %oop* %t4
@@ -34806,23 +35053,23 @@ L9:
 	%r74 = load %oop, %oop* %r75
 	ret %oop %r74
 }
-@m_cstr2167 = private unnamed_addr constant [28 x i8] c"array-length/evaluator-stub\00"
-@m_ostr2168 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 55, ptr bitcast ([28 x i8]* @m_cstr2167 to ptr) }}
-@"m_array-length/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_array-length/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2168 }}
-@m_cstr2169 = private unnamed_addr constant [14 x i8] c"string-length\00"
-@m_ostr2170 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2169 to ptr) }}
-@m_cstr2171 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2172 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2171 to ptr) }}
-@m_cstr2173 = private unnamed_addr constant [4 x i8] c"arg\00"
-@m_ostr2174 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2173 to ptr) }}
-@m_cstr2175 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2176 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2175 to ptr) }}
-@m_cstr2177 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr2178 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2177 to ptr) }}
-@m_cstr2179 = private unnamed_addr constant [14 x i8] c"string-length\00"
-@m_ostr2180 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2179 to ptr) }}
-@m_cstr2181 = private unnamed_addr constant [14 x i8] c"string-length\00"
-@m_ostr2182 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2181 to ptr) }}
+@m_cstr2203 = private unnamed_addr constant [28 x i8] c"array-length/evaluator-stub\00"
+@m_ostr2204 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 55, ptr bitcast ([28 x i8]* @m_cstr2203 to ptr) }}
+@"m_array-length/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_array-length/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2204 }}
+@m_cstr2205 = private unnamed_addr constant [14 x i8] c"string-length\00"
+@m_ostr2206 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2205 to ptr) }}
+@m_cstr2207 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2208 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2207 to ptr) }}
+@m_cstr2209 = private unnamed_addr constant [4 x i8] c"arg\00"
+@m_ostr2210 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2209 to ptr) }}
+@m_cstr2211 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2212 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2211 to ptr) }}
+@m_cstr2213 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr2214 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2213 to ptr) }}
+@m_cstr2215 = private unnamed_addr constant [14 x i8] c"string-length\00"
+@m_ostr2216 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2215 to ptr) }}
+@m_cstr2217 = private unnamed_addr constant [14 x i8] c"string-length\00"
+@m_ostr2218 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2217 to ptr) }}
 define %oop @"m_string-length/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -34864,15 +35111,15 @@ L1:
 	br i1 %r23, label %L5, label %L4
 L5:
 	%r25 = call %oop @m_error-prologue.code()
-	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr2170, i32 1
+	%r27 = getelementptr %"<header>", %"<header>"* @m_ostr2206, i32 1
 	%r28 = call %oop @"m_%error.code"(%oop %r27)
-	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr2172, i32 1
+	%r30 = getelementptr %"<header>", %"<header>"* @m_ostr2208, i32 1
 	%r31 = call %oop @"m_%error.code"(%oop %r30)
-	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr2174, i32 1
+	%r33 = getelementptr %"<header>", %"<header>"* @m_ostr2210, i32 1
 	%r34 = call %oop @"m_%error.code"(%oop %r33)
-	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr2176, i32 1
+	%r36 = getelementptr %"<header>", %"<header>"* @m_ostr2212, i32 1
 	%r37 = call %oop @"m_%error.code"(%oop %r36)
-	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr2178, i32 1
+	%r39 = getelementptr %"<header>", %"<header>"* @m_ostr2214, i32 1
 	%r40 = call %oop @"m_%error.code"(%oop %r39)
 	%r42 = call %oop @m_error-epilogue.code()
 	store %oop %r42, %oop* %t5
@@ -34898,7 +35145,7 @@ L4:
 	store %oop %r54, %oop* %t4
 	br label %L3
 L2:
-	%r58 = getelementptr %"<header>", %"<header>"* @m_ostr2180, i32 1
+	%r58 = getelementptr %"<header>", %"<header>"* @m_ostr2216, i32 1
 	%r59 = load %oop, %oop* %t0
 	%r60 = call %oop @"m_%not-enough-arguments.code"(%oop %r58, %oop %r59)
 	store %oop %r60, %oop* %t4
@@ -34910,7 +35157,7 @@ L3:
 	%r64 = icmp ne %word %r65, 0
 	br i1 %r64, label %L7, label %L8
 L7:
-	%r66 = getelementptr %"<header>", %"<header>"* @m_ostr2182, i32 1
+	%r66 = getelementptr %"<header>", %"<header>"* @m_ostr2218, i32 1
 	%r67 = load %oop, %oop* %t0
 	%r68 = call %oop @"m_%too-many-arguments.code"(%oop %r66, %oop %r67)
 	store %oop %r68, %oop* %t4
@@ -34929,35 +35176,35 @@ L9:
 	%r74 = load %oop, %oop* %r75
 	ret %oop %r74
 }
-@m_cstr2183 = private unnamed_addr constant [29 x i8] c"string-length/evaluator-stub\00"
-@m_ostr2184 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2183 to ptr) }}
-@"m_string-length/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string-length/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2184 }}
-@m_cstr2185 = private unnamed_addr constant [15 x i8] c"string-compare\00"
-@m_ostr2186 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2185 to ptr) }}
-@m_cstr2187 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2188 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2187 to ptr) }}
-@m_cstr2189 = private unnamed_addr constant [3 x i8] c"s1\00"
-@m_ostr2190 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr2189 to ptr) }}
-@m_cstr2191 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2192 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2191 to ptr) }}
-@m_cstr2193 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr2194 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2193 to ptr) }}
-@m_cstr2195 = private unnamed_addr constant [15 x i8] c"string-compare\00"
-@m_ostr2196 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2195 to ptr) }}
-@m_cstr2197 = private unnamed_addr constant [15 x i8] c"string-compare\00"
-@m_ostr2198 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2197 to ptr) }}
-@m_cstr2199 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2200 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2199 to ptr) }}
-@m_cstr2201 = private unnamed_addr constant [3 x i8] c"s2\00"
-@m_ostr2202 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr2201 to ptr) }}
-@m_cstr2203 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2204 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2203 to ptr) }}
-@m_cstr2205 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr2206 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2205 to ptr) }}
-@m_cstr2207 = private unnamed_addr constant [15 x i8] c"string-compare\00"
-@m_ostr2208 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2207 to ptr) }}
-@m_cstr2209 = private unnamed_addr constant [15 x i8] c"string-compare\00"
-@m_ostr2210 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2209 to ptr) }}
+@m_cstr2219 = private unnamed_addr constant [29 x i8] c"string-length/evaluator-stub\00"
+@m_ostr2220 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2219 to ptr) }}
+@"m_string-length/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string-length/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2220 }}
+@m_cstr2221 = private unnamed_addr constant [15 x i8] c"string-compare\00"
+@m_ostr2222 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2221 to ptr) }}
+@m_cstr2223 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2224 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2223 to ptr) }}
+@m_cstr2225 = private unnamed_addr constant [3 x i8] c"s1\00"
+@m_ostr2226 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr2225 to ptr) }}
+@m_cstr2227 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2228 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2227 to ptr) }}
+@m_cstr2229 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr2230 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2229 to ptr) }}
+@m_cstr2231 = private unnamed_addr constant [15 x i8] c"string-compare\00"
+@m_ostr2232 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2231 to ptr) }}
+@m_cstr2233 = private unnamed_addr constant [15 x i8] c"string-compare\00"
+@m_ostr2234 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2233 to ptr) }}
+@m_cstr2235 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2236 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2235 to ptr) }}
+@m_cstr2237 = private unnamed_addr constant [3 x i8] c"s2\00"
+@m_ostr2238 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr2237 to ptr) }}
+@m_cstr2239 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2240 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2239 to ptr) }}
+@m_cstr2241 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr2242 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2241 to ptr) }}
+@m_cstr2243 = private unnamed_addr constant [15 x i8] c"string-compare\00"
+@m_ostr2244 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2243 to ptr) }}
+@m_cstr2245 = private unnamed_addr constant [15 x i8] c"string-compare\00"
+@m_ostr2246 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2245 to ptr) }}
 define %oop @"m_string-compare/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -35002,15 +35249,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2186, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2222, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2188, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2224, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2190, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2226, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2192, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2228, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2194, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2230, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -35036,7 +35283,7 @@ L4:
 	store %oop %r55, %oop* %t5
 	br label %L3
 L2:
-	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2196, i32 1
+	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2232, i32 1
 	%r60 = load %oop, %oop* %t0
 	%r61 = call %oop @"m_%not-enough-arguments.code"(%oop %r59, %oop %r60)
 	store %oop %r61, %oop* %t5
@@ -35071,15 +35318,15 @@ L7:
 	br i1 %r84, label %L11, label %L10
 L11:
 	%r86 = call %oop @m_error-prologue.code()
-	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2198, i32 1
+	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2234, i32 1
 	%r89 = call %oop @"m_%error.code"(%oop %r88)
-	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2200, i32 1
+	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2236, i32 1
 	%r92 = call %oop @"m_%error.code"(%oop %r91)
-	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2202, i32 1
+	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2238, i32 1
 	%r95 = call %oop @"m_%error.code"(%oop %r94)
-	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2204, i32 1
+	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2240, i32 1
 	%r98 = call %oop @"m_%error.code"(%oop %r97)
-	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2206, i32 1
+	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2242, i32 1
 	%r101 = call %oop @"m_%error.code"(%oop %r100)
 	%r103 = call %oop @m_error-epilogue.code()
 	store %oop %r103, %oop* %t6
@@ -35105,7 +35352,7 @@ L10:
 	store %oop %r115, %oop* %t5
 	br label %L9
 L8:
-	%r119 = getelementptr %"<header>", %"<header>"* @m_ostr2208, i32 1
+	%r119 = getelementptr %"<header>", %"<header>"* @m_ostr2244, i32 1
 	%r120 = load %oop, %oop* %t0
 	%r121 = call %oop @"m_%not-enough-arguments.code"(%oop %r119, %oop %r120)
 	store %oop %r121, %oop* %t5
@@ -35117,7 +35364,7 @@ L9:
 	%r125 = icmp ne %word %r126, 0
 	br i1 %r125, label %L13, label %L14
 L13:
-	%r127 = getelementptr %"<header>", %"<header>"* @m_ostr2210, i32 1
+	%r127 = getelementptr %"<header>", %"<header>"* @m_ostr2246, i32 1
 	%r128 = load %oop, %oop* %t0
 	%r129 = call %oop @"m_%too-many-arguments.code"(%oop %r127, %oop %r128)
 	store %oop %r129, %oop* %t5
@@ -35133,35 +35380,35 @@ L15:
 	%r135 = call %oop @m_string-compare.code(%oop %r133, %oop %r134)
 	ret %oop %r135
 }
-@m_cstr2211 = private unnamed_addr constant [30 x i8] c"string-compare/evaluator-stub\00"
-@m_ostr2212 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 59, ptr bitcast ([30 x i8]* @m_cstr2211 to ptr) }}
-@"m_string-compare/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string-compare/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2212 }}
-@m_cstr2213 = private unnamed_addr constant [9 x i8] c"array-at\00"
-@m_ostr2214 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2213 to ptr) }}
-@m_cstr2215 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2216 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2215 to ptr) }}
-@m_cstr2217 = private unnamed_addr constant [6 x i8] c"array\00"
-@m_ostr2218 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2217 to ptr) }}
-@m_cstr2219 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2220 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2219 to ptr) }}
-@m_cstr2221 = private unnamed_addr constant [8 x i8] c"<array>\00"
-@m_ostr2222 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2221 to ptr) }}
-@m_cstr2223 = private unnamed_addr constant [9 x i8] c"array-at\00"
-@m_ostr2224 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2223 to ptr) }}
-@m_cstr2225 = private unnamed_addr constant [9 x i8] c"array-at\00"
-@m_ostr2226 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2225 to ptr) }}
-@m_cstr2227 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2228 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2227 to ptr) }}
-@m_cstr2229 = private unnamed_addr constant [6 x i8] c"index\00"
-@m_ostr2230 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2229 to ptr) }}
-@m_cstr2231 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2232 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2231 to ptr) }}
-@m_cstr2233 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2234 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2233 to ptr) }}
-@m_cstr2235 = private unnamed_addr constant [9 x i8] c"array-at\00"
-@m_ostr2236 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2235 to ptr) }}
-@m_cstr2237 = private unnamed_addr constant [9 x i8] c"array-at\00"
-@m_ostr2238 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2237 to ptr) }}
+@m_cstr2247 = private unnamed_addr constant [30 x i8] c"string-compare/evaluator-stub\00"
+@m_ostr2248 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 59, ptr bitcast ([30 x i8]* @m_cstr2247 to ptr) }}
+@"m_string-compare/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string-compare/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2248 }}
+@m_cstr2249 = private unnamed_addr constant [9 x i8] c"array-at\00"
+@m_ostr2250 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2249 to ptr) }}
+@m_cstr2251 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2252 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2251 to ptr) }}
+@m_cstr2253 = private unnamed_addr constant [6 x i8] c"array\00"
+@m_ostr2254 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2253 to ptr) }}
+@m_cstr2255 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2256 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2255 to ptr) }}
+@m_cstr2257 = private unnamed_addr constant [8 x i8] c"<array>\00"
+@m_ostr2258 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2257 to ptr) }}
+@m_cstr2259 = private unnamed_addr constant [9 x i8] c"array-at\00"
+@m_ostr2260 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2259 to ptr) }}
+@m_cstr2261 = private unnamed_addr constant [9 x i8] c"array-at\00"
+@m_ostr2262 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2261 to ptr) }}
+@m_cstr2263 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2264 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2263 to ptr) }}
+@m_cstr2265 = private unnamed_addr constant [6 x i8] c"index\00"
+@m_ostr2266 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2265 to ptr) }}
+@m_cstr2267 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2268 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2267 to ptr) }}
+@m_cstr2269 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2270 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2269 to ptr) }}
+@m_cstr2271 = private unnamed_addr constant [9 x i8] c"array-at\00"
+@m_ostr2272 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2271 to ptr) }}
+@m_cstr2273 = private unnamed_addr constant [9 x i8] c"array-at\00"
+@m_ostr2274 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2273 to ptr) }}
 define %oop @"m_array-at/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -35206,15 +35453,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2214, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2250, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2216, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2252, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2218, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2254, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2220, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2256, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2222, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2258, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -35240,7 +35487,7 @@ L4:
 	store %oop %r55, %oop* %t5
 	br label %L3
 L2:
-	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2224, i32 1
+	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2260, i32 1
 	%r60 = load %oop, %oop* %t0
 	%r61 = call %oop @"m_%not-enough-arguments.code"(%oop %r59, %oop %r60)
 	store %oop %r61, %oop* %t5
@@ -35275,15 +35522,15 @@ L7:
 	br i1 %r84, label %L11, label %L10
 L11:
 	%r86 = call %oop @m_error-prologue.code()
-	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2226, i32 1
+	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2262, i32 1
 	%r89 = call %oop @"m_%error.code"(%oop %r88)
-	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2228, i32 1
+	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2264, i32 1
 	%r92 = call %oop @"m_%error.code"(%oop %r91)
-	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2230, i32 1
+	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2266, i32 1
 	%r95 = call %oop @"m_%error.code"(%oop %r94)
-	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2232, i32 1
+	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2268, i32 1
 	%r98 = call %oop @"m_%error.code"(%oop %r97)
-	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2234, i32 1
+	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2270, i32 1
 	%r101 = call %oop @"m_%error.code"(%oop %r100)
 	%r103 = call %oop @m_error-epilogue.code()
 	store %oop %r103, %oop* %t6
@@ -35316,7 +35563,7 @@ L10:
 	store %oop %r121, %oop* %t5
 	br label %L9
 L8:
-	%r125 = getelementptr %"<header>", %"<header>"* @m_ostr2236, i32 1
+	%r125 = getelementptr %"<header>", %"<header>"* @m_ostr2272, i32 1
 	%r126 = load %oop, %oop* %t0
 	%r127 = call %oop @"m_%not-enough-arguments.code"(%oop %r125, %oop %r126)
 	store %oop %r127, %oop* %t5
@@ -35328,7 +35575,7 @@ L9:
 	%r131 = icmp ne %word %r132, 0
 	br i1 %r131, label %L13, label %L14
 L13:
-	%r133 = getelementptr %"<header>", %"<header>"* @m_ostr2238, i32 1
+	%r133 = getelementptr %"<header>", %"<header>"* @m_ostr2274, i32 1
 	%r134 = load %oop, %oop* %t0
 	%r135 = call %oop @"m_%too-many-arguments.code"(%oop %r133, %oop %r134)
 	store %oop %r135, %oop* %t5
@@ -35344,35 +35591,35 @@ L15:
 	%r141 = call %oop @m_array-at.code(%oop %r139, %oop %r140)
 	ret %oop %r141
 }
-@m_cstr2239 = private unnamed_addr constant [24 x i8] c"array-at/evaluator-stub\00"
-@m_ostr2240 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 47, ptr bitcast ([24 x i8]* @m_cstr2239 to ptr) }}
-@"m_array-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_array-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2240 }}
-@m_cstr2241 = private unnamed_addr constant [10 x i8] c"string-at\00"
-@m_ostr2242 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2241 to ptr) }}
-@m_cstr2243 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2244 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2243 to ptr) }}
-@m_cstr2245 = private unnamed_addr constant [7 x i8] c"string\00"
-@m_ostr2246 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2245 to ptr) }}
-@m_cstr2247 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2248 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2247 to ptr) }}
-@m_cstr2249 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr2250 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2249 to ptr) }}
-@m_cstr2251 = private unnamed_addr constant [10 x i8] c"string-at\00"
-@m_ostr2252 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2251 to ptr) }}
-@m_cstr2253 = private unnamed_addr constant [10 x i8] c"string-at\00"
-@m_ostr2254 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2253 to ptr) }}
-@m_cstr2255 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2256 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2255 to ptr) }}
-@m_cstr2257 = private unnamed_addr constant [6 x i8] c"index\00"
-@m_ostr2258 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2257 to ptr) }}
-@m_cstr2259 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2260 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2259 to ptr) }}
-@m_cstr2261 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2262 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2261 to ptr) }}
-@m_cstr2263 = private unnamed_addr constant [10 x i8] c"string-at\00"
-@m_ostr2264 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2263 to ptr) }}
-@m_cstr2265 = private unnamed_addr constant [10 x i8] c"string-at\00"
-@m_ostr2266 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2265 to ptr) }}
+@m_cstr2275 = private unnamed_addr constant [24 x i8] c"array-at/evaluator-stub\00"
+@m_ostr2276 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 47, ptr bitcast ([24 x i8]* @m_cstr2275 to ptr) }}
+@"m_array-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_array-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2276 }}
+@m_cstr2277 = private unnamed_addr constant [10 x i8] c"string-at\00"
+@m_ostr2278 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2277 to ptr) }}
+@m_cstr2279 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2280 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2279 to ptr) }}
+@m_cstr2281 = private unnamed_addr constant [7 x i8] c"string\00"
+@m_ostr2282 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2281 to ptr) }}
+@m_cstr2283 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2284 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2283 to ptr) }}
+@m_cstr2285 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr2286 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2285 to ptr) }}
+@m_cstr2287 = private unnamed_addr constant [10 x i8] c"string-at\00"
+@m_ostr2288 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2287 to ptr) }}
+@m_cstr2289 = private unnamed_addr constant [10 x i8] c"string-at\00"
+@m_ostr2290 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2289 to ptr) }}
+@m_cstr2291 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2292 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2291 to ptr) }}
+@m_cstr2293 = private unnamed_addr constant [6 x i8] c"index\00"
+@m_ostr2294 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2293 to ptr) }}
+@m_cstr2295 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2296 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2295 to ptr) }}
+@m_cstr2297 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2298 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2297 to ptr) }}
+@m_cstr2299 = private unnamed_addr constant [10 x i8] c"string-at\00"
+@m_ostr2300 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2299 to ptr) }}
+@m_cstr2301 = private unnamed_addr constant [10 x i8] c"string-at\00"
+@m_ostr2302 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2301 to ptr) }}
 define %oop @"m_string-at/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -35417,15 +35664,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2242, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2278, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2244, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2280, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2246, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2282, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2248, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2284, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2250, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2286, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -35451,7 +35698,7 @@ L4:
 	store %oop %r55, %oop* %t5
 	br label %L3
 L2:
-	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2252, i32 1
+	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2288, i32 1
 	%r60 = load %oop, %oop* %t0
 	%r61 = call %oop @"m_%not-enough-arguments.code"(%oop %r59, %oop %r60)
 	store %oop %r61, %oop* %t5
@@ -35486,15 +35733,15 @@ L7:
 	br i1 %r84, label %L11, label %L10
 L11:
 	%r86 = call %oop @m_error-prologue.code()
-	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2254, i32 1
+	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2290, i32 1
 	%r89 = call %oop @"m_%error.code"(%oop %r88)
-	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2256, i32 1
+	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2292, i32 1
 	%r92 = call %oop @"m_%error.code"(%oop %r91)
-	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2258, i32 1
+	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2294, i32 1
 	%r95 = call %oop @"m_%error.code"(%oop %r94)
-	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2260, i32 1
+	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2296, i32 1
 	%r98 = call %oop @"m_%error.code"(%oop %r97)
-	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2262, i32 1
+	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2298, i32 1
 	%r101 = call %oop @"m_%error.code"(%oop %r100)
 	%r103 = call %oop @m_error-epilogue.code()
 	store %oop %r103, %oop* %t6
@@ -35527,7 +35774,7 @@ L10:
 	store %oop %r121, %oop* %t5
 	br label %L9
 L8:
-	%r125 = getelementptr %"<header>", %"<header>"* @m_ostr2264, i32 1
+	%r125 = getelementptr %"<header>", %"<header>"* @m_ostr2300, i32 1
 	%r126 = load %oop, %oop* %t0
 	%r127 = call %oop @"m_%not-enough-arguments.code"(%oop %r125, %oop %r126)
 	store %oop %r127, %oop* %t5
@@ -35539,7 +35786,7 @@ L9:
 	%r131 = icmp ne %word %r132, 0
 	br i1 %r131, label %L13, label %L14
 L13:
-	%r133 = getelementptr %"<header>", %"<header>"* @m_ostr2266, i32 1
+	%r133 = getelementptr %"<header>", %"<header>"* @m_ostr2302, i32 1
 	%r134 = load %oop, %oop* %t0
 	%r135 = call %oop @"m_%too-many-arguments.code"(%oop %r133, %oop %r134)
 	store %oop %r135, %oop* %t5
@@ -35565,35 +35812,35 @@ L15:
 	%r149 = inttoptr %word %r150 to %oop
 	ret %oop %r149
 }
-@m_cstr2267 = private unnamed_addr constant [25 x i8] c"string-at/evaluator-stub\00"
-@m_ostr2268 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2267 to ptr) }}
-@"m_string-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2268 }}
-@m_cstr2269 = private unnamed_addr constant [8 x i8] c"char-at\00"
-@m_ostr2270 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2269 to ptr) }}
-@m_cstr2271 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2272 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2271 to ptr) }}
-@m_cstr2273 = private unnamed_addr constant [7 x i8] c"string\00"
-@m_ostr2274 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2273 to ptr) }}
-@m_cstr2275 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2276 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2275 to ptr) }}
-@m_cstr2277 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr2278 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2277 to ptr) }}
-@m_cstr2279 = private unnamed_addr constant [8 x i8] c"char-at\00"
-@m_ostr2280 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2279 to ptr) }}
-@m_cstr2281 = private unnamed_addr constant [8 x i8] c"char-at\00"
-@m_ostr2282 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2281 to ptr) }}
-@m_cstr2283 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2284 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2283 to ptr) }}
-@m_cstr2285 = private unnamed_addr constant [6 x i8] c"index\00"
-@m_ostr2286 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2285 to ptr) }}
-@m_cstr2287 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2288 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2287 to ptr) }}
-@m_cstr2289 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2290 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2289 to ptr) }}
-@m_cstr2291 = private unnamed_addr constant [8 x i8] c"char-at\00"
-@m_ostr2292 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2291 to ptr) }}
-@m_cstr2293 = private unnamed_addr constant [8 x i8] c"char-at\00"
-@m_ostr2294 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2293 to ptr) }}
+@m_cstr2303 = private unnamed_addr constant [25 x i8] c"string-at/evaluator-stub\00"
+@m_ostr2304 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2303 to ptr) }}
+@"m_string-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2304 }}
+@m_cstr2305 = private unnamed_addr constant [8 x i8] c"char-at\00"
+@m_ostr2306 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2305 to ptr) }}
+@m_cstr2307 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2308 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2307 to ptr) }}
+@m_cstr2309 = private unnamed_addr constant [7 x i8] c"string\00"
+@m_ostr2310 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2309 to ptr) }}
+@m_cstr2311 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2312 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2311 to ptr) }}
+@m_cstr2313 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr2314 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2313 to ptr) }}
+@m_cstr2315 = private unnamed_addr constant [8 x i8] c"char-at\00"
+@m_ostr2316 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2315 to ptr) }}
+@m_cstr2317 = private unnamed_addr constant [8 x i8] c"char-at\00"
+@m_ostr2318 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2317 to ptr) }}
+@m_cstr2319 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2320 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2319 to ptr) }}
+@m_cstr2321 = private unnamed_addr constant [6 x i8] c"index\00"
+@m_ostr2322 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2321 to ptr) }}
+@m_cstr2323 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2324 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2323 to ptr) }}
+@m_cstr2325 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2326 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2325 to ptr) }}
+@m_cstr2327 = private unnamed_addr constant [8 x i8] c"char-at\00"
+@m_ostr2328 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2327 to ptr) }}
+@m_cstr2329 = private unnamed_addr constant [8 x i8] c"char-at\00"
+@m_ostr2330 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2329 to ptr) }}
 define %oop @"m_char-at/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -35638,15 +35885,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2270, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2306, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2272, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2308, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2274, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2310, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2276, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2312, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2278, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2314, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -35672,7 +35919,7 @@ L4:
 	store %oop %r55, %oop* %t5
 	br label %L3
 L2:
-	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2280, i32 1
+	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2316, i32 1
 	%r60 = load %oop, %oop* %t0
 	%r61 = call %oop @"m_%not-enough-arguments.code"(%oop %r59, %oop %r60)
 	store %oop %r61, %oop* %t5
@@ -35707,15 +35954,15 @@ L7:
 	br i1 %r84, label %L11, label %L10
 L11:
 	%r86 = call %oop @m_error-prologue.code()
-	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2282, i32 1
+	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2318, i32 1
 	%r89 = call %oop @"m_%error.code"(%oop %r88)
-	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2284, i32 1
+	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2320, i32 1
 	%r92 = call %oop @"m_%error.code"(%oop %r91)
-	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2286, i32 1
+	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2322, i32 1
 	%r95 = call %oop @"m_%error.code"(%oop %r94)
-	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2288, i32 1
+	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2324, i32 1
 	%r98 = call %oop @"m_%error.code"(%oop %r97)
-	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2290, i32 1
+	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2326, i32 1
 	%r101 = call %oop @"m_%error.code"(%oop %r100)
 	%r103 = call %oop @m_error-epilogue.code()
 	store %oop %r103, %oop* %t6
@@ -35748,7 +35995,7 @@ L10:
 	store %oop %r121, %oop* %t5
 	br label %L9
 L8:
-	%r125 = getelementptr %"<header>", %"<header>"* @m_ostr2292, i32 1
+	%r125 = getelementptr %"<header>", %"<header>"* @m_ostr2328, i32 1
 	%r126 = load %oop, %oop* %t0
 	%r127 = call %oop @"m_%not-enough-arguments.code"(%oop %r125, %oop %r126)
 	store %oop %r127, %oop* %t5
@@ -35760,7 +36007,7 @@ L9:
 	%r131 = icmp ne %word %r132, 0
 	br i1 %r131, label %L13, label %L14
 L13:
-	%r133 = getelementptr %"<header>", %"<header>"* @m_ostr2294, i32 1
+	%r133 = getelementptr %"<header>", %"<header>"* @m_ostr2330, i32 1
 	%r134 = load %oop, %oop* %t0
 	%r135 = call %oop @"m_%too-many-arguments.code"(%oop %r133, %oop %r134)
 	store %oop %r135, %oop* %t5
@@ -35786,37 +36033,37 @@ L15:
 	%r149 = inttoptr %word %r150 to %oop
 	ret %oop %r149
 }
-@m_cstr2295 = private unnamed_addr constant [23 x i8] c"char-at/evaluator-stub\00"
-@m_ostr2296 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2295 to ptr) }}
-@"m_char-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_char-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2296 }}
-@m_cstr2297 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
-@m_ostr2298 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2297 to ptr) }}
-@m_cstr2299 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2300 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2299 to ptr) }}
-@m_cstr2301 = private unnamed_addr constant [6 x i8] c"array\00"
-@m_ostr2302 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2301 to ptr) }}
-@m_cstr2303 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2304 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2303 to ptr) }}
-@m_cstr2305 = private unnamed_addr constant [8 x i8] c"<array>\00"
-@m_ostr2306 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2305 to ptr) }}
-@m_cstr2307 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
-@m_ostr2308 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2307 to ptr) }}
-@m_cstr2309 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
-@m_ostr2310 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2309 to ptr) }}
-@m_cstr2311 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2312 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2311 to ptr) }}
-@m_cstr2313 = private unnamed_addr constant [6 x i8] c"index\00"
-@m_ostr2314 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2313 to ptr) }}
-@m_cstr2315 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2316 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2315 to ptr) }}
-@m_cstr2317 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2318 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2317 to ptr) }}
-@m_cstr2319 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
-@m_ostr2320 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2319 to ptr) }}
-@m_cstr2321 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
-@m_ostr2322 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2321 to ptr) }}
-@m_cstr2323 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
-@m_ostr2324 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2323 to ptr) }}
+@m_cstr2331 = private unnamed_addr constant [23 x i8] c"char-at/evaluator-stub\00"
+@m_ostr2332 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2331 to ptr) }}
+@"m_char-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_char-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2332 }}
+@m_cstr2333 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
+@m_ostr2334 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2333 to ptr) }}
+@m_cstr2335 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2336 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2335 to ptr) }}
+@m_cstr2337 = private unnamed_addr constant [6 x i8] c"array\00"
+@m_ostr2338 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2337 to ptr) }}
+@m_cstr2339 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2340 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2339 to ptr) }}
+@m_cstr2341 = private unnamed_addr constant [8 x i8] c"<array>\00"
+@m_ostr2342 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2341 to ptr) }}
+@m_cstr2343 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
+@m_ostr2344 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2343 to ptr) }}
+@m_cstr2345 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
+@m_ostr2346 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2345 to ptr) }}
+@m_cstr2347 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2348 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2347 to ptr) }}
+@m_cstr2349 = private unnamed_addr constant [6 x i8] c"index\00"
+@m_ostr2350 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2349 to ptr) }}
+@m_cstr2351 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2352 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2351 to ptr) }}
+@m_cstr2353 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2354 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2353 to ptr) }}
+@m_cstr2355 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
+@m_ostr2356 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2355 to ptr) }}
+@m_cstr2357 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
+@m_ostr2358 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2357 to ptr) }}
+@m_cstr2359 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
+@m_ostr2360 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2359 to ptr) }}
 define %oop @"m_set-array-at/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -35864,15 +36111,15 @@ L1:
 	br i1 %r25, label %L5, label %L4
 L5:
 	%r27 = call %oop @m_error-prologue.code()
-	%r29 = getelementptr %"<header>", %"<header>"* @m_ostr2298, i32 1
+	%r29 = getelementptr %"<header>", %"<header>"* @m_ostr2334, i32 1
 	%r30 = call %oop @"m_%error.code"(%oop %r29)
-	%r32 = getelementptr %"<header>", %"<header>"* @m_ostr2300, i32 1
+	%r32 = getelementptr %"<header>", %"<header>"* @m_ostr2336, i32 1
 	%r33 = call %oop @"m_%error.code"(%oop %r32)
-	%r35 = getelementptr %"<header>", %"<header>"* @m_ostr2302, i32 1
+	%r35 = getelementptr %"<header>", %"<header>"* @m_ostr2338, i32 1
 	%r36 = call %oop @"m_%error.code"(%oop %r35)
-	%r38 = getelementptr %"<header>", %"<header>"* @m_ostr2304, i32 1
+	%r38 = getelementptr %"<header>", %"<header>"* @m_ostr2340, i32 1
 	%r39 = call %oop @"m_%error.code"(%oop %r38)
-	%r41 = getelementptr %"<header>", %"<header>"* @m_ostr2306, i32 1
+	%r41 = getelementptr %"<header>", %"<header>"* @m_ostr2342, i32 1
 	%r42 = call %oop @"m_%error.code"(%oop %r41)
 	%r44 = call %oop @m_error-epilogue.code()
 	store %oop %r44, %oop* %t7
@@ -35898,7 +36145,7 @@ L4:
 	store %oop %r56, %oop* %t6
 	br label %L3
 L2:
-	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2308, i32 1
+	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2344, i32 1
 	%r61 = load %oop, %oop* %t0
 	%r62 = call %oop @"m_%not-enough-arguments.code"(%oop %r60, %oop %r61)
 	store %oop %r62, %oop* %t6
@@ -35933,15 +36180,15 @@ L7:
 	br i1 %r85, label %L11, label %L10
 L11:
 	%r87 = call %oop @m_error-prologue.code()
-	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2310, i32 1
+	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2346, i32 1
 	%r90 = call %oop @"m_%error.code"(%oop %r89)
-	%r92 = getelementptr %"<header>", %"<header>"* @m_ostr2312, i32 1
+	%r92 = getelementptr %"<header>", %"<header>"* @m_ostr2348, i32 1
 	%r93 = call %oop @"m_%error.code"(%oop %r92)
-	%r95 = getelementptr %"<header>", %"<header>"* @m_ostr2314, i32 1
+	%r95 = getelementptr %"<header>", %"<header>"* @m_ostr2350, i32 1
 	%r96 = call %oop @"m_%error.code"(%oop %r95)
-	%r98 = getelementptr %"<header>", %"<header>"* @m_ostr2316, i32 1
+	%r98 = getelementptr %"<header>", %"<header>"* @m_ostr2352, i32 1
 	%r99 = call %oop @"m_%error.code"(%oop %r98)
-	%r101 = getelementptr %"<header>", %"<header>"* @m_ostr2318, i32 1
+	%r101 = getelementptr %"<header>", %"<header>"* @m_ostr2354, i32 1
 	%r102 = call %oop @"m_%error.code"(%oop %r101)
 	%r104 = call %oop @m_error-epilogue.code()
 	store %oop %r104, %oop* %t7
@@ -35974,7 +36221,7 @@ L10:
 	store %oop %r122, %oop* %t6
 	br label %L9
 L8:
-	%r126 = getelementptr %"<header>", %"<header>"* @m_ostr2320, i32 1
+	%r126 = getelementptr %"<header>", %"<header>"* @m_ostr2356, i32 1
 	%r127 = load %oop, %oop* %t0
 	%r128 = call %oop @"m_%not-enough-arguments.code"(%oop %r126, %oop %r127)
 	store %oop %r128, %oop* %t6
@@ -36004,7 +36251,7 @@ L13:
 	store %oop %r144, %oop* %t6
 	br label %L15
 L14:
-	%r148 = getelementptr %"<header>", %"<header>"* @m_ostr2322, i32 1
+	%r148 = getelementptr %"<header>", %"<header>"* @m_ostr2358, i32 1
 	%r149 = load %oop, %oop* %t0
 	%r150 = call %oop @"m_%not-enough-arguments.code"(%oop %r148, %oop %r149)
 	store %oop %r150, %oop* %t6
@@ -36016,7 +36263,7 @@ L15:
 	%r154 = icmp ne %word %r155, 0
 	br i1 %r154, label %L16, label %L17
 L16:
-	%r156 = getelementptr %"<header>", %"<header>"* @m_ostr2324, i32 1
+	%r156 = getelementptr %"<header>", %"<header>"* @m_ostr2360, i32 1
 	%r157 = load %oop, %oop* %t0
 	%r158 = call %oop @"m_%too-many-arguments.code"(%oop %r156, %oop %r157)
 	store %oop %r158, %oop* %t6
@@ -36033,47 +36280,47 @@ L18:
 	%r165 = call %oop @m_set-array-at.code(%oop %r162, %oop %r163, %oop %r164)
 	ret %oop %r165
 }
-@m_cstr2325 = private unnamed_addr constant [28 x i8] c"set-array-at/evaluator-stub\00"
-@m_ostr2326 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 55, ptr bitcast ([28 x i8]* @m_cstr2325 to ptr) }}
-@"m_set-array-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set-array-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2326 }}
-@m_cstr2327 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
-@m_ostr2328 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2327 to ptr) }}
-@m_cstr2329 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2330 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2329 to ptr) }}
-@m_cstr2331 = private unnamed_addr constant [7 x i8] c"string\00"
-@m_ostr2332 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2331 to ptr) }}
-@m_cstr2333 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2334 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2333 to ptr) }}
-@m_cstr2335 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr2336 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2335 to ptr) }}
-@m_cstr2337 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
-@m_ostr2338 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2337 to ptr) }}
-@m_cstr2339 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
-@m_ostr2340 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2339 to ptr) }}
-@m_cstr2341 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2342 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2341 to ptr) }}
-@m_cstr2343 = private unnamed_addr constant [6 x i8] c"index\00"
-@m_ostr2344 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2343 to ptr) }}
-@m_cstr2345 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2346 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2345 to ptr) }}
-@m_cstr2347 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2348 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2347 to ptr) }}
-@m_cstr2349 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
-@m_ostr2350 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2349 to ptr) }}
-@m_cstr2351 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
-@m_ostr2352 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2351 to ptr) }}
-@m_cstr2353 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2354 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2353 to ptr) }}
-@m_cstr2355 = private unnamed_addr constant [6 x i8] c"value\00"
-@m_ostr2356 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2355 to ptr) }}
-@m_cstr2357 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2358 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2357 to ptr) }}
-@m_cstr2359 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2360 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2359 to ptr) }}
-@m_cstr2361 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
-@m_ostr2362 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2361 to ptr) }}
+@m_cstr2361 = private unnamed_addr constant [28 x i8] c"set-array-at/evaluator-stub\00"
+@m_ostr2362 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 55, ptr bitcast ([28 x i8]* @m_cstr2361 to ptr) }}
+@"m_set-array-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set-array-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2362 }}
 @m_cstr2363 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
 @m_ostr2364 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2363 to ptr) }}
+@m_cstr2365 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2366 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2365 to ptr) }}
+@m_cstr2367 = private unnamed_addr constant [7 x i8] c"string\00"
+@m_ostr2368 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2367 to ptr) }}
+@m_cstr2369 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2370 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2369 to ptr) }}
+@m_cstr2371 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr2372 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2371 to ptr) }}
+@m_cstr2373 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
+@m_ostr2374 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2373 to ptr) }}
+@m_cstr2375 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
+@m_ostr2376 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2375 to ptr) }}
+@m_cstr2377 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2378 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2377 to ptr) }}
+@m_cstr2379 = private unnamed_addr constant [6 x i8] c"index\00"
+@m_ostr2380 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2379 to ptr) }}
+@m_cstr2381 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2382 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2381 to ptr) }}
+@m_cstr2383 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2384 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2383 to ptr) }}
+@m_cstr2385 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
+@m_ostr2386 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2385 to ptr) }}
+@m_cstr2387 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
+@m_ostr2388 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2387 to ptr) }}
+@m_cstr2389 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2390 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2389 to ptr) }}
+@m_cstr2391 = private unnamed_addr constant [6 x i8] c"value\00"
+@m_ostr2392 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2391 to ptr) }}
+@m_cstr2393 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2394 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2393 to ptr) }}
+@m_cstr2395 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2396 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2395 to ptr) }}
+@m_cstr2397 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
+@m_ostr2398 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2397 to ptr) }}
+@m_cstr2399 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
+@m_ostr2400 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2399 to ptr) }}
 define %oop @"m_set-string-at/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -36121,15 +36368,15 @@ L1:
 	br i1 %r25, label %L5, label %L4
 L5:
 	%r27 = call %oop @m_error-prologue.code()
-	%r29 = getelementptr %"<header>", %"<header>"* @m_ostr2328, i32 1
+	%r29 = getelementptr %"<header>", %"<header>"* @m_ostr2364, i32 1
 	%r30 = call %oop @"m_%error.code"(%oop %r29)
-	%r32 = getelementptr %"<header>", %"<header>"* @m_ostr2330, i32 1
+	%r32 = getelementptr %"<header>", %"<header>"* @m_ostr2366, i32 1
 	%r33 = call %oop @"m_%error.code"(%oop %r32)
-	%r35 = getelementptr %"<header>", %"<header>"* @m_ostr2332, i32 1
+	%r35 = getelementptr %"<header>", %"<header>"* @m_ostr2368, i32 1
 	%r36 = call %oop @"m_%error.code"(%oop %r35)
-	%r38 = getelementptr %"<header>", %"<header>"* @m_ostr2334, i32 1
+	%r38 = getelementptr %"<header>", %"<header>"* @m_ostr2370, i32 1
 	%r39 = call %oop @"m_%error.code"(%oop %r38)
-	%r41 = getelementptr %"<header>", %"<header>"* @m_ostr2336, i32 1
+	%r41 = getelementptr %"<header>", %"<header>"* @m_ostr2372, i32 1
 	%r42 = call %oop @"m_%error.code"(%oop %r41)
 	%r44 = call %oop @m_error-epilogue.code()
 	store %oop %r44, %oop* %t7
@@ -36155,7 +36402,7 @@ L4:
 	store %oop %r56, %oop* %t6
 	br label %L3
 L2:
-	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2338, i32 1
+	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2374, i32 1
 	%r61 = load %oop, %oop* %t0
 	%r62 = call %oop @"m_%not-enough-arguments.code"(%oop %r60, %oop %r61)
 	store %oop %r62, %oop* %t6
@@ -36190,15 +36437,15 @@ L7:
 	br i1 %r85, label %L11, label %L10
 L11:
 	%r87 = call %oop @m_error-prologue.code()
-	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2340, i32 1
+	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2376, i32 1
 	%r90 = call %oop @"m_%error.code"(%oop %r89)
-	%r92 = getelementptr %"<header>", %"<header>"* @m_ostr2342, i32 1
+	%r92 = getelementptr %"<header>", %"<header>"* @m_ostr2378, i32 1
 	%r93 = call %oop @"m_%error.code"(%oop %r92)
-	%r95 = getelementptr %"<header>", %"<header>"* @m_ostr2344, i32 1
+	%r95 = getelementptr %"<header>", %"<header>"* @m_ostr2380, i32 1
 	%r96 = call %oop @"m_%error.code"(%oop %r95)
-	%r98 = getelementptr %"<header>", %"<header>"* @m_ostr2346, i32 1
+	%r98 = getelementptr %"<header>", %"<header>"* @m_ostr2382, i32 1
 	%r99 = call %oop @"m_%error.code"(%oop %r98)
-	%r101 = getelementptr %"<header>", %"<header>"* @m_ostr2348, i32 1
+	%r101 = getelementptr %"<header>", %"<header>"* @m_ostr2384, i32 1
 	%r102 = call %oop @"m_%error.code"(%oop %r101)
 	%r104 = call %oop @m_error-epilogue.code()
 	store %oop %r104, %oop* %t7
@@ -36231,7 +36478,7 @@ L10:
 	store %oop %r122, %oop* %t6
 	br label %L9
 L8:
-	%r126 = getelementptr %"<header>", %"<header>"* @m_ostr2350, i32 1
+	%r126 = getelementptr %"<header>", %"<header>"* @m_ostr2386, i32 1
 	%r127 = load %oop, %oop* %t0
 	%r128 = call %oop @"m_%not-enough-arguments.code"(%oop %r126, %oop %r127)
 	store %oop %r128, %oop* %t6
@@ -36266,15 +36513,15 @@ L13:
 	br i1 %r151, label %L17, label %L16
 L17:
 	%r153 = call %oop @m_error-prologue.code()
-	%r155 = getelementptr %"<header>", %"<header>"* @m_ostr2352, i32 1
+	%r155 = getelementptr %"<header>", %"<header>"* @m_ostr2388, i32 1
 	%r156 = call %oop @"m_%error.code"(%oop %r155)
-	%r158 = getelementptr %"<header>", %"<header>"* @m_ostr2354, i32 1
+	%r158 = getelementptr %"<header>", %"<header>"* @m_ostr2390, i32 1
 	%r159 = call %oop @"m_%error.code"(%oop %r158)
-	%r161 = getelementptr %"<header>", %"<header>"* @m_ostr2356, i32 1
+	%r161 = getelementptr %"<header>", %"<header>"* @m_ostr2392, i32 1
 	%r162 = call %oop @"m_%error.code"(%oop %r161)
-	%r164 = getelementptr %"<header>", %"<header>"* @m_ostr2358, i32 1
+	%r164 = getelementptr %"<header>", %"<header>"* @m_ostr2394, i32 1
 	%r165 = call %oop @"m_%error.code"(%oop %r164)
-	%r167 = getelementptr %"<header>", %"<header>"* @m_ostr2360, i32 1
+	%r167 = getelementptr %"<header>", %"<header>"* @m_ostr2396, i32 1
 	%r168 = call %oop @"m_%error.code"(%oop %r167)
 	%r170 = call %oop @m_error-epilogue.code()
 	store %oop %r170, %oop* %t7
@@ -36307,7 +36554,7 @@ L16:
 	store %oop %r188, %oop* %t6
 	br label %L15
 L14:
-	%r192 = getelementptr %"<header>", %"<header>"* @m_ostr2362, i32 1
+	%r192 = getelementptr %"<header>", %"<header>"* @m_ostr2398, i32 1
 	%r193 = load %oop, %oop* %t0
 	%r194 = call %oop @"m_%not-enough-arguments.code"(%oop %r192, %oop %r193)
 	store %oop %r194, %oop* %t6
@@ -36319,7 +36566,7 @@ L15:
 	%r198 = icmp ne %word %r199, 0
 	br i1 %r198, label %L19, label %L20
 L19:
-	%r200 = getelementptr %"<header>", %"<header>"* @m_ostr2364, i32 1
+	%r200 = getelementptr %"<header>", %"<header>"* @m_ostr2400, i32 1
 	%r201 = load %oop, %oop* %t0
 	%r202 = call %oop @"m_%too-many-arguments.code"(%oop %r200, %oop %r201)
 	store %oop %r202, %oop* %t6
@@ -36348,47 +36595,47 @@ L21:
 	%r219 = inttoptr %word %r220 to %oop
 	ret %oop %r219
 }
-@m_cstr2365 = private unnamed_addr constant [29 x i8] c"set-string-at/evaluator-stub\00"
-@m_ostr2366 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2365 to ptr) }}
-@"m_set-string-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set-string-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2366 }}
-@m_cstr2367 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
-@m_ostr2368 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2367 to ptr) }}
-@m_cstr2369 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2370 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2369 to ptr) }}
-@m_cstr2371 = private unnamed_addr constant [7 x i8] c"string\00"
-@m_ostr2372 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2371 to ptr) }}
-@m_cstr2373 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2374 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2373 to ptr) }}
-@m_cstr2375 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr2376 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2375 to ptr) }}
-@m_cstr2377 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
-@m_ostr2378 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2377 to ptr) }}
-@m_cstr2379 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
-@m_ostr2380 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2379 to ptr) }}
-@m_cstr2381 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2382 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2381 to ptr) }}
-@m_cstr2383 = private unnamed_addr constant [6 x i8] c"index\00"
-@m_ostr2384 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2383 to ptr) }}
-@m_cstr2385 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2386 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2385 to ptr) }}
-@m_cstr2387 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2388 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2387 to ptr) }}
-@m_cstr2389 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
-@m_ostr2390 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2389 to ptr) }}
-@m_cstr2391 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
-@m_ostr2392 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2391 to ptr) }}
-@m_cstr2393 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2394 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2393 to ptr) }}
-@m_cstr2395 = private unnamed_addr constant [6 x i8] c"value\00"
-@m_ostr2396 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2395 to ptr) }}
-@m_cstr2397 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2398 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2397 to ptr) }}
-@m_cstr2399 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2400 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2399 to ptr) }}
-@m_cstr2401 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
-@m_ostr2402 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2401 to ptr) }}
+@m_cstr2401 = private unnamed_addr constant [29 x i8] c"set-string-at/evaluator-stub\00"
+@m_ostr2402 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2401 to ptr) }}
+@"m_set-string-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set-string-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2402 }}
 @m_cstr2403 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
 @m_ostr2404 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2403 to ptr) }}
+@m_cstr2405 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2406 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2405 to ptr) }}
+@m_cstr2407 = private unnamed_addr constant [7 x i8] c"string\00"
+@m_ostr2408 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2407 to ptr) }}
+@m_cstr2409 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2410 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2409 to ptr) }}
+@m_cstr2411 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr2412 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2411 to ptr) }}
+@m_cstr2413 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
+@m_ostr2414 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2413 to ptr) }}
+@m_cstr2415 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
+@m_ostr2416 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2415 to ptr) }}
+@m_cstr2417 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2418 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2417 to ptr) }}
+@m_cstr2419 = private unnamed_addr constant [6 x i8] c"index\00"
+@m_ostr2420 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2419 to ptr) }}
+@m_cstr2421 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2422 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2421 to ptr) }}
+@m_cstr2423 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2424 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2423 to ptr) }}
+@m_cstr2425 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
+@m_ostr2426 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2425 to ptr) }}
+@m_cstr2427 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
+@m_ostr2428 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2427 to ptr) }}
+@m_cstr2429 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2430 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2429 to ptr) }}
+@m_cstr2431 = private unnamed_addr constant [6 x i8] c"value\00"
+@m_ostr2432 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2431 to ptr) }}
+@m_cstr2433 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2434 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2433 to ptr) }}
+@m_cstr2435 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2436 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2435 to ptr) }}
+@m_cstr2437 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
+@m_ostr2438 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2437 to ptr) }}
+@m_cstr2439 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
+@m_ostr2440 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2439 to ptr) }}
 define %oop @"m_set-char-at/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -36436,15 +36683,15 @@ L1:
 	br i1 %r25, label %L5, label %L4
 L5:
 	%r27 = call %oop @m_error-prologue.code()
-	%r29 = getelementptr %"<header>", %"<header>"* @m_ostr2368, i32 1
+	%r29 = getelementptr %"<header>", %"<header>"* @m_ostr2404, i32 1
 	%r30 = call %oop @"m_%error.code"(%oop %r29)
-	%r32 = getelementptr %"<header>", %"<header>"* @m_ostr2370, i32 1
+	%r32 = getelementptr %"<header>", %"<header>"* @m_ostr2406, i32 1
 	%r33 = call %oop @"m_%error.code"(%oop %r32)
-	%r35 = getelementptr %"<header>", %"<header>"* @m_ostr2372, i32 1
+	%r35 = getelementptr %"<header>", %"<header>"* @m_ostr2408, i32 1
 	%r36 = call %oop @"m_%error.code"(%oop %r35)
-	%r38 = getelementptr %"<header>", %"<header>"* @m_ostr2374, i32 1
+	%r38 = getelementptr %"<header>", %"<header>"* @m_ostr2410, i32 1
 	%r39 = call %oop @"m_%error.code"(%oop %r38)
-	%r41 = getelementptr %"<header>", %"<header>"* @m_ostr2376, i32 1
+	%r41 = getelementptr %"<header>", %"<header>"* @m_ostr2412, i32 1
 	%r42 = call %oop @"m_%error.code"(%oop %r41)
 	%r44 = call %oop @m_error-epilogue.code()
 	store %oop %r44, %oop* %t7
@@ -36470,7 +36717,7 @@ L4:
 	store %oop %r56, %oop* %t6
 	br label %L3
 L2:
-	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2378, i32 1
+	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2414, i32 1
 	%r61 = load %oop, %oop* %t0
 	%r62 = call %oop @"m_%not-enough-arguments.code"(%oop %r60, %oop %r61)
 	store %oop %r62, %oop* %t6
@@ -36505,15 +36752,15 @@ L7:
 	br i1 %r85, label %L11, label %L10
 L11:
 	%r87 = call %oop @m_error-prologue.code()
-	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2380, i32 1
+	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2416, i32 1
 	%r90 = call %oop @"m_%error.code"(%oop %r89)
-	%r92 = getelementptr %"<header>", %"<header>"* @m_ostr2382, i32 1
+	%r92 = getelementptr %"<header>", %"<header>"* @m_ostr2418, i32 1
 	%r93 = call %oop @"m_%error.code"(%oop %r92)
-	%r95 = getelementptr %"<header>", %"<header>"* @m_ostr2384, i32 1
+	%r95 = getelementptr %"<header>", %"<header>"* @m_ostr2420, i32 1
 	%r96 = call %oop @"m_%error.code"(%oop %r95)
-	%r98 = getelementptr %"<header>", %"<header>"* @m_ostr2386, i32 1
+	%r98 = getelementptr %"<header>", %"<header>"* @m_ostr2422, i32 1
 	%r99 = call %oop @"m_%error.code"(%oop %r98)
-	%r101 = getelementptr %"<header>", %"<header>"* @m_ostr2388, i32 1
+	%r101 = getelementptr %"<header>", %"<header>"* @m_ostr2424, i32 1
 	%r102 = call %oop @"m_%error.code"(%oop %r101)
 	%r104 = call %oop @m_error-epilogue.code()
 	store %oop %r104, %oop* %t7
@@ -36546,7 +36793,7 @@ L10:
 	store %oop %r122, %oop* %t6
 	br label %L9
 L8:
-	%r126 = getelementptr %"<header>", %"<header>"* @m_ostr2390, i32 1
+	%r126 = getelementptr %"<header>", %"<header>"* @m_ostr2426, i32 1
 	%r127 = load %oop, %oop* %t0
 	%r128 = call %oop @"m_%not-enough-arguments.code"(%oop %r126, %oop %r127)
 	store %oop %r128, %oop* %t6
@@ -36581,15 +36828,15 @@ L13:
 	br i1 %r151, label %L17, label %L16
 L17:
 	%r153 = call %oop @m_error-prologue.code()
-	%r155 = getelementptr %"<header>", %"<header>"* @m_ostr2392, i32 1
+	%r155 = getelementptr %"<header>", %"<header>"* @m_ostr2428, i32 1
 	%r156 = call %oop @"m_%error.code"(%oop %r155)
-	%r158 = getelementptr %"<header>", %"<header>"* @m_ostr2394, i32 1
+	%r158 = getelementptr %"<header>", %"<header>"* @m_ostr2430, i32 1
 	%r159 = call %oop @"m_%error.code"(%oop %r158)
-	%r161 = getelementptr %"<header>", %"<header>"* @m_ostr2396, i32 1
+	%r161 = getelementptr %"<header>", %"<header>"* @m_ostr2432, i32 1
 	%r162 = call %oop @"m_%error.code"(%oop %r161)
-	%r164 = getelementptr %"<header>", %"<header>"* @m_ostr2398, i32 1
+	%r164 = getelementptr %"<header>", %"<header>"* @m_ostr2434, i32 1
 	%r165 = call %oop @"m_%error.code"(%oop %r164)
-	%r167 = getelementptr %"<header>", %"<header>"* @m_ostr2400, i32 1
+	%r167 = getelementptr %"<header>", %"<header>"* @m_ostr2436, i32 1
 	%r168 = call %oop @"m_%error.code"(%oop %r167)
 	%r170 = call %oop @m_error-epilogue.code()
 	store %oop %r170, %oop* %t7
@@ -36622,7 +36869,7 @@ L16:
 	store %oop %r188, %oop* %t6
 	br label %L15
 L14:
-	%r192 = getelementptr %"<header>", %"<header>"* @m_ostr2402, i32 1
+	%r192 = getelementptr %"<header>", %"<header>"* @m_ostr2438, i32 1
 	%r193 = load %oop, %oop* %t0
 	%r194 = call %oop @"m_%not-enough-arguments.code"(%oop %r192, %oop %r193)
 	store %oop %r194, %oop* %t6
@@ -36634,7 +36881,7 @@ L15:
 	%r198 = icmp ne %word %r199, 0
 	br i1 %r198, label %L19, label %L20
 L19:
-	%r200 = getelementptr %"<header>", %"<header>"* @m_ostr2404, i32 1
+	%r200 = getelementptr %"<header>", %"<header>"* @m_ostr2440, i32 1
 	%r201 = load %oop, %oop* %t0
 	%r202 = call %oop @"m_%too-many-arguments.code"(%oop %r200, %oop %r201)
 	store %oop %r202, %oop* %t6
@@ -36664,37 +36911,37 @@ L21:
 	%r220 = inttoptr %word %r221 to %oop
 	ret %oop %r220
 }
-@m_cstr2405 = private unnamed_addr constant [27 x i8] c"set-char-at/evaluator-stub\00"
-@m_ostr2406 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 53, ptr bitcast ([27 x i8]* @m_cstr2405 to ptr) }}
-@"m_set-char-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set-char-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2406 }}
-@m_cstr2407 = private unnamed_addr constant [13 x i8] c"array-insert\00"
-@m_ostr2408 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2407 to ptr) }}
-@m_cstr2409 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2410 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2409 to ptr) }}
-@m_cstr2411 = private unnamed_addr constant [6 x i8] c"array\00"
-@m_ostr2412 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2411 to ptr) }}
-@m_cstr2413 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2414 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2413 to ptr) }}
-@m_cstr2415 = private unnamed_addr constant [8 x i8] c"<array>\00"
-@m_ostr2416 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2415 to ptr) }}
-@m_cstr2417 = private unnamed_addr constant [13 x i8] c"array-insert\00"
-@m_ostr2418 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2417 to ptr) }}
-@m_cstr2419 = private unnamed_addr constant [13 x i8] c"array-insert\00"
-@m_ostr2420 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2419 to ptr) }}
-@m_cstr2421 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2422 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2421 to ptr) }}
-@m_cstr2423 = private unnamed_addr constant [6 x i8] c"index\00"
-@m_ostr2424 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2423 to ptr) }}
-@m_cstr2425 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2426 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2425 to ptr) }}
-@m_cstr2427 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2428 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2427 to ptr) }}
-@m_cstr2429 = private unnamed_addr constant [13 x i8] c"array-insert\00"
-@m_ostr2430 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2429 to ptr) }}
-@m_cstr2431 = private unnamed_addr constant [13 x i8] c"array-insert\00"
-@m_ostr2432 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2431 to ptr) }}
-@m_cstr2433 = private unnamed_addr constant [13 x i8] c"array-insert\00"
-@m_ostr2434 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2433 to ptr) }}
+@m_cstr2441 = private unnamed_addr constant [27 x i8] c"set-char-at/evaluator-stub\00"
+@m_ostr2442 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 53, ptr bitcast ([27 x i8]* @m_cstr2441 to ptr) }}
+@"m_set-char-at/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_set-char-at/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2442 }}
+@m_cstr2443 = private unnamed_addr constant [13 x i8] c"array-insert\00"
+@m_ostr2444 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2443 to ptr) }}
+@m_cstr2445 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2446 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2445 to ptr) }}
+@m_cstr2447 = private unnamed_addr constant [6 x i8] c"array\00"
+@m_ostr2448 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2447 to ptr) }}
+@m_cstr2449 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2450 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2449 to ptr) }}
+@m_cstr2451 = private unnamed_addr constant [8 x i8] c"<array>\00"
+@m_ostr2452 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2451 to ptr) }}
+@m_cstr2453 = private unnamed_addr constant [13 x i8] c"array-insert\00"
+@m_ostr2454 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2453 to ptr) }}
+@m_cstr2455 = private unnamed_addr constant [13 x i8] c"array-insert\00"
+@m_ostr2456 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2455 to ptr) }}
+@m_cstr2457 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2458 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2457 to ptr) }}
+@m_cstr2459 = private unnamed_addr constant [6 x i8] c"index\00"
+@m_ostr2460 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2459 to ptr) }}
+@m_cstr2461 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2462 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2461 to ptr) }}
+@m_cstr2463 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2464 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2463 to ptr) }}
+@m_cstr2465 = private unnamed_addr constant [13 x i8] c"array-insert\00"
+@m_ostr2466 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2465 to ptr) }}
+@m_cstr2467 = private unnamed_addr constant [13 x i8] c"array-insert\00"
+@m_ostr2468 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2467 to ptr) }}
+@m_cstr2469 = private unnamed_addr constant [13 x i8] c"array-insert\00"
+@m_ostr2470 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2469 to ptr) }}
 define %oop @"m_array-insert/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -36742,15 +36989,15 @@ L1:
 	br i1 %r25, label %L5, label %L4
 L5:
 	%r27 = call %oop @m_error-prologue.code()
-	%r29 = getelementptr %"<header>", %"<header>"* @m_ostr2408, i32 1
+	%r29 = getelementptr %"<header>", %"<header>"* @m_ostr2444, i32 1
 	%r30 = call %oop @"m_%error.code"(%oop %r29)
-	%r32 = getelementptr %"<header>", %"<header>"* @m_ostr2410, i32 1
+	%r32 = getelementptr %"<header>", %"<header>"* @m_ostr2446, i32 1
 	%r33 = call %oop @"m_%error.code"(%oop %r32)
-	%r35 = getelementptr %"<header>", %"<header>"* @m_ostr2412, i32 1
+	%r35 = getelementptr %"<header>", %"<header>"* @m_ostr2448, i32 1
 	%r36 = call %oop @"m_%error.code"(%oop %r35)
-	%r38 = getelementptr %"<header>", %"<header>"* @m_ostr2414, i32 1
+	%r38 = getelementptr %"<header>", %"<header>"* @m_ostr2450, i32 1
 	%r39 = call %oop @"m_%error.code"(%oop %r38)
-	%r41 = getelementptr %"<header>", %"<header>"* @m_ostr2416, i32 1
+	%r41 = getelementptr %"<header>", %"<header>"* @m_ostr2452, i32 1
 	%r42 = call %oop @"m_%error.code"(%oop %r41)
 	%r44 = call %oop @m_error-epilogue.code()
 	store %oop %r44, %oop* %t7
@@ -36776,7 +37023,7 @@ L4:
 	store %oop %r56, %oop* %t6
 	br label %L3
 L2:
-	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2418, i32 1
+	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2454, i32 1
 	%r61 = load %oop, %oop* %t0
 	%r62 = call %oop @"m_%not-enough-arguments.code"(%oop %r60, %oop %r61)
 	store %oop %r62, %oop* %t6
@@ -36811,15 +37058,15 @@ L7:
 	br i1 %r85, label %L11, label %L10
 L11:
 	%r87 = call %oop @m_error-prologue.code()
-	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2420, i32 1
+	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2456, i32 1
 	%r90 = call %oop @"m_%error.code"(%oop %r89)
-	%r92 = getelementptr %"<header>", %"<header>"* @m_ostr2422, i32 1
+	%r92 = getelementptr %"<header>", %"<header>"* @m_ostr2458, i32 1
 	%r93 = call %oop @"m_%error.code"(%oop %r92)
-	%r95 = getelementptr %"<header>", %"<header>"* @m_ostr2424, i32 1
+	%r95 = getelementptr %"<header>", %"<header>"* @m_ostr2460, i32 1
 	%r96 = call %oop @"m_%error.code"(%oop %r95)
-	%r98 = getelementptr %"<header>", %"<header>"* @m_ostr2426, i32 1
+	%r98 = getelementptr %"<header>", %"<header>"* @m_ostr2462, i32 1
 	%r99 = call %oop @"m_%error.code"(%oop %r98)
-	%r101 = getelementptr %"<header>", %"<header>"* @m_ostr2428, i32 1
+	%r101 = getelementptr %"<header>", %"<header>"* @m_ostr2464, i32 1
 	%r102 = call %oop @"m_%error.code"(%oop %r101)
 	%r104 = call %oop @m_error-epilogue.code()
 	store %oop %r104, %oop* %t7
@@ -36852,7 +37099,7 @@ L10:
 	store %oop %r122, %oop* %t6
 	br label %L9
 L8:
-	%r126 = getelementptr %"<header>", %"<header>"* @m_ostr2430, i32 1
+	%r126 = getelementptr %"<header>", %"<header>"* @m_ostr2466, i32 1
 	%r127 = load %oop, %oop* %t0
 	%r128 = call %oop @"m_%not-enough-arguments.code"(%oop %r126, %oop %r127)
 	store %oop %r128, %oop* %t6
@@ -36882,7 +37129,7 @@ L13:
 	store %oop %r144, %oop* %t6
 	br label %L15
 L14:
-	%r148 = getelementptr %"<header>", %"<header>"* @m_ostr2432, i32 1
+	%r148 = getelementptr %"<header>", %"<header>"* @m_ostr2468, i32 1
 	%r149 = load %oop, %oop* %t0
 	%r150 = call %oop @"m_%not-enough-arguments.code"(%oop %r148, %oop %r149)
 	store %oop %r150, %oop* %t6
@@ -36894,7 +37141,7 @@ L15:
 	%r154 = icmp ne %word %r155, 0
 	br i1 %r154, label %L16, label %L17
 L16:
-	%r156 = getelementptr %"<header>", %"<header>"* @m_ostr2434, i32 1
+	%r156 = getelementptr %"<header>", %"<header>"* @m_ostr2470, i32 1
 	%r157 = load %oop, %oop* %t0
 	%r158 = call %oop @"m_%too-many-arguments.code"(%oop %r156, %oop %r157)
 	store %oop %r158, %oop* %t6
@@ -36911,47 +37158,47 @@ L18:
 	%r165 = call %oop @m_array-insert.code(%oop %r162, %oop %r163, %oop %r164)
 	ret %oop %r165
 }
-@m_cstr2435 = private unnamed_addr constant [28 x i8] c"array-insert/evaluator-stub\00"
-@m_ostr2436 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 55, ptr bitcast ([28 x i8]* @m_cstr2435 to ptr) }}
-@"m_array-insert/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_array-insert/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2436 }}
-@m_cstr2437 = private unnamed_addr constant [14 x i8] c"string-insert\00"
-@m_ostr2438 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2437 to ptr) }}
-@m_cstr2439 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2440 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2439 to ptr) }}
-@m_cstr2441 = private unnamed_addr constant [7 x i8] c"string\00"
-@m_ostr2442 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2441 to ptr) }}
-@m_cstr2443 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2444 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2443 to ptr) }}
-@m_cstr2445 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr2446 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2445 to ptr) }}
-@m_cstr2447 = private unnamed_addr constant [14 x i8] c"string-insert\00"
-@m_ostr2448 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2447 to ptr) }}
-@m_cstr2449 = private unnamed_addr constant [14 x i8] c"string-insert\00"
-@m_ostr2450 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2449 to ptr) }}
-@m_cstr2451 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2452 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2451 to ptr) }}
-@m_cstr2453 = private unnamed_addr constant [6 x i8] c"index\00"
-@m_ostr2454 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2453 to ptr) }}
-@m_cstr2455 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2456 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2455 to ptr) }}
-@m_cstr2457 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2458 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2457 to ptr) }}
-@m_cstr2459 = private unnamed_addr constant [14 x i8] c"string-insert\00"
-@m_ostr2460 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2459 to ptr) }}
-@m_cstr2461 = private unnamed_addr constant [14 x i8] c"string-insert\00"
-@m_ostr2462 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2461 to ptr) }}
-@m_cstr2463 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2464 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2463 to ptr) }}
-@m_cstr2465 = private unnamed_addr constant [6 x i8] c"value\00"
-@m_ostr2466 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2465 to ptr) }}
-@m_cstr2467 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2468 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2467 to ptr) }}
-@m_cstr2469 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2470 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2469 to ptr) }}
-@m_cstr2471 = private unnamed_addr constant [14 x i8] c"string-insert\00"
-@m_ostr2472 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2471 to ptr) }}
+@m_cstr2471 = private unnamed_addr constant [28 x i8] c"array-insert/evaluator-stub\00"
+@m_ostr2472 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 55, ptr bitcast ([28 x i8]* @m_cstr2471 to ptr) }}
+@"m_array-insert/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_array-insert/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2472 }}
 @m_cstr2473 = private unnamed_addr constant [14 x i8] c"string-insert\00"
 @m_ostr2474 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2473 to ptr) }}
+@m_cstr2475 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2476 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2475 to ptr) }}
+@m_cstr2477 = private unnamed_addr constant [7 x i8] c"string\00"
+@m_ostr2478 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2477 to ptr) }}
+@m_cstr2479 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2480 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2479 to ptr) }}
+@m_cstr2481 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr2482 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2481 to ptr) }}
+@m_cstr2483 = private unnamed_addr constant [14 x i8] c"string-insert\00"
+@m_ostr2484 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2483 to ptr) }}
+@m_cstr2485 = private unnamed_addr constant [14 x i8] c"string-insert\00"
+@m_ostr2486 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2485 to ptr) }}
+@m_cstr2487 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2488 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2487 to ptr) }}
+@m_cstr2489 = private unnamed_addr constant [6 x i8] c"index\00"
+@m_ostr2490 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2489 to ptr) }}
+@m_cstr2491 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2492 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2491 to ptr) }}
+@m_cstr2493 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2494 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2493 to ptr) }}
+@m_cstr2495 = private unnamed_addr constant [14 x i8] c"string-insert\00"
+@m_ostr2496 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2495 to ptr) }}
+@m_cstr2497 = private unnamed_addr constant [14 x i8] c"string-insert\00"
+@m_ostr2498 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2497 to ptr) }}
+@m_cstr2499 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2500 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2499 to ptr) }}
+@m_cstr2501 = private unnamed_addr constant [6 x i8] c"value\00"
+@m_ostr2502 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2501 to ptr) }}
+@m_cstr2503 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2504 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2503 to ptr) }}
+@m_cstr2505 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2506 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2505 to ptr) }}
+@m_cstr2507 = private unnamed_addr constant [14 x i8] c"string-insert\00"
+@m_ostr2508 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2507 to ptr) }}
+@m_cstr2509 = private unnamed_addr constant [14 x i8] c"string-insert\00"
+@m_ostr2510 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2509 to ptr) }}
 define %oop @"m_string-insert/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -36999,15 +37246,15 @@ L1:
 	br i1 %r25, label %L5, label %L4
 L5:
 	%r27 = call %oop @m_error-prologue.code()
-	%r29 = getelementptr %"<header>", %"<header>"* @m_ostr2438, i32 1
+	%r29 = getelementptr %"<header>", %"<header>"* @m_ostr2474, i32 1
 	%r30 = call %oop @"m_%error.code"(%oop %r29)
-	%r32 = getelementptr %"<header>", %"<header>"* @m_ostr2440, i32 1
+	%r32 = getelementptr %"<header>", %"<header>"* @m_ostr2476, i32 1
 	%r33 = call %oop @"m_%error.code"(%oop %r32)
-	%r35 = getelementptr %"<header>", %"<header>"* @m_ostr2442, i32 1
+	%r35 = getelementptr %"<header>", %"<header>"* @m_ostr2478, i32 1
 	%r36 = call %oop @"m_%error.code"(%oop %r35)
-	%r38 = getelementptr %"<header>", %"<header>"* @m_ostr2444, i32 1
+	%r38 = getelementptr %"<header>", %"<header>"* @m_ostr2480, i32 1
 	%r39 = call %oop @"m_%error.code"(%oop %r38)
-	%r41 = getelementptr %"<header>", %"<header>"* @m_ostr2446, i32 1
+	%r41 = getelementptr %"<header>", %"<header>"* @m_ostr2482, i32 1
 	%r42 = call %oop @"m_%error.code"(%oop %r41)
 	%r44 = call %oop @m_error-epilogue.code()
 	store %oop %r44, %oop* %t7
@@ -37033,7 +37280,7 @@ L4:
 	store %oop %r56, %oop* %t6
 	br label %L3
 L2:
-	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2448, i32 1
+	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2484, i32 1
 	%r61 = load %oop, %oop* %t0
 	%r62 = call %oop @"m_%not-enough-arguments.code"(%oop %r60, %oop %r61)
 	store %oop %r62, %oop* %t6
@@ -37068,15 +37315,15 @@ L7:
 	br i1 %r85, label %L11, label %L10
 L11:
 	%r87 = call %oop @m_error-prologue.code()
-	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2450, i32 1
+	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2486, i32 1
 	%r90 = call %oop @"m_%error.code"(%oop %r89)
-	%r92 = getelementptr %"<header>", %"<header>"* @m_ostr2452, i32 1
+	%r92 = getelementptr %"<header>", %"<header>"* @m_ostr2488, i32 1
 	%r93 = call %oop @"m_%error.code"(%oop %r92)
-	%r95 = getelementptr %"<header>", %"<header>"* @m_ostr2454, i32 1
+	%r95 = getelementptr %"<header>", %"<header>"* @m_ostr2490, i32 1
 	%r96 = call %oop @"m_%error.code"(%oop %r95)
-	%r98 = getelementptr %"<header>", %"<header>"* @m_ostr2456, i32 1
+	%r98 = getelementptr %"<header>", %"<header>"* @m_ostr2492, i32 1
 	%r99 = call %oop @"m_%error.code"(%oop %r98)
-	%r101 = getelementptr %"<header>", %"<header>"* @m_ostr2458, i32 1
+	%r101 = getelementptr %"<header>", %"<header>"* @m_ostr2494, i32 1
 	%r102 = call %oop @"m_%error.code"(%oop %r101)
 	%r104 = call %oop @m_error-epilogue.code()
 	store %oop %r104, %oop* %t7
@@ -37109,7 +37356,7 @@ L10:
 	store %oop %r122, %oop* %t6
 	br label %L9
 L8:
-	%r126 = getelementptr %"<header>", %"<header>"* @m_ostr2460, i32 1
+	%r126 = getelementptr %"<header>", %"<header>"* @m_ostr2496, i32 1
 	%r127 = load %oop, %oop* %t0
 	%r128 = call %oop @"m_%not-enough-arguments.code"(%oop %r126, %oop %r127)
 	store %oop %r128, %oop* %t6
@@ -37144,15 +37391,15 @@ L13:
 	br i1 %r151, label %L17, label %L16
 L17:
 	%r153 = call %oop @m_error-prologue.code()
-	%r155 = getelementptr %"<header>", %"<header>"* @m_ostr2462, i32 1
+	%r155 = getelementptr %"<header>", %"<header>"* @m_ostr2498, i32 1
 	%r156 = call %oop @"m_%error.code"(%oop %r155)
-	%r158 = getelementptr %"<header>", %"<header>"* @m_ostr2464, i32 1
+	%r158 = getelementptr %"<header>", %"<header>"* @m_ostr2500, i32 1
 	%r159 = call %oop @"m_%error.code"(%oop %r158)
-	%r161 = getelementptr %"<header>", %"<header>"* @m_ostr2466, i32 1
+	%r161 = getelementptr %"<header>", %"<header>"* @m_ostr2502, i32 1
 	%r162 = call %oop @"m_%error.code"(%oop %r161)
-	%r164 = getelementptr %"<header>", %"<header>"* @m_ostr2468, i32 1
+	%r164 = getelementptr %"<header>", %"<header>"* @m_ostr2504, i32 1
 	%r165 = call %oop @"m_%error.code"(%oop %r164)
-	%r167 = getelementptr %"<header>", %"<header>"* @m_ostr2470, i32 1
+	%r167 = getelementptr %"<header>", %"<header>"* @m_ostr2506, i32 1
 	%r168 = call %oop @"m_%error.code"(%oop %r167)
 	%r170 = call %oop @m_error-epilogue.code()
 	store %oop %r170, %oop* %t7
@@ -37185,7 +37432,7 @@ L16:
 	store %oop %r188, %oop* %t6
 	br label %L15
 L14:
-	%r192 = getelementptr %"<header>", %"<header>"* @m_ostr2472, i32 1
+	%r192 = getelementptr %"<header>", %"<header>"* @m_ostr2508, i32 1
 	%r193 = load %oop, %oop* %t0
 	%r194 = call %oop @"m_%not-enough-arguments.code"(%oop %r192, %oop %r193)
 	store %oop %r194, %oop* %t6
@@ -37197,7 +37444,7 @@ L15:
 	%r198 = icmp ne %word %r199, 0
 	br i1 %r198, label %L19, label %L20
 L19:
-	%r200 = getelementptr %"<header>", %"<header>"* @m_ostr2474, i32 1
+	%r200 = getelementptr %"<header>", %"<header>"* @m_ostr2510, i32 1
 	%r201 = load %oop, %oop* %t0
 	%r202 = call %oop @"m_%too-many-arguments.code"(%oop %r200, %oop %r201)
 	store %oop %r202, %oop* %t6
@@ -37226,25 +37473,25 @@ L21:
 	%r219 = inttoptr %word %r220 to %oop
 	ret %oop %r219
 }
-@m_cstr2475 = private unnamed_addr constant [29 x i8] c"string-insert/evaluator-stub\00"
-@m_ostr2476 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2475 to ptr) }}
-@"m_string-insert/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string-insert/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2476 }}
-@m_cstr2477 = private unnamed_addr constant [13 x i8] c"array-append\00"
-@m_ostr2478 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2477 to ptr) }}
-@m_cstr2479 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2480 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2479 to ptr) }}
-@m_cstr2481 = private unnamed_addr constant [6 x i8] c"array\00"
-@m_ostr2482 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2481 to ptr) }}
-@m_cstr2483 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2484 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2483 to ptr) }}
-@m_cstr2485 = private unnamed_addr constant [8 x i8] c"<array>\00"
-@m_ostr2486 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2485 to ptr) }}
-@m_cstr2487 = private unnamed_addr constant [13 x i8] c"array-append\00"
-@m_ostr2488 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2487 to ptr) }}
-@m_cstr2489 = private unnamed_addr constant [13 x i8] c"array-append\00"
-@m_ostr2490 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2489 to ptr) }}
-@m_cstr2491 = private unnamed_addr constant [13 x i8] c"array-append\00"
-@m_ostr2492 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2491 to ptr) }}
+@m_cstr2511 = private unnamed_addr constant [29 x i8] c"string-insert/evaluator-stub\00"
+@m_ostr2512 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2511 to ptr) }}
+@"m_string-insert/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string-insert/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2512 }}
+@m_cstr2513 = private unnamed_addr constant [13 x i8] c"array-append\00"
+@m_ostr2514 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2513 to ptr) }}
+@m_cstr2515 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2516 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2515 to ptr) }}
+@m_cstr2517 = private unnamed_addr constant [6 x i8] c"array\00"
+@m_ostr2518 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2517 to ptr) }}
+@m_cstr2519 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2520 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2519 to ptr) }}
+@m_cstr2521 = private unnamed_addr constant [8 x i8] c"<array>\00"
+@m_ostr2522 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2521 to ptr) }}
+@m_cstr2523 = private unnamed_addr constant [13 x i8] c"array-append\00"
+@m_ostr2524 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2523 to ptr) }}
+@m_cstr2525 = private unnamed_addr constant [13 x i8] c"array-append\00"
+@m_ostr2526 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2525 to ptr) }}
+@m_cstr2527 = private unnamed_addr constant [13 x i8] c"array-append\00"
+@m_ostr2528 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2527 to ptr) }}
 define %oop @"m_array-append/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -37289,15 +37536,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2478, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2514, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2480, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2516, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2482, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2518, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2484, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2520, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2486, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2522, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -37323,7 +37570,7 @@ L4:
 	store %oop %r55, %oop* %t5
 	br label %L3
 L2:
-	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2488, i32 1
+	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2524, i32 1
 	%r60 = load %oop, %oop* %t0
 	%r61 = call %oop @"m_%not-enough-arguments.code"(%oop %r59, %oop %r60)
 	store %oop %r61, %oop* %t5
@@ -37353,7 +37600,7 @@ L7:
 	store %oop %r77, %oop* %t5
 	br label %L9
 L8:
-	%r81 = getelementptr %"<header>", %"<header>"* @m_ostr2490, i32 1
+	%r81 = getelementptr %"<header>", %"<header>"* @m_ostr2526, i32 1
 	%r82 = load %oop, %oop* %t0
 	%r83 = call %oop @"m_%not-enough-arguments.code"(%oop %r81, %oop %r82)
 	store %oop %r83, %oop* %t5
@@ -37365,7 +37612,7 @@ L9:
 	%r87 = icmp ne %word %r88, 0
 	br i1 %r87, label %L10, label %L11
 L10:
-	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2492, i32 1
+	%r89 = getelementptr %"<header>", %"<header>"* @m_ostr2528, i32 1
 	%r90 = load %oop, %oop* %t0
 	%r91 = call %oop @"m_%too-many-arguments.code"(%oop %r89, %oop %r90)
 	store %oop %r91, %oop* %t5
@@ -37381,35 +37628,35 @@ L12:
 	%r97 = call %oop @m_array-append.code(%oop %r95, %oop %r96)
 	ret %oop %r97
 }
-@m_cstr2493 = private unnamed_addr constant [28 x i8] c"array-append/evaluator-stub\00"
-@m_ostr2494 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 55, ptr bitcast ([28 x i8]* @m_cstr2493 to ptr) }}
-@"m_array-append/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_array-append/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2494 }}
-@m_cstr2495 = private unnamed_addr constant [14 x i8] c"string-append\00"
-@m_ostr2496 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2495 to ptr) }}
-@m_cstr2497 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2498 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2497 to ptr) }}
-@m_cstr2499 = private unnamed_addr constant [7 x i8] c"string\00"
-@m_ostr2500 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2499 to ptr) }}
-@m_cstr2501 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2502 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2501 to ptr) }}
-@m_cstr2503 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr2504 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2503 to ptr) }}
-@m_cstr2505 = private unnamed_addr constant [14 x i8] c"string-append\00"
-@m_ostr2506 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2505 to ptr) }}
-@m_cstr2507 = private unnamed_addr constant [14 x i8] c"string-append\00"
-@m_ostr2508 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2507 to ptr) }}
-@m_cstr2509 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2510 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2509 to ptr) }}
-@m_cstr2511 = private unnamed_addr constant [6 x i8] c"value\00"
-@m_ostr2512 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2511 to ptr) }}
-@m_cstr2513 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2514 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2513 to ptr) }}
-@m_cstr2515 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2516 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2515 to ptr) }}
-@m_cstr2517 = private unnamed_addr constant [14 x i8] c"string-append\00"
-@m_ostr2518 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2517 to ptr) }}
-@m_cstr2519 = private unnamed_addr constant [14 x i8] c"string-append\00"
-@m_ostr2520 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2519 to ptr) }}
+@m_cstr2529 = private unnamed_addr constant [28 x i8] c"array-append/evaluator-stub\00"
+@m_ostr2530 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 55, ptr bitcast ([28 x i8]* @m_cstr2529 to ptr) }}
+@"m_array-append/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_array-append/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2530 }}
+@m_cstr2531 = private unnamed_addr constant [14 x i8] c"string-append\00"
+@m_ostr2532 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2531 to ptr) }}
+@m_cstr2533 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2534 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2533 to ptr) }}
+@m_cstr2535 = private unnamed_addr constant [7 x i8] c"string\00"
+@m_ostr2536 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2535 to ptr) }}
+@m_cstr2537 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2538 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2537 to ptr) }}
+@m_cstr2539 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr2540 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2539 to ptr) }}
+@m_cstr2541 = private unnamed_addr constant [14 x i8] c"string-append\00"
+@m_ostr2542 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2541 to ptr) }}
+@m_cstr2543 = private unnamed_addr constant [14 x i8] c"string-append\00"
+@m_ostr2544 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2543 to ptr) }}
+@m_cstr2545 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2546 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2545 to ptr) }}
+@m_cstr2547 = private unnamed_addr constant [6 x i8] c"value\00"
+@m_ostr2548 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2547 to ptr) }}
+@m_cstr2549 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2550 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2549 to ptr) }}
+@m_cstr2551 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2552 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2551 to ptr) }}
+@m_cstr2553 = private unnamed_addr constant [14 x i8] c"string-append\00"
+@m_ostr2554 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2553 to ptr) }}
+@m_cstr2555 = private unnamed_addr constant [14 x i8] c"string-append\00"
+@m_ostr2556 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2555 to ptr) }}
 define %oop @"m_string-append/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -37454,15 +37701,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2496, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2532, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2498, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2534, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2500, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2536, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2502, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2538, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2504, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2540, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -37488,7 +37735,7 @@ L4:
 	store %oop %r55, %oop* %t5
 	br label %L3
 L2:
-	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2506, i32 1
+	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2542, i32 1
 	%r60 = load %oop, %oop* %t0
 	%r61 = call %oop @"m_%not-enough-arguments.code"(%oop %r59, %oop %r60)
 	store %oop %r61, %oop* %t5
@@ -37523,15 +37770,15 @@ L7:
 	br i1 %r84, label %L11, label %L10
 L11:
 	%r86 = call %oop @m_error-prologue.code()
-	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2508, i32 1
+	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2544, i32 1
 	%r89 = call %oop @"m_%error.code"(%oop %r88)
-	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2510, i32 1
+	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2546, i32 1
 	%r92 = call %oop @"m_%error.code"(%oop %r91)
-	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2512, i32 1
+	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2548, i32 1
 	%r95 = call %oop @"m_%error.code"(%oop %r94)
-	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2514, i32 1
+	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2550, i32 1
 	%r98 = call %oop @"m_%error.code"(%oop %r97)
-	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2516, i32 1
+	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2552, i32 1
 	%r101 = call %oop @"m_%error.code"(%oop %r100)
 	%r103 = call %oop @m_error-epilogue.code()
 	store %oop %r103, %oop* %t6
@@ -37564,7 +37811,7 @@ L10:
 	store %oop %r121, %oop* %t5
 	br label %L9
 L8:
-	%r125 = getelementptr %"<header>", %"<header>"* @m_ostr2518, i32 1
+	%r125 = getelementptr %"<header>", %"<header>"* @m_ostr2554, i32 1
 	%r126 = load %oop, %oop* %t0
 	%r127 = call %oop @"m_%not-enough-arguments.code"(%oop %r125, %oop %r126)
 	store %oop %r127, %oop* %t5
@@ -37576,7 +37823,7 @@ L9:
 	%r131 = icmp ne %word %r132, 0
 	br i1 %r131, label %L13, label %L14
 L13:
-	%r133 = getelementptr %"<header>", %"<header>"* @m_ostr2520, i32 1
+	%r133 = getelementptr %"<header>", %"<header>"* @m_ostr2556, i32 1
 	%r134 = load %oop, %oop* %t0
 	%r135 = call %oop @"m_%too-many-arguments.code"(%oop %r133, %oop %r134)
 	store %oop %r135, %oop* %t5
@@ -37603,9 +37850,9 @@ L15:
 	%r150 = inttoptr %word %r151 to %oop
 	ret %oop %r150
 }
-@m_cstr2521 = private unnamed_addr constant [29 x i8] c"string-append/evaluator-stub\00"
-@m_ostr2522 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2521 to ptr) }}
-@"m_string-append/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string-append/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2522 }}
+@m_cstr2557 = private unnamed_addr constant [29 x i8] c"string-append/evaluator-stub\00"
+@m_ostr2558 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2557 to ptr) }}
+@"m_string-append/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string-append/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2558 }}
 define %oop @"m_number->string.code"(%oop %num, %oop %radix) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -37616,33 +37863,33 @@ define %oop @"m_number->string.code"(%oop %num, %oop %radix) {
 	%r3 = call %oop @"m_long->string*.code"(%oop %r1, %oop %r2)
 	ret %oop %r3
 }
-@m_cstr2523 = private unnamed_addr constant [15 x i8] c"number->string\00"
-@m_ostr2524 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2523 to ptr) }}
-@"m_number->string" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_number->string.code" to %oop), %"<string-h>"* @m_ostr2524 }}
-@m_cstr2525 = private unnamed_addr constant [15 x i8] c"number->string\00"
-@m_ostr2526 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2525 to ptr) }}
-@m_cstr2527 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2528 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2527 to ptr) }}
-@m_cstr2529 = private unnamed_addr constant [4 x i8] c"num\00"
-@m_ostr2530 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2529 to ptr) }}
-@m_cstr2531 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2532 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2531 to ptr) }}
-@m_cstr2533 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2534 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2533 to ptr) }}
-@m_cstr2535 = private unnamed_addr constant [15 x i8] c"number->string\00"
-@m_ostr2536 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2535 to ptr) }}
-@m_cstr2537 = private unnamed_addr constant [15 x i8] c"number->string\00"
-@m_ostr2538 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2537 to ptr) }}
-@m_cstr2539 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2540 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2539 to ptr) }}
-@m_cstr2541 = private unnamed_addr constant [6 x i8] c"radix\00"
-@m_ostr2542 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2541 to ptr) }}
-@m_cstr2543 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2544 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2543 to ptr) }}
-@m_cstr2545 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2546 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2545 to ptr) }}
-@m_cstr2547 = private unnamed_addr constant [15 x i8] c"number->string\00"
-@m_ostr2548 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2547 to ptr) }}
+@m_cstr2559 = private unnamed_addr constant [15 x i8] c"number->string\00"
+@m_ostr2560 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2559 to ptr) }}
+@"m_number->string" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_number->string.code" to %oop), %"<string-h>"* @m_ostr2560 }}
+@m_cstr2561 = private unnamed_addr constant [15 x i8] c"number->string\00"
+@m_ostr2562 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2561 to ptr) }}
+@m_cstr2563 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2564 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2563 to ptr) }}
+@m_cstr2565 = private unnamed_addr constant [4 x i8] c"num\00"
+@m_ostr2566 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2565 to ptr) }}
+@m_cstr2567 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2568 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2567 to ptr) }}
+@m_cstr2569 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2570 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2569 to ptr) }}
+@m_cstr2571 = private unnamed_addr constant [15 x i8] c"number->string\00"
+@m_ostr2572 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2571 to ptr) }}
+@m_cstr2573 = private unnamed_addr constant [15 x i8] c"number->string\00"
+@m_ostr2574 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2573 to ptr) }}
+@m_cstr2575 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2576 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2575 to ptr) }}
+@m_cstr2577 = private unnamed_addr constant [6 x i8] c"radix\00"
+@m_ostr2578 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2577 to ptr) }}
+@m_cstr2579 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2580 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2579 to ptr) }}
+@m_cstr2581 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2582 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2581 to ptr) }}
+@m_cstr2583 = private unnamed_addr constant [15 x i8] c"number->string\00"
+@m_ostr2584 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2583 to ptr) }}
 define %oop @"m_number->string/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -37687,15 +37934,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2526, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2562, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2528, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2564, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2530, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2566, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2532, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2568, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2534, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2570, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -37728,7 +37975,7 @@ L4:
 	store %oop %r61, %oop* %t5
 	br label %L3
 L2:
-	%r65 = getelementptr %"<header>", %"<header>"* @m_ostr2536, i32 1
+	%r65 = getelementptr %"<header>", %"<header>"* @m_ostr2572, i32 1
 	%r66 = load %oop, %oop* %t0
 	%r67 = call %oop @"m_%not-enough-arguments.code"(%oop %r65, %oop %r66)
 	store %oop %r67, %oop* %t5
@@ -37763,15 +38010,15 @@ L7:
 	br i1 %r90, label %L11, label %L10
 L11:
 	%r92 = call %oop @m_error-prologue.code()
-	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2538, i32 1
+	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2574, i32 1
 	%r95 = call %oop @"m_%error.code"(%oop %r94)
-	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2540, i32 1
+	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2576, i32 1
 	%r98 = call %oop @"m_%error.code"(%oop %r97)
-	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2542, i32 1
+	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2578, i32 1
 	%r101 = call %oop @"m_%error.code"(%oop %r100)
-	%r103 = getelementptr %"<header>", %"<header>"* @m_ostr2544, i32 1
+	%r103 = getelementptr %"<header>", %"<header>"* @m_ostr2580, i32 1
 	%r104 = call %oop @"m_%error.code"(%oop %r103)
-	%r106 = getelementptr %"<header>", %"<header>"* @m_ostr2546, i32 1
+	%r106 = getelementptr %"<header>", %"<header>"* @m_ostr2582, i32 1
 	%r107 = call %oop @"m_%error.code"(%oop %r106)
 	%r109 = call %oop @m_error-epilogue.code()
 	store %oop %r109, %oop* %t6
@@ -37815,7 +38062,7 @@ L9:
 	%r134 = icmp ne %word %r135, 0
 	br i1 %r134, label %L13, label %L14
 L13:
-	%r136 = getelementptr %"<header>", %"<header>"* @m_ostr2548, i32 1
+	%r136 = getelementptr %"<header>", %"<header>"* @m_ostr2584, i32 1
 	%r137 = load %oop, %oop* %t0
 	%r138 = call %oop @"m_%too-many-arguments.code"(%oop %r136, %oop %r137)
 	store %oop %r138, %oop* %t5
@@ -37831,9 +38078,9 @@ L15:
 	%r144 = call %oop @"m_number->string.code"(%oop %r142, %oop %r143)
 	ret %oop %r144
 }
-@m_cstr2549 = private unnamed_addr constant [30 x i8] c"number->string/evaluator-stub\00"
-@m_ostr2550 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 59, ptr bitcast ([30 x i8]* @m_cstr2549 to ptr) }}
-@"m_number->string/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_number->string/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2550 }}
+@m_cstr2585 = private unnamed_addr constant [30 x i8] c"number->string/evaluator-stub\00"
+@m_ostr2586 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 59, ptr bitcast ([30 x i8]* @m_cstr2585 to ptr) }}
+@"m_number->string/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_number->string/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2586 }}
 define %oop @"m_integer->string.code"(%oop %num, %oop %radix) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -37844,33 +38091,33 @@ define %oop @"m_integer->string.code"(%oop %num, %oop %radix) {
 	%r3 = call %oop @"m_long->string*.code"(%oop %r1, %oop %r2)
 	ret %oop %r3
 }
-@m_cstr2551 = private unnamed_addr constant [16 x i8] c"integer->string\00"
-@m_ostr2552 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2551 to ptr) }}
-@"m_integer->string" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_integer->string.code" to %oop), %"<string-h>"* @m_ostr2552 }}
-@m_cstr2553 = private unnamed_addr constant [16 x i8] c"integer->string\00"
-@m_ostr2554 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2553 to ptr) }}
-@m_cstr2555 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2556 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2555 to ptr) }}
-@m_cstr2557 = private unnamed_addr constant [4 x i8] c"num\00"
-@m_ostr2558 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2557 to ptr) }}
-@m_cstr2559 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2560 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2559 to ptr) }}
-@m_cstr2561 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2562 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2561 to ptr) }}
-@m_cstr2563 = private unnamed_addr constant [16 x i8] c"integer->string\00"
-@m_ostr2564 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2563 to ptr) }}
-@m_cstr2565 = private unnamed_addr constant [16 x i8] c"integer->string\00"
-@m_ostr2566 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2565 to ptr) }}
-@m_cstr2567 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2568 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2567 to ptr) }}
-@m_cstr2569 = private unnamed_addr constant [6 x i8] c"radix\00"
-@m_ostr2570 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2569 to ptr) }}
-@m_cstr2571 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2572 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2571 to ptr) }}
-@m_cstr2573 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2574 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2573 to ptr) }}
-@m_cstr2575 = private unnamed_addr constant [16 x i8] c"integer->string\00"
-@m_ostr2576 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2575 to ptr) }}
+@m_cstr2587 = private unnamed_addr constant [16 x i8] c"integer->string\00"
+@m_ostr2588 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2587 to ptr) }}
+@"m_integer->string" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_integer->string.code" to %oop), %"<string-h>"* @m_ostr2588 }}
+@m_cstr2589 = private unnamed_addr constant [16 x i8] c"integer->string\00"
+@m_ostr2590 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2589 to ptr) }}
+@m_cstr2591 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2592 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2591 to ptr) }}
+@m_cstr2593 = private unnamed_addr constant [4 x i8] c"num\00"
+@m_ostr2594 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2593 to ptr) }}
+@m_cstr2595 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2596 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2595 to ptr) }}
+@m_cstr2597 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2598 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2597 to ptr) }}
+@m_cstr2599 = private unnamed_addr constant [16 x i8] c"integer->string\00"
+@m_ostr2600 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2599 to ptr) }}
+@m_cstr2601 = private unnamed_addr constant [16 x i8] c"integer->string\00"
+@m_ostr2602 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2601 to ptr) }}
+@m_cstr2603 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2604 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2603 to ptr) }}
+@m_cstr2605 = private unnamed_addr constant [6 x i8] c"radix\00"
+@m_ostr2606 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2605 to ptr) }}
+@m_cstr2607 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2608 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2607 to ptr) }}
+@m_cstr2609 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2610 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2609 to ptr) }}
+@m_cstr2611 = private unnamed_addr constant [16 x i8] c"integer->string\00"
+@m_ostr2612 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2611 to ptr) }}
 define %oop @"m_integer->string/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -37915,15 +38162,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2554, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2590, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2556, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2592, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2558, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2594, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2560, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2596, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2562, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2598, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -37956,7 +38203,7 @@ L4:
 	store %oop %r61, %oop* %t5
 	br label %L3
 L2:
-	%r65 = getelementptr %"<header>", %"<header>"* @m_ostr2564, i32 1
+	%r65 = getelementptr %"<header>", %"<header>"* @m_ostr2600, i32 1
 	%r66 = load %oop, %oop* %t0
 	%r67 = call %oop @"m_%not-enough-arguments.code"(%oop %r65, %oop %r66)
 	store %oop %r67, %oop* %t5
@@ -37991,15 +38238,15 @@ L7:
 	br i1 %r90, label %L11, label %L10
 L11:
 	%r92 = call %oop @m_error-prologue.code()
-	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2566, i32 1
+	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2602, i32 1
 	%r95 = call %oop @"m_%error.code"(%oop %r94)
-	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2568, i32 1
+	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2604, i32 1
 	%r98 = call %oop @"m_%error.code"(%oop %r97)
-	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2570, i32 1
+	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2606, i32 1
 	%r101 = call %oop @"m_%error.code"(%oop %r100)
-	%r103 = getelementptr %"<header>", %"<header>"* @m_ostr2572, i32 1
+	%r103 = getelementptr %"<header>", %"<header>"* @m_ostr2608, i32 1
 	%r104 = call %oop @"m_%error.code"(%oop %r103)
-	%r106 = getelementptr %"<header>", %"<header>"* @m_ostr2574, i32 1
+	%r106 = getelementptr %"<header>", %"<header>"* @m_ostr2610, i32 1
 	%r107 = call %oop @"m_%error.code"(%oop %r106)
 	%r109 = call %oop @m_error-epilogue.code()
 	store %oop %r109, %oop* %t6
@@ -38043,7 +38290,7 @@ L9:
 	%r134 = icmp ne %word %r135, 0
 	br i1 %r134, label %L13, label %L14
 L13:
-	%r136 = getelementptr %"<header>", %"<header>"* @m_ostr2576, i32 1
+	%r136 = getelementptr %"<header>", %"<header>"* @m_ostr2612, i32 1
 	%r137 = load %oop, %oop* %t0
 	%r138 = call %oop @"m_%too-many-arguments.code"(%oop %r136, %oop %r137)
 	store %oop %r138, %oop* %t5
@@ -38059,11 +38306,11 @@ L15:
 	%r144 = call %oop @"m_integer->string.code"(%oop %r142, %oop %r143)
 	ret %oop %r144
 }
-@m_cstr2577 = private unnamed_addr constant [31 x i8] c"integer->string/evaluator-stub\00"
-@m_ostr2578 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 61, ptr bitcast ([31 x i8]* @m_cstr2577 to ptr) }}
-@"m_integer->string/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_integer->string/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2578 }}
-@m_cstr2579 = private unnamed_addr constant [28 x i8] c"string->number: failed for \00"
-@m_ostr2580 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 55, ptr bitcast ([28 x i8]* @m_cstr2579 to ptr) }}
+@m_cstr2613 = private unnamed_addr constant [31 x i8] c"integer->string/evaluator-stub\00"
+@m_ostr2614 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 61, ptr bitcast ([31 x i8]* @m_cstr2613 to ptr) }}
+@"m_integer->string/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_integer->string/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2614 }}
+@m_cstr2615 = private unnamed_addr constant [28 x i8] c"string->number: failed for \00"
+@m_ostr2616 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 55, ptr bitcast ([28 x i8]* @m_cstr2615 to ptr) }}
 define %oop @"m_string->number.code"(%oop %str, %oop %radix) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -38086,7 +38333,7 @@ define %oop @"m_string->number.code"(%oop %str, %oop %radix) {
 	br i1 %r11, label %L1, label %L2
 L1:
 	%r13 = call %oop @m_error-prologue.code()
-	%r15 = getelementptr %"<header>", %"<header>"* @m_ostr2580, i32 1
+	%r15 = getelementptr %"<header>", %"<header>"* @m_ostr2616, i32 1
 	%r16 = call %oop @"m_%error.code"(%oop %r15)
 	%r18 = load %oop, %oop* %t0
 	%r19 = call %oop @"m_%error.code"(%oop %r18)
@@ -38112,33 +38359,33 @@ L3:
 	%r32 = inttoptr %word %r33 to %oop
 	ret %oop %r32
 }
-@m_cstr2581 = private unnamed_addr constant [15 x i8] c"string->number\00"
-@m_ostr2582 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2581 to ptr) }}
-@"m_string->number" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string->number.code" to %oop), %"<string-h>"* @m_ostr2582 }}
-@m_cstr2583 = private unnamed_addr constant [15 x i8] c"string->number\00"
-@m_ostr2584 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2583 to ptr) }}
-@m_cstr2585 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2586 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2585 to ptr) }}
-@m_cstr2587 = private unnamed_addr constant [4 x i8] c"str\00"
-@m_ostr2588 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2587 to ptr) }}
-@m_cstr2589 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2590 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2589 to ptr) }}
-@m_cstr2591 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr2592 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2591 to ptr) }}
-@m_cstr2593 = private unnamed_addr constant [15 x i8] c"string->number\00"
-@m_ostr2594 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2593 to ptr) }}
-@m_cstr2595 = private unnamed_addr constant [15 x i8] c"string->number\00"
-@m_ostr2596 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2595 to ptr) }}
-@m_cstr2597 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2598 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2597 to ptr) }}
-@m_cstr2599 = private unnamed_addr constant [6 x i8] c"radix\00"
-@m_ostr2600 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2599 to ptr) }}
-@m_cstr2601 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2602 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2601 to ptr) }}
-@m_cstr2603 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2604 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2603 to ptr) }}
-@m_cstr2605 = private unnamed_addr constant [15 x i8] c"string->number\00"
-@m_ostr2606 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2605 to ptr) }}
+@m_cstr2617 = private unnamed_addr constant [15 x i8] c"string->number\00"
+@m_ostr2618 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2617 to ptr) }}
+@"m_string->number" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string->number.code" to %oop), %"<string-h>"* @m_ostr2618 }}
+@m_cstr2619 = private unnamed_addr constant [15 x i8] c"string->number\00"
+@m_ostr2620 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2619 to ptr) }}
+@m_cstr2621 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2622 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2621 to ptr) }}
+@m_cstr2623 = private unnamed_addr constant [4 x i8] c"str\00"
+@m_ostr2624 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2623 to ptr) }}
+@m_cstr2625 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2626 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2625 to ptr) }}
+@m_cstr2627 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr2628 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2627 to ptr) }}
+@m_cstr2629 = private unnamed_addr constant [15 x i8] c"string->number\00"
+@m_ostr2630 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2629 to ptr) }}
+@m_cstr2631 = private unnamed_addr constant [15 x i8] c"string->number\00"
+@m_ostr2632 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2631 to ptr) }}
+@m_cstr2633 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2634 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2633 to ptr) }}
+@m_cstr2635 = private unnamed_addr constant [6 x i8] c"radix\00"
+@m_ostr2636 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2635 to ptr) }}
+@m_cstr2637 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2638 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2637 to ptr) }}
+@m_cstr2639 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2640 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2639 to ptr) }}
+@m_cstr2641 = private unnamed_addr constant [15 x i8] c"string->number\00"
+@m_ostr2642 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2641 to ptr) }}
 define %oop @"m_string->number/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -38183,15 +38430,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2584, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2620, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2586, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2622, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2588, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2624, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2590, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2626, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2592, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2628, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -38217,7 +38464,7 @@ L4:
 	store %oop %r55, %oop* %t5
 	br label %L3
 L2:
-	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2594, i32 1
+	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2630, i32 1
 	%r60 = load %oop, %oop* %t0
 	%r61 = call %oop @"m_%not-enough-arguments.code"(%oop %r59, %oop %r60)
 	store %oop %r61, %oop* %t5
@@ -38252,15 +38499,15 @@ L7:
 	br i1 %r84, label %L11, label %L10
 L11:
 	%r86 = call %oop @m_error-prologue.code()
-	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2596, i32 1
+	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2632, i32 1
 	%r89 = call %oop @"m_%error.code"(%oop %r88)
-	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2598, i32 1
+	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2634, i32 1
 	%r92 = call %oop @"m_%error.code"(%oop %r91)
-	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2600, i32 1
+	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2636, i32 1
 	%r95 = call %oop @"m_%error.code"(%oop %r94)
-	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2602, i32 1
+	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2638, i32 1
 	%r98 = call %oop @"m_%error.code"(%oop %r97)
-	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2604, i32 1
+	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2640, i32 1
 	%r101 = call %oop @"m_%error.code"(%oop %r100)
 	%r103 = call %oop @m_error-epilogue.code()
 	store %oop %r103, %oop* %t6
@@ -38304,7 +38551,7 @@ L9:
 	%r128 = icmp ne %word %r129, 0
 	br i1 %r128, label %L13, label %L14
 L13:
-	%r130 = getelementptr %"<header>", %"<header>"* @m_ostr2606, i32 1
+	%r130 = getelementptr %"<header>", %"<header>"* @m_ostr2642, i32 1
 	%r131 = load %oop, %oop* %t0
 	%r132 = call %oop @"m_%too-many-arguments.code"(%oop %r130, %oop %r131)
 	store %oop %r132, %oop* %t5
@@ -38320,11 +38567,11 @@ L15:
 	%r138 = call %oop @"m_string->number.code"(%oop %r136, %oop %r137)
 	ret %oop %r138
 }
-@m_cstr2607 = private unnamed_addr constant [30 x i8] c"string->number/evaluator-stub\00"
-@m_ostr2608 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 59, ptr bitcast ([30 x i8]* @m_cstr2607 to ptr) }}
-@"m_string->number/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string->number/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2608 }}
-@m_cstr2609 = private unnamed_addr constant [29 x i8] c"string->integer: failed for \00"
-@m_ostr2610 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2609 to ptr) }}
+@m_cstr2643 = private unnamed_addr constant [30 x i8] c"string->number/evaluator-stub\00"
+@m_ostr2644 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 59, ptr bitcast ([30 x i8]* @m_cstr2643 to ptr) }}
+@"m_string->number/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string->number/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2644 }}
+@m_cstr2645 = private unnamed_addr constant [29 x i8] c"string->integer: failed for \00"
+@m_ostr2646 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2645 to ptr) }}
 define %oop @"m_string->integer.code"(%oop %str, %oop %radix) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -38347,7 +38594,7 @@ define %oop @"m_string->integer.code"(%oop %str, %oop %radix) {
 	br i1 %r11, label %L1, label %L2
 L1:
 	%r13 = call %oop @m_error-prologue.code()
-	%r15 = getelementptr %"<header>", %"<header>"* @m_ostr2610, i32 1
+	%r15 = getelementptr %"<header>", %"<header>"* @m_ostr2646, i32 1
 	%r16 = call %oop @"m_%error.code"(%oop %r15)
 	%r18 = load %oop, %oop* %t0
 	%r19 = call %oop @"m_%error.code"(%oop %r18)
@@ -38373,33 +38620,33 @@ L3:
 	%r32 = inttoptr %word %r33 to %oop
 	ret %oop %r32
 }
-@m_cstr2611 = private unnamed_addr constant [16 x i8] c"string->integer\00"
-@m_ostr2612 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2611 to ptr) }}
-@"m_string->integer" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string->integer.code" to %oop), %"<string-h>"* @m_ostr2612 }}
-@m_cstr2613 = private unnamed_addr constant [16 x i8] c"string->integer\00"
-@m_ostr2614 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2613 to ptr) }}
-@m_cstr2615 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2616 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2615 to ptr) }}
-@m_cstr2617 = private unnamed_addr constant [4 x i8] c"str\00"
-@m_ostr2618 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2617 to ptr) }}
-@m_cstr2619 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2620 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2619 to ptr) }}
-@m_cstr2621 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr2622 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2621 to ptr) }}
-@m_cstr2623 = private unnamed_addr constant [16 x i8] c"string->integer\00"
-@m_ostr2624 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2623 to ptr) }}
-@m_cstr2625 = private unnamed_addr constant [16 x i8] c"string->integer\00"
-@m_ostr2626 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2625 to ptr) }}
-@m_cstr2627 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2628 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2627 to ptr) }}
-@m_cstr2629 = private unnamed_addr constant [6 x i8] c"radix\00"
-@m_ostr2630 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2629 to ptr) }}
-@m_cstr2631 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2632 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2631 to ptr) }}
-@m_cstr2633 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2634 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2633 to ptr) }}
-@m_cstr2635 = private unnamed_addr constant [16 x i8] c"string->integer\00"
-@m_ostr2636 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2635 to ptr) }}
+@m_cstr2647 = private unnamed_addr constant [16 x i8] c"string->integer\00"
+@m_ostr2648 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2647 to ptr) }}
+@"m_string->integer" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string->integer.code" to %oop), %"<string-h>"* @m_ostr2648 }}
+@m_cstr2649 = private unnamed_addr constant [16 x i8] c"string->integer\00"
+@m_ostr2650 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2649 to ptr) }}
+@m_cstr2651 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2652 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2651 to ptr) }}
+@m_cstr2653 = private unnamed_addr constant [4 x i8] c"str\00"
+@m_ostr2654 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2653 to ptr) }}
+@m_cstr2655 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2656 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2655 to ptr) }}
+@m_cstr2657 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr2658 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2657 to ptr) }}
+@m_cstr2659 = private unnamed_addr constant [16 x i8] c"string->integer\00"
+@m_ostr2660 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2659 to ptr) }}
+@m_cstr2661 = private unnamed_addr constant [16 x i8] c"string->integer\00"
+@m_ostr2662 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2661 to ptr) }}
+@m_cstr2663 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2664 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2663 to ptr) }}
+@m_cstr2665 = private unnamed_addr constant [6 x i8] c"radix\00"
+@m_ostr2666 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2665 to ptr) }}
+@m_cstr2667 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2668 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2667 to ptr) }}
+@m_cstr2669 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2670 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2669 to ptr) }}
+@m_cstr2671 = private unnamed_addr constant [16 x i8] c"string->integer\00"
+@m_ostr2672 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2671 to ptr) }}
 define %oop @"m_string->integer/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -38444,15 +38691,15 @@ L1:
 	br i1 %r24, label %L5, label %L4
 L5:
 	%r26 = call %oop @m_error-prologue.code()
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2614, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2650, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2616, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2652, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2618, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2654, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2620, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2656, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2622, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2658, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
 	%r43 = call %oop @m_error-epilogue.code()
 	store %oop %r43, %oop* %t6
@@ -38478,7 +38725,7 @@ L4:
 	store %oop %r55, %oop* %t5
 	br label %L3
 L2:
-	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2624, i32 1
+	%r59 = getelementptr %"<header>", %"<header>"* @m_ostr2660, i32 1
 	%r60 = load %oop, %oop* %t0
 	%r61 = call %oop @"m_%not-enough-arguments.code"(%oop %r59, %oop %r60)
 	store %oop %r61, %oop* %t5
@@ -38513,15 +38760,15 @@ L7:
 	br i1 %r84, label %L11, label %L10
 L11:
 	%r86 = call %oop @m_error-prologue.code()
-	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2626, i32 1
+	%r88 = getelementptr %"<header>", %"<header>"* @m_ostr2662, i32 1
 	%r89 = call %oop @"m_%error.code"(%oop %r88)
-	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2628, i32 1
+	%r91 = getelementptr %"<header>", %"<header>"* @m_ostr2664, i32 1
 	%r92 = call %oop @"m_%error.code"(%oop %r91)
-	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2630, i32 1
+	%r94 = getelementptr %"<header>", %"<header>"* @m_ostr2666, i32 1
 	%r95 = call %oop @"m_%error.code"(%oop %r94)
-	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2632, i32 1
+	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2668, i32 1
 	%r98 = call %oop @"m_%error.code"(%oop %r97)
-	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2634, i32 1
+	%r100 = getelementptr %"<header>", %"<header>"* @m_ostr2670, i32 1
 	%r101 = call %oop @"m_%error.code"(%oop %r100)
 	%r103 = call %oop @m_error-epilogue.code()
 	store %oop %r103, %oop* %t6
@@ -38565,7 +38812,7 @@ L9:
 	%r128 = icmp ne %word %r129, 0
 	br i1 %r128, label %L13, label %L14
 L13:
-	%r130 = getelementptr %"<header>", %"<header>"* @m_ostr2636, i32 1
+	%r130 = getelementptr %"<header>", %"<header>"* @m_ostr2672, i32 1
 	%r131 = load %oop, %oop* %t0
 	%r132 = call %oop @"m_%too-many-arguments.code"(%oop %r130, %oop %r131)
 	store %oop %r132, %oop* %t5
@@ -38581,9 +38828,9 @@ L15:
 	%r138 = call %oop @"m_string->integer.code"(%oop %r136, %oop %r137)
 	ret %oop %r138
 }
-@m_cstr2637 = private unnamed_addr constant [31 x i8] c"string->integer/evaluator-stub\00"
-@m_ostr2638 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 61, ptr bitcast ([31 x i8]* @m_cstr2637 to ptr) }}
-@"m_string->integer/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string->integer/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2638 }}
+@m_cstr2673 = private unnamed_addr constant [31 x i8] c"string->integer/evaluator-stub\00"
+@m_ostr2674 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 61, ptr bitcast ([31 x i8]* @m_cstr2673 to ptr) }}
+@"m_string->integer/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_string->integer/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2674 }}
 define %oop @"m_lower/$put-all.code"(%oop %stream, %oop %thing) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -38594,15 +38841,15 @@ define %oop @"m_lower/$put-all.code"(%oop %stream, %oop %thing) {
 	%r3 = call %oop @m_$put-all.code(%oop %r1, %oop %r2)
 	ret %oop %r3
 }
-@m_cstr2639 = private unnamed_addr constant [15 x i8] c"lower/$put-all\00"
-@m_ostr2640 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2639 to ptr) }}
-@"m_lower/$put-all" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_lower/$put-all.code" to %oop), %"<string-h>"* @m_ostr2640 }}
-@m_cstr2641 = private unnamed_addr constant [15 x i8] c"lower/$put-all\00"
-@m_ostr2642 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2641 to ptr) }}
-@m_cstr2643 = private unnamed_addr constant [15 x i8] c"lower/$put-all\00"
-@m_ostr2644 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2643 to ptr) }}
-@m_cstr2645 = private unnamed_addr constant [15 x i8] c"lower/$put-all\00"
-@m_ostr2646 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2645 to ptr) }}
+@m_cstr2675 = private unnamed_addr constant [15 x i8] c"lower/$put-all\00"
+@m_ostr2676 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2675 to ptr) }}
+@"m_lower/$put-all" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_lower/$put-all.code" to %oop), %"<string-h>"* @m_ostr2676 }}
+@m_cstr2677 = private unnamed_addr constant [15 x i8] c"lower/$put-all\00"
+@m_ostr2678 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2677 to ptr) }}
+@m_cstr2679 = private unnamed_addr constant [15 x i8] c"lower/$put-all\00"
+@m_ostr2680 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2679 to ptr) }}
+@m_cstr2681 = private unnamed_addr constant [15 x i8] c"lower/$put-all\00"
+@m_ostr2682 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2681 to ptr) }}
 define %oop @"m_lower/$put-all/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -38641,7 +38888,7 @@ L1:
 	store %oop %r17, %oop* %t5
 	br label %L3
 L2:
-	%r21 = getelementptr %"<header>", %"<header>"* @m_ostr2642, i32 1
+	%r21 = getelementptr %"<header>", %"<header>"* @m_ostr2678, i32 1
 	%r22 = load %oop, %oop* %t0
 	%r23 = call %oop @"m_%not-enough-arguments.code"(%oop %r21, %oop %r22)
 	store %oop %r23, %oop* %t5
@@ -38671,7 +38918,7 @@ L4:
 	store %oop %r39, %oop* %t5
 	br label %L6
 L5:
-	%r43 = getelementptr %"<header>", %"<header>"* @m_ostr2644, i32 1
+	%r43 = getelementptr %"<header>", %"<header>"* @m_ostr2680, i32 1
 	%r44 = load %oop, %oop* %t0
 	%r45 = call %oop @"m_%not-enough-arguments.code"(%oop %r43, %oop %r44)
 	store %oop %r45, %oop* %t5
@@ -38683,7 +38930,7 @@ L6:
 	%r49 = icmp ne %word %r50, 0
 	br i1 %r49, label %L7, label %L8
 L7:
-	%r51 = getelementptr %"<header>", %"<header>"* @m_ostr2646, i32 1
+	%r51 = getelementptr %"<header>", %"<header>"* @m_ostr2682, i32 1
 	%r52 = load %oop, %oop* %t0
 	%r53 = call %oop @"m_%too-many-arguments.code"(%oop %r51, %oop %r52)
 	store %oop %r53, %oop* %t5
@@ -38699,9 +38946,9 @@ L9:
 	%r59 = call %oop @"m_lower/$put-all.code"(%oop %r57, %oop %r58)
 	ret %oop %r59
 }
-@m_cstr2647 = private unnamed_addr constant [30 x i8] c"lower/$put-all/evaluator-stub\00"
-@m_ostr2648 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 59, ptr bitcast ([30 x i8]* @m_cstr2647 to ptr) }}
-@"m_lower/$put-all/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_lower/$put-all/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2648 }}
+@m_cstr2683 = private unnamed_addr constant [30 x i8] c"lower/$put-all/evaluator-stub\00"
+@m_ostr2684 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 59, ptr bitcast ([30 x i8]* @m_cstr2683 to ptr) }}
+@"m_lower/$put-all/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_lower/$put-all/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2684 }}
 define %oop @"m_pointer->target-function.code"(%oop %ptr) {
 	%t0 = alloca %oop
 	%t1 = alloca %oop
@@ -38730,13 +38977,13 @@ define %oop @"m_pointer->target-function.code"(%oop %ptr) {
 	%r21 = load %oop, %oop* %t2
 	ret %oop %r21
 }
-@m_cstr2649 = private unnamed_addr constant [25 x i8] c"pointer->target-function\00"
-@m_ostr2650 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2649 to ptr) }}
-@"m_pointer->target-function" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @"m_pointer->target-function.code" to %oop), %"<string-h>"* @m_ostr2650 }}
-@m_cstr2651 = private unnamed_addr constant [25 x i8] c"pointer->target-function\00"
-@m_ostr2652 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2651 to ptr) }}
-@m_cstr2653 = private unnamed_addr constant [25 x i8] c"pointer->target-function\00"
-@m_ostr2654 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2653 to ptr) }}
+@m_cstr2685 = private unnamed_addr constant [25 x i8] c"pointer->target-function\00"
+@m_ostr2686 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2685 to ptr) }}
+@"m_pointer->target-function" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @"m_pointer->target-function.code" to %oop), %"<string-h>"* @m_ostr2686 }}
+@m_cstr2687 = private unnamed_addr constant [25 x i8] c"pointer->target-function\00"
+@m_ostr2688 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2687 to ptr) }}
+@m_cstr2689 = private unnamed_addr constant [25 x i8] c"pointer->target-function\00"
+@m_ostr2690 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2689 to ptr) }}
 define %oop @"m_pointer->target-function/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -38772,7 +39019,7 @@ L1:
 	store %oop %r16, %oop* %t4
 	br label %L3
 L2:
-	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2652, i32 1
+	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2688, i32 1
 	%r21 = load %oop, %oop* %t0
 	%r22 = call %oop @"m_%not-enough-arguments.code"(%oop %r20, %oop %r21)
 	store %oop %r22, %oop* %t4
@@ -38784,7 +39031,7 @@ L3:
 	%r26 = icmp ne %word %r27, 0
 	br i1 %r26, label %L4, label %L5
 L4:
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2654, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2690, i32 1
 	%r29 = load %oop, %oop* %t0
 	%r30 = call %oop @"m_%too-many-arguments.code"(%oop %r28, %oop %r29)
 	store %oop %r30, %oop* %t4
@@ -38799,13 +39046,13 @@ L6:
 	%r35 = call %oop @"m_pointer->target-function.code"(%oop %r34)
 	ret %oop %r35
 }
-@m_cstr2655 = private unnamed_addr constant [40 x i8] c"pointer->target-function/evaluator-stub\00"
-@m_ostr2656 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 79, ptr bitcast ([40 x i8]* @m_cstr2655 to ptr) }}
-@"m_pointer->target-function/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_pointer->target-function/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2656 }}
-@m_cstr2657 = private unnamed_addr constant [54 x i8] c"call-x86-64-machine-code: cannot call object of type \00"
-@m_ostr2658 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 107, ptr bitcast ([54 x i8]* @m_cstr2657 to ptr) }}
-@m_cstr2659 = private unnamed_addr constant [15 x i8] c", printing as \00"
-@m_ostr2660 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2659 to ptr) }}
+@m_cstr2691 = private unnamed_addr constant [40 x i8] c"pointer->target-function/evaluator-stub\00"
+@m_ostr2692 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 79, ptr bitcast ([40 x i8]* @m_cstr2691 to ptr) }}
+@"m_pointer->target-function/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_pointer->target-function/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2692 }}
+@m_cstr2693 = private unnamed_addr constant [54 x i8] c"call-x86-64-machine-code: cannot call object of type \00"
+@m_ostr2694 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 107, ptr bitcast ([54 x i8]* @m_cstr2693 to ptr) }}
+@m_cstr2695 = private unnamed_addr constant [15 x i8] c", printing as \00"
+@m_ostr2696 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2695 to ptr) }}
 define %oop @m_call-x86-64-machine-code.code(%oop %fn) {
 	%t0 = alloca %oop
 	%t1 = alloca %oop
@@ -38831,12 +39078,12 @@ define %oop @m_call-x86-64-machine-code.code(%oop %fn) {
 	br i1 %r16, label %L2, label %L1
 L2:
 	%r18 = call %oop @m_error-prologue.code()
-	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2658, i32 1
+	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2694, i32 1
 	%r21 = call %oop @"m_%error.code"(%oop %r20)
 	%r23 = load %oop, %oop* %t0
 	%r24 = call %oop @m_type-of.code(%oop %r23)
 	%r26 = call %oop @"m_%error.code"(%oop %r24)
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2660, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2696, i32 1
 	%r29 = call %oop @"m_%error.code"(%oop %r28)
 	%r31 = load %oop, %oop* %t0
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
@@ -38876,13 +39123,13 @@ L1:
 	%r63 = load %oop, %oop* %t1
 	ret %oop %r63
 }
-@m_cstr2661 = private unnamed_addr constant [25 x i8] c"call-x86-64-machine-code\00"
-@m_ostr2662 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2661 to ptr) }}
-@m_call-x86-64-machine-code = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @m_call-x86-64-machine-code.code to %oop), %"<string-h>"* @m_ostr2662 }}
-@m_cstr2663 = private unnamed_addr constant [25 x i8] c"call-x86-64-machine-code\00"
-@m_ostr2664 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2663 to ptr) }}
-@m_cstr2665 = private unnamed_addr constant [25 x i8] c"call-x86-64-machine-code\00"
-@m_ostr2666 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2665 to ptr) }}
+@m_cstr2697 = private unnamed_addr constant [25 x i8] c"call-x86-64-machine-code\00"
+@m_ostr2698 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2697 to ptr) }}
+@m_call-x86-64-machine-code = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @m_call-x86-64-machine-code.code to %oop), %"<string-h>"* @m_ostr2698 }}
+@m_cstr2699 = private unnamed_addr constant [25 x i8] c"call-x86-64-machine-code\00"
+@m_ostr2700 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2699 to ptr) }}
+@m_cstr2701 = private unnamed_addr constant [25 x i8] c"call-x86-64-machine-code\00"
+@m_ostr2702 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2701 to ptr) }}
 define %oop @"m_call-x86-64-machine-code/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -38918,7 +39165,7 @@ L1:
 	store %oop %r16, %oop* %t4
 	br label %L3
 L2:
-	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2664, i32 1
+	%r20 = getelementptr %"<header>", %"<header>"* @m_ostr2700, i32 1
 	%r21 = load %oop, %oop* %t0
 	%r22 = call %oop @"m_%not-enough-arguments.code"(%oop %r20, %oop %r21)
 	store %oop %r22, %oop* %t4
@@ -38930,7 +39177,7 @@ L3:
 	%r26 = icmp ne %word %r27, 0
 	br i1 %r26, label %L4, label %L5
 L4:
-	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2666, i32 1
+	%r28 = getelementptr %"<header>", %"<header>"* @m_ostr2702, i32 1
 	%r29 = load %oop, %oop* %t0
 	%r30 = call %oop @"m_%too-many-arguments.code"(%oop %r28, %oop %r29)
 	store %oop %r30, %oop* %t4
@@ -38945,9 +39192,9 @@ L6:
 	%r35 = call %oop @m_call-x86-64-machine-code.code(%oop %r34)
 	ret %oop %r35
 }
-@m_cstr2667 = private unnamed_addr constant [40 x i8] c"call-x86-64-machine-code/evaluator-stub\00"
-@m_ostr2668 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 79, ptr bitcast ([40 x i8]* @m_cstr2667 to ptr) }}
-@"m_call-x86-64-machine-code/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_call-x86-64-machine-code/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2668 }}
+@m_cstr2703 = private unnamed_addr constant [40 x i8] c"call-x86-64-machine-code/evaluator-stub\00"
+@m_ostr2704 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 79, ptr bitcast ([40 x i8]* @m_cstr2703 to ptr) }}
+@"m_call-x86-64-machine-code/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_call-x86-64-machine-code/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2704 }}
 define %oop @m_spawn-program.code(%oop %path, %oop %argv, %oop %envp, %oop %stdout-fd, %oop %stderr-fd) {
 	%t4 = alloca %oop
 	%t3 = alloca %oop
@@ -39030,47 +39277,47 @@ define %oop @m_spawn-program.code(%oop %path, %oop %argv, %oop %envp, %oop %stdo
 	%r64 = inttoptr %word %r65 to %oop
 	ret %oop %r64
 }
-@m_cstr2669 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
-@m_ostr2670 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2669 to ptr) }}
-@m_spawn-program = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop, %oop, %oop, %oop)* @m_spawn-program.code to %oop), %"<string-h>"* @m_ostr2670 }}
-@m_cstr2671 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
-@m_ostr2672 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2671 to ptr) }}
-@m_cstr2673 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2674 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2673 to ptr) }}
-@m_cstr2675 = private unnamed_addr constant [5 x i8] c"path\00"
-@m_ostr2676 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2675 to ptr) }}
-@m_cstr2677 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2678 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2677 to ptr) }}
-@m_cstr2679 = private unnamed_addr constant [9 x i8] c"<string>\00"
-@m_ostr2680 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2679 to ptr) }}
-@m_cstr2681 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
-@m_ostr2682 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2681 to ptr) }}
-@m_cstr2683 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
-@m_ostr2684 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2683 to ptr) }}
-@m_cstr2685 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
-@m_ostr2686 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2685 to ptr) }}
-@m_cstr2687 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
-@m_ostr2688 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2687 to ptr) }}
-@m_cstr2689 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2690 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2689 to ptr) }}
-@m_cstr2691 = private unnamed_addr constant [10 x i8] c"stdout-fd\00"
-@m_ostr2692 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2691 to ptr) }}
-@m_cstr2693 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2694 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2693 to ptr) }}
-@m_cstr2695 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2696 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2695 to ptr) }}
-@m_cstr2697 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
-@m_ostr2698 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2697 to ptr) }}
-@m_cstr2699 = private unnamed_addr constant [8 x i8] c": arg '\00"
-@m_ostr2700 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2699 to ptr) }}
-@m_cstr2701 = private unnamed_addr constant [10 x i8] c"stderr-fd\00"
-@m_ostr2702 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2701 to ptr) }}
-@m_cstr2703 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
-@m_ostr2704 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2703 to ptr) }}
-@m_cstr2705 = private unnamed_addr constant [7 x i8] c"<long>\00"
-@m_ostr2706 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2705 to ptr) }}
+@m_cstr2705 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
+@m_ostr2706 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2705 to ptr) }}
+@m_spawn-program = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop, %oop, %oop, %oop)* @m_spawn-program.code to %oop), %"<string-h>"* @m_ostr2706 }}
 @m_cstr2707 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
 @m_ostr2708 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2707 to ptr) }}
+@m_cstr2709 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2710 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2709 to ptr) }}
+@m_cstr2711 = private unnamed_addr constant [5 x i8] c"path\00"
+@m_ostr2712 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2711 to ptr) }}
+@m_cstr2713 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2714 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2713 to ptr) }}
+@m_cstr2715 = private unnamed_addr constant [9 x i8] c"<string>\00"
+@m_ostr2716 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2715 to ptr) }}
+@m_cstr2717 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
+@m_ostr2718 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2717 to ptr) }}
+@m_cstr2719 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
+@m_ostr2720 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2719 to ptr) }}
+@m_cstr2721 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
+@m_ostr2722 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2721 to ptr) }}
+@m_cstr2723 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
+@m_ostr2724 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2723 to ptr) }}
+@m_cstr2725 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2726 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2725 to ptr) }}
+@m_cstr2727 = private unnamed_addr constant [10 x i8] c"stdout-fd\00"
+@m_ostr2728 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2727 to ptr) }}
+@m_cstr2729 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2730 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2729 to ptr) }}
+@m_cstr2731 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2732 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2731 to ptr) }}
+@m_cstr2733 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
+@m_ostr2734 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2733 to ptr) }}
+@m_cstr2735 = private unnamed_addr constant [8 x i8] c": arg '\00"
+@m_ostr2736 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2735 to ptr) }}
+@m_cstr2737 = private unnamed_addr constant [10 x i8] c"stderr-fd\00"
+@m_ostr2738 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2737 to ptr) }}
+@m_cstr2739 = private unnamed_addr constant [18 x i8] c"' is not of type \00"
+@m_ostr2740 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2739 to ptr) }}
+@m_cstr2741 = private unnamed_addr constant [7 x i8] c"<long>\00"
+@m_ostr2742 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2741 to ptr) }}
+@m_cstr2743 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
+@m_ostr2744 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2743 to ptr) }}
 define %oop @"m_spawn-program/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -39124,15 +39371,15 @@ L1:
 	br i1 %r27, label %L5, label %L4
 L5:
 	%r29 = call %oop @m_error-prologue.code()
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2672, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2708, i32 1
 	%r32 = call %oop @"m_%error.code"(%oop %r31)
-	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2674, i32 1
+	%r34 = getelementptr %"<header>", %"<header>"* @m_ostr2710, i32 1
 	%r35 = call %oop @"m_%error.code"(%oop %r34)
-	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2676, i32 1
+	%r37 = getelementptr %"<header>", %"<header>"* @m_ostr2712, i32 1
 	%r38 = call %oop @"m_%error.code"(%oop %r37)
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2678, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2714, i32 1
 	%r41 = call %oop @"m_%error.code"(%oop %r40)
-	%r43 = getelementptr %"<header>", %"<header>"* @m_ostr2680, i32 1
+	%r43 = getelementptr %"<header>", %"<header>"* @m_ostr2716, i32 1
 	%r44 = call %oop @"m_%error.code"(%oop %r43)
 	%r46 = call %oop @m_error-epilogue.code()
 	store %oop %r46, %oop* %t9
@@ -39158,7 +39405,7 @@ L4:
 	store %oop %r58, %oop* %t8
 	br label %L3
 L2:
-	%r62 = getelementptr %"<header>", %"<header>"* @m_ostr2682, i32 1
+	%r62 = getelementptr %"<header>", %"<header>"* @m_ostr2718, i32 1
 	%r63 = load %oop, %oop* %t0
 	%r64 = call %oop @"m_%not-enough-arguments.code"(%oop %r62, %oop %r63)
 	store %oop %r64, %oop* %t8
@@ -39188,7 +39435,7 @@ L7:
 	store %oop %r80, %oop* %t8
 	br label %L9
 L8:
-	%r84 = getelementptr %"<header>", %"<header>"* @m_ostr2684, i32 1
+	%r84 = getelementptr %"<header>", %"<header>"* @m_ostr2720, i32 1
 	%r85 = load %oop, %oop* %t0
 	%r86 = call %oop @"m_%not-enough-arguments.code"(%oop %r84, %oop %r85)
 	store %oop %r86, %oop* %t8
@@ -39218,7 +39465,7 @@ L10:
 	store %oop %r102, %oop* %t8
 	br label %L12
 L11:
-	%r106 = getelementptr %"<header>", %"<header>"* @m_ostr2686, i32 1
+	%r106 = getelementptr %"<header>", %"<header>"* @m_ostr2722, i32 1
 	%r107 = load %oop, %oop* %t0
 	%r108 = call %oop @"m_%not-enough-arguments.code"(%oop %r106, %oop %r107)
 	store %oop %r108, %oop* %t8
@@ -39253,15 +39500,15 @@ L13:
 	br i1 %r131, label %L17, label %L16
 L17:
 	%r133 = call %oop @m_error-prologue.code()
-	%r135 = getelementptr %"<header>", %"<header>"* @m_ostr2688, i32 1
+	%r135 = getelementptr %"<header>", %"<header>"* @m_ostr2724, i32 1
 	%r136 = call %oop @"m_%error.code"(%oop %r135)
-	%r138 = getelementptr %"<header>", %"<header>"* @m_ostr2690, i32 1
+	%r138 = getelementptr %"<header>", %"<header>"* @m_ostr2726, i32 1
 	%r139 = call %oop @"m_%error.code"(%oop %r138)
-	%r141 = getelementptr %"<header>", %"<header>"* @m_ostr2692, i32 1
+	%r141 = getelementptr %"<header>", %"<header>"* @m_ostr2728, i32 1
 	%r142 = call %oop @"m_%error.code"(%oop %r141)
-	%r144 = getelementptr %"<header>", %"<header>"* @m_ostr2694, i32 1
+	%r144 = getelementptr %"<header>", %"<header>"* @m_ostr2730, i32 1
 	%r145 = call %oop @"m_%error.code"(%oop %r144)
-	%r147 = getelementptr %"<header>", %"<header>"* @m_ostr2696, i32 1
+	%r147 = getelementptr %"<header>", %"<header>"* @m_ostr2732, i32 1
 	%r148 = call %oop @"m_%error.code"(%oop %r147)
 	%r150 = call %oop @m_error-epilogue.code()
 	store %oop %r150, %oop* %t9
@@ -39328,15 +39575,15 @@ L19:
 	br i1 %r194, label %L23, label %L22
 L23:
 	%r196 = call %oop @m_error-prologue.code()
-	%r198 = getelementptr %"<header>", %"<header>"* @m_ostr2698, i32 1
+	%r198 = getelementptr %"<header>", %"<header>"* @m_ostr2734, i32 1
 	%r199 = call %oop @"m_%error.code"(%oop %r198)
-	%r201 = getelementptr %"<header>", %"<header>"* @m_ostr2700, i32 1
+	%r201 = getelementptr %"<header>", %"<header>"* @m_ostr2736, i32 1
 	%r202 = call %oop @"m_%error.code"(%oop %r201)
-	%r204 = getelementptr %"<header>", %"<header>"* @m_ostr2702, i32 1
+	%r204 = getelementptr %"<header>", %"<header>"* @m_ostr2738, i32 1
 	%r205 = call %oop @"m_%error.code"(%oop %r204)
-	%r207 = getelementptr %"<header>", %"<header>"* @m_ostr2704, i32 1
+	%r207 = getelementptr %"<header>", %"<header>"* @m_ostr2740, i32 1
 	%r208 = call %oop @"m_%error.code"(%oop %r207)
-	%r210 = getelementptr %"<header>", %"<header>"* @m_ostr2706, i32 1
+	%r210 = getelementptr %"<header>", %"<header>"* @m_ostr2742, i32 1
 	%r211 = call %oop @"m_%error.code"(%oop %r210)
 	%r213 = call %oop @m_error-epilogue.code()
 	store %oop %r213, %oop* %t9
@@ -39380,7 +39627,7 @@ L21:
 	%r238 = icmp ne %word %r239, 0
 	br i1 %r238, label %L25, label %L26
 L25:
-	%r240 = getelementptr %"<header>", %"<header>"* @m_ostr2708, i32 1
+	%r240 = getelementptr %"<header>", %"<header>"* @m_ostr2744, i32 1
 	%r241 = load %oop, %oop* %t0
 	%r242 = call %oop @"m_%too-many-arguments.code"(%oop %r240, %oop %r241)
 	store %oop %r242, %oop* %t8
@@ -39399,11 +39646,11 @@ L27:
 	%r251 = call %oop @m_spawn-program.code(%oop %r246, %oop %r247, %oop %r248, %oop %r249, %oop %r250)
 	ret %oop %r251
 }
-@m_cstr2709 = private unnamed_addr constant [29 x i8] c"spawn-program/evaluator-stub\00"
-@m_ostr2710 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2709 to ptr) }}
-@"m_spawn-program/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_spawn-program/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2710 }}
-@m_cstr2711 = private unnamed_addr constant [35 x i8] c"spawn-program returned exit code: \00"
-@m_ostr2712 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 69, ptr bitcast ([35 x i8]* @m_cstr2711 to ptr) }}
+@m_cstr2745 = private unnamed_addr constant [29 x i8] c"spawn-program/evaluator-stub\00"
+@m_ostr2746 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2745 to ptr) }}
+@"m_spawn-program/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_spawn-program/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2746 }}
+@m_cstr2747 = private unnamed_addr constant [35 x i8] c"spawn-program returned exit code: \00"
+@m_ostr2748 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 69, ptr bitcast ([35 x i8]* @m_cstr2747 to ptr) }}
 define %oop @m_waitpid-or-die.code(%oop %child-pid) {
 	%t0 = alloca %oop
 	%t1 = alloca %oop
@@ -39428,7 +39675,7 @@ L1:
 	br label %L3
 L2:
 	%r14 = call %oop @m_error-prologue.code()
-	%r16 = getelementptr %"<header>", %"<header>"* @m_ostr2712, i32 1
+	%r16 = getelementptr %"<header>", %"<header>"* @m_ostr2748, i32 1
 	%r17 = call %oop @"m_%error.code"(%oop %r16)
 	%r19 = inttoptr %word 1 to %oop
 	%r20 = inttoptr %word 1 to %oop
@@ -39460,9 +39707,9 @@ L3:
 	%r42 = inttoptr %word %r43 to %oop
 	ret %oop %r42
 }
-@m_cstr2713 = private unnamed_addr constant [15 x i8] c"waitpid-or-die\00"
-@m_ostr2714 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2713 to ptr) }}
-@m_waitpid-or-die = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @m_waitpid-or-die.code to %oop), %"<string-h>"* @m_ostr2714 }}
+@m_cstr2749 = private unnamed_addr constant [15 x i8] c"waitpid-or-die\00"
+@m_ostr2750 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2749 to ptr) }}
+@m_waitpid-or-die = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @m_waitpid-or-die.code to %oop), %"<string-h>"* @m_ostr2750 }}
 define %oop @"m_run-program/stdout/slurp.code"(%oop %path, %oop %argv, %oop %envp) {
 	%t2 = alloca %oop
 	%t1 = alloca %oop
@@ -39550,9 +39797,9 @@ L3:
 	%r63 = load %oop, %oop* %t7
 	ret %oop %r63
 }
-@m_cstr2715 = private unnamed_addr constant [25 x i8] c"run-program/stdout/slurp\00"
-@m_ostr2716 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2715 to ptr) }}
-@"m_run-program/stdout/slurp" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop, %oop)* @"m_run-program/stdout/slurp.code" to %oop), %"<string-h>"* @m_ostr2716 }}
+@m_cstr2751 = private unnamed_addr constant [25 x i8] c"run-program/stdout/slurp\00"
+@m_ostr2752 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2751 to ptr) }}
+@"m_run-program/stdout/slurp" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop, %oop)* @"m_run-program/stdout/slurp.code" to %oop), %"<string-h>"* @m_ostr2752 }}
 define %oop @"m_run-program/stdout/file.code"(%oop %path, %oop %argv, %oop %envp, %oop %stdout-path) {
 	%t3 = alloca %oop
 	%t2 = alloca %oop
@@ -39597,15 +39844,15 @@ define %oop @"m_run-program/stdout/file.code"(%oop %path, %oop %argv, %oop %envp
 	%r32 = call %oop @m_waitpid-or-die.code(%oop %r31)
 	ret %oop %r32
 }
-@m_cstr2717 = private unnamed_addr constant [24 x i8] c"run-program/stdout/file\00"
-@m_ostr2718 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 47, ptr bitcast ([24 x i8]* @m_cstr2717 to ptr) }}
-@"m_run-program/stdout/file" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop, %oop, %oop)* @"m_run-program/stdout/file.code" to %oop), %"<string-h>"* @m_ostr2718 }}
-@m_cstr2719 = private unnamed_addr constant [39 x i8] c"run-program/capture: path is mandatory\00"
-@m_ostr2720 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 77, ptr bitcast ([39 x i8]* @m_cstr2719 to ptr) }}
-@m_cstr2721 = private unnamed_addr constant [7 x i8] c"string\00"
-@m_ostr2722 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2721 to ptr) }}
-@m_cstr2723 = private unnamed_addr constant [39 x i8] c"run-program: unexpected stdout value: \00"
-@m_ostr2724 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 77, ptr bitcast ([39 x i8]* @m_cstr2723 to ptr) }}
+@m_cstr2753 = private unnamed_addr constant [24 x i8] c"run-program/stdout/file\00"
+@m_ostr2754 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 47, ptr bitcast ([24 x i8]* @m_cstr2753 to ptr) }}
+@"m_run-program/stdout/file" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop, %oop, %oop)* @"m_run-program/stdout/file.code" to %oop), %"<string-h>"* @m_ostr2754 }}
+@m_cstr2755 = private unnamed_addr constant [39 x i8] c"run-program/capture: path is mandatory\00"
+@m_ostr2756 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 77, ptr bitcast ([39 x i8]* @m_cstr2755 to ptr) }}
+@m_cstr2757 = private unnamed_addr constant [7 x i8] c"string\00"
+@m_ostr2758 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2757 to ptr) }}
+@m_cstr2759 = private unnamed_addr constant [39 x i8] c"run-program: unexpected stdout value: \00"
+@m_ostr2760 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 77, ptr bitcast ([39 x i8]* @m_cstr2759 to ptr) }}
 define %oop @"m_run-program/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
@@ -39642,7 +39889,7 @@ define %oop @"m_run-program/evaluator-stub.code"(%oop %-args-, %oop %-ctx-) {
 	br i1 %r15, label %L2, label %L1
 L2:
 	%r17 = call %oop @m_error-prologue.code()
-	%r19 = getelementptr %"<header>", %"<header>"* @m_ostr2720, i32 1
+	%r19 = getelementptr %"<header>", %"<header>"* @m_ostr2756, i32 1
 	%r20 = call %oop @"m_%error.code"(%oop %r19)
 	%r22 = call %oop @m_error-epilogue.code()
 	store %oop %r22, %oop* %t2
@@ -39740,7 +39987,7 @@ L5:
 	%r95 = icmp ne %word %r96, 0
 	br i1 %r95, label %L10, label %L11
 L11:
-	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2722, i32 1
+	%r97 = getelementptr %"<header>", %"<header>"* @m_ostr2758, i32 1
 	%r98 = load %oop, %oop* %t6
 	%r99 = call %oop @"m_symbol->string.code"(%oop %r98)
 	%r101 = call %oop @"m_string=.code"(%oop %r97, %oop %r99)
@@ -39794,7 +40041,7 @@ L13:
 	br label %L15
 L14:
 	%r140 = call %oop @m_error-prologue.code()
-	%r142 = getelementptr %"<header>", %"<header>"* @m_ostr2724, i32 1
+	%r142 = getelementptr %"<header>", %"<header>"* @m_ostr2760, i32 1
 	%r143 = call %oop @"m_%error.code"(%oop %r142)
 	%r145 = load %oop, %oop* %t6
 	%r146 = call %oop @"m_%error.code"(%oop %r145)
@@ -39813,9 +40060,9 @@ L6:
 	%r152 = load %oop, %oop* %t8
 	ret %oop %r152
 }
-@m_cstr2725 = private unnamed_addr constant [27 x i8] c"run-program/evaluator-stub\00"
-@m_ostr2726 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 53, ptr bitcast ([27 x i8]* @m_cstr2725 to ptr) }}
-@"m_run-program/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_run-program/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2726 }}
+@m_cstr2761 = private unnamed_addr constant [27 x i8] c"run-program/evaluator-stub\00"
+@m_ostr2762 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 53, ptr bitcast ([27 x i8]* @m_cstr2761 to ptr) }}
+@"m_run-program/evaluator-stub" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @"m_run-program/evaluator-stub.code" to %oop), %"<string-h>"* @m_ostr2762 }}
 define %oop @"m_%instantiate-vm-function.code"(%oop %env, %oop %name, %oop %imp, %oop %"fixed?") {
 	%t3 = alloca %oop
 	%t2 = alloca %oop
@@ -39876,228 +40123,230 @@ L3:
 	%r42 = load %oop, %oop* %t5
 	ret %oop %r42
 }
-@m_cstr2727 = private unnamed_addr constant [25 x i8] c"%instantiate-vm-function\00"
-@m_ostr2728 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2727 to ptr) }}
-@"m_%instantiate-vm-function" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop, %oop, %oop)* @"m_%instantiate-vm-function.code" to %oop), %"<string-h>"* @m_ostr2728 }}
-@m_cstr2729 = private unnamed_addr constant [6 x i8] c"+end+\00"
-@m_ostr2730 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2729 to ptr) }}
-@m_cstr2731 = private unnamed_addr constant [6 x i8] c"+end+\00"
-@m_ostr2732 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2731 to ptr) }}
-@m_cstr2733 = private unnamed_addr constant [12 x i8] c"run-program\00"
-@m_ostr2734 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2733 to ptr) }}
-@m_cstr2735 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
-@m_ostr2736 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2735 to ptr) }}
-@m_cstr2737 = private unnamed_addr constant [25 x i8] c"call-x86-64-machine-code\00"
-@m_ostr2738 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2737 to ptr) }}
-@m_cstr2739 = private unnamed_addr constant [25 x i8] c"pointer->target-function\00"
-@m_ostr2740 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2739 to ptr) }}
-@m_cstr2741 = private unnamed_addr constant [15 x i8] c"lower/$put-all\00"
-@m_ostr2742 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2741 to ptr) }}
-@m_cstr2743 = private unnamed_addr constant [16 x i8] c"string->integer\00"
-@m_ostr2744 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2743 to ptr) }}
-@m_cstr2745 = private unnamed_addr constant [15 x i8] c"string->number\00"
-@m_ostr2746 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2745 to ptr) }}
-@m_cstr2747 = private unnamed_addr constant [16 x i8] c"integer->string\00"
-@m_ostr2748 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2747 to ptr) }}
-@m_cstr2749 = private unnamed_addr constant [15 x i8] c"number->string\00"
-@m_ostr2750 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2749 to ptr) }}
-@m_cstr2751 = private unnamed_addr constant [14 x i8] c"string-append\00"
-@m_ostr2752 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2751 to ptr) }}
-@m_cstr2753 = private unnamed_addr constant [13 x i8] c"array-append\00"
-@m_ostr2754 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2753 to ptr) }}
-@m_cstr2755 = private unnamed_addr constant [14 x i8] c"string-insert\00"
-@m_ostr2756 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2755 to ptr) }}
-@m_cstr2757 = private unnamed_addr constant [13 x i8] c"array-insert\00"
-@m_ostr2758 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2757 to ptr) }}
-@m_cstr2759 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
-@m_ostr2760 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2759 to ptr) }}
-@m_cstr2761 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
-@m_ostr2762 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2761 to ptr) }}
-@m_cstr2763 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
-@m_ostr2764 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2763 to ptr) }}
-@m_cstr2765 = private unnamed_addr constant [8 x i8] c"char-at\00"
-@m_ostr2766 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2765 to ptr) }}
-@m_cstr2767 = private unnamed_addr constant [10 x i8] c"string-at\00"
-@m_ostr2768 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2767 to ptr) }}
-@m_cstr2769 = private unnamed_addr constant [9 x i8] c"array-at\00"
-@m_ostr2770 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2769 to ptr) }}
-@m_cstr2771 = private unnamed_addr constant [15 x i8] c"string-compare\00"
-@m_ostr2772 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2771 to ptr) }}
-@m_cstr2773 = private unnamed_addr constant [14 x i8] c"string-length\00"
-@m_ostr2774 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2773 to ptr) }}
-@m_cstr2775 = private unnamed_addr constant [13 x i8] c"array-length\00"
-@m_ostr2776 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2775 to ptr) }}
-@m_cstr2777 = private unnamed_addr constant [17 x i8] c"long->lower-cell\00"
-@m_ostr2778 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2777 to ptr) }}
-@m_cstr2779 = private unnamed_addr constant [17 x i8] c"lower-cell->long\00"
-@m_ostr2780 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2779 to ptr) }}
-@m_cstr2781 = private unnamed_addr constant [11 x i8] c"set-oop-at\00"
-@m_ostr2782 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2781 to ptr) }}
-@m_cstr2783 = private unnamed_addr constant [7 x i8] c"oop-at\00"
-@m_ostr2784 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2783 to ptr) }}
-@m_cstr2785 = private unnamed_addr constant [8 x i8] c"set-cdr\00"
-@m_ostr2786 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2785 to ptr) }}
-@m_cstr2787 = private unnamed_addr constant [8 x i8] c"set-car\00"
-@m_ostr2788 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2787 to ptr) }}
-@m_cstr2789 = private unnamed_addr constant [7 x i8] c"array?\00"
-@m_ostr2790 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2789 to ptr) }}
-@m_cstr2791 = private unnamed_addr constant [6 x i8] c"pair?\00"
-@m_ostr2792 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2791 to ptr) }}
-@m_cstr2793 = private unnamed_addr constant [8 x i8] c"symbol?\00"
-@m_ostr2794 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2793 to ptr) }}
-@m_cstr2795 = private unnamed_addr constant [8 x i8] c"string?\00"
-@m_ostr2796 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2795 to ptr) }}
-@m_cstr2797 = private unnamed_addr constant [8 x i8] c"type-of\00"
-@m_ostr2798 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2797 to ptr) }}
-@m_cstr2799 = private unnamed_addr constant [5 x i8] c"warn\00"
-@m_ostr2800 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2799 to ptr) }}
-@m_cstr2801 = private unnamed_addr constant [5 x i8] c"exit\00"
-@m_ostr2802 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2801 to ptr) }}
-@m_cstr2803 = private unnamed_addr constant [2 x i8] c"=\00"
-@m_ostr2804 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2803 to ptr) }}
-@m_cstr2805 = private unnamed_addr constant [2 x i8] c">\00"
-@m_ostr2806 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2805 to ptr) }}
-@m_cstr2807 = private unnamed_addr constant [3 x i8] c">=\00"
-@m_ostr2808 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr2807 to ptr) }}
-@m_cstr2809 = private unnamed_addr constant [3 x i8] c"<=\00"
-@m_ostr2810 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr2809 to ptr) }}
-@m_cstr2811 = private unnamed_addr constant [2 x i8] c"<\00"
-@m_ostr2812 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2811 to ptr) }}
-@m_cstr2813 = private unnamed_addr constant [14 x i8] c"bitwise-shift\00"
-@m_ostr2814 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2813 to ptr) }}
-@m_cstr2815 = private unnamed_addr constant [12 x i8] c"bitwise-not\00"
-@m_ostr2816 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2815 to ptr) }}
-@m_cstr2817 = private unnamed_addr constant [12 x i8] c"bitwise-xor\00"
-@m_ostr2818 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2817 to ptr) }}
-@m_cstr2819 = private unnamed_addr constant [11 x i8] c"bitwise-or\00"
-@m_ostr2820 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2819 to ptr) }}
-@m_cstr2821 = private unnamed_addr constant [12 x i8] c"bitwise-and\00"
-@m_ostr2822 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2821 to ptr) }}
-@m_cstr2823 = private unnamed_addr constant [2 x i8] c"*\00"
-@m_ostr2824 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2823 to ptr) }}
-@m_cstr2825 = private unnamed_addr constant [2 x i8] c"/\00"
-@m_ostr2826 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2825 to ptr) }}
-@m_cstr2827 = private unnamed_addr constant [2 x i8] c"+\00"
-@m_ostr2828 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2827 to ptr) }}
-@m_cstr2829 = private unnamed_addr constant [2 x i8] c"-\00"
-@m_ostr2830 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2829 to ptr) }}
-@m_cstr2831 = private unnamed_addr constant [4 x i8] c"not\00"
-@m_ostr2832 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2831 to ptr) }}
-@m_cstr2833 = private unnamed_addr constant [6 x i8] c"quote\00"
-@m_ostr2834 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2833 to ptr) }}
-@m_cstr2835 = private unnamed_addr constant [4 x i8] c"and\00"
-@m_ostr2836 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2835 to ptr) }}
-@m_cstr2837 = private unnamed_addr constant [3 x i8] c"or\00"
-@m_ostr2838 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr2837 to ptr) }}
-@m_cstr2839 = private unnamed_addr constant [3 x i8] c"if\00"
-@m_ostr2840 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr2839 to ptr) }}
-@m_cstr2841 = private unnamed_addr constant [6 x i8] c"while\00"
-@m_ostr2842 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2841 to ptr) }}
-@m_cstr2843 = private unnamed_addr constant [4 x i8] c"set\00"
-@m_ostr2844 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2843 to ptr) }}
-@m_cstr2845 = private unnamed_addr constant [4 x i8] c"let\00"
-@m_ostr2846 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2845 to ptr) }}
-@m_cstr2847 = private unnamed_addr constant [7 x i8] c"lambda\00"
-@m_ostr2848 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2847 to ptr) }}
-@m_cstr2849 = private unnamed_addr constant [5 x i8] c"eval\00"
-@m_ostr2850 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2849 to ptr) }}
-@m_cstr2851 = private unnamed_addr constant [7 x i8] c"define\00"
-@m_ostr2852 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2851 to ptr) }}
-@m_cstr2853 = private unnamed_addr constant [5 x i8] c"load\00"
-@m_ostr2854 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2853 to ptr) }}
-@m_cstr2855 = private unnamed_addr constant [12 x i8] c"repl-stream\00"
-@m_ostr2856 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2855 to ptr) }}
-@m_cstr2857 = private unnamed_addr constant [12 x i8] c"file-stream\00"
+@m_cstr2763 = private unnamed_addr constant [25 x i8] c"%instantiate-vm-function\00"
+@m_ostr2764 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2763 to ptr) }}
+@"m_%instantiate-vm-function" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop, %oop, %oop)* @"m_%instantiate-vm-function.code" to %oop), %"<string-h>"* @m_ostr2764 }}
+@m_cstr2765 = private unnamed_addr constant [6 x i8] c"+end+\00"
+@m_ostr2766 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2765 to ptr) }}
+@m_cstr2767 = private unnamed_addr constant [6 x i8] c"+end+\00"
+@m_ostr2768 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2767 to ptr) }}
+@m_cstr2769 = private unnamed_addr constant [12 x i8] c"run-program\00"
+@m_ostr2770 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2769 to ptr) }}
+@m_cstr2771 = private unnamed_addr constant [14 x i8] c"spawn-program\00"
+@m_ostr2772 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2771 to ptr) }}
+@m_cstr2773 = private unnamed_addr constant [25 x i8] c"call-x86-64-machine-code\00"
+@m_ostr2774 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2773 to ptr) }}
+@m_cstr2775 = private unnamed_addr constant [25 x i8] c"pointer->target-function\00"
+@m_ostr2776 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 49, ptr bitcast ([25 x i8]* @m_cstr2775 to ptr) }}
+@m_cstr2777 = private unnamed_addr constant [15 x i8] c"lower/$put-all\00"
+@m_ostr2778 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2777 to ptr) }}
+@m_cstr2779 = private unnamed_addr constant [16 x i8] c"string->integer\00"
+@m_ostr2780 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2779 to ptr) }}
+@m_cstr2781 = private unnamed_addr constant [15 x i8] c"string->number\00"
+@m_ostr2782 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2781 to ptr) }}
+@m_cstr2783 = private unnamed_addr constant [16 x i8] c"integer->string\00"
+@m_ostr2784 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2783 to ptr) }}
+@m_cstr2785 = private unnamed_addr constant [15 x i8] c"number->string\00"
+@m_ostr2786 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2785 to ptr) }}
+@m_cstr2787 = private unnamed_addr constant [14 x i8] c"string-append\00"
+@m_ostr2788 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2787 to ptr) }}
+@m_cstr2789 = private unnamed_addr constant [13 x i8] c"array-append\00"
+@m_ostr2790 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2789 to ptr) }}
+@m_cstr2791 = private unnamed_addr constant [14 x i8] c"string-insert\00"
+@m_ostr2792 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2791 to ptr) }}
+@m_cstr2793 = private unnamed_addr constant [13 x i8] c"array-insert\00"
+@m_ostr2794 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2793 to ptr) }}
+@m_cstr2795 = private unnamed_addr constant [12 x i8] c"set-char-at\00"
+@m_ostr2796 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2795 to ptr) }}
+@m_cstr2797 = private unnamed_addr constant [14 x i8] c"set-string-at\00"
+@m_ostr2798 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2797 to ptr) }}
+@m_cstr2799 = private unnamed_addr constant [13 x i8] c"set-array-at\00"
+@m_ostr2800 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2799 to ptr) }}
+@m_cstr2801 = private unnamed_addr constant [8 x i8] c"char-at\00"
+@m_ostr2802 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2801 to ptr) }}
+@m_cstr2803 = private unnamed_addr constant [10 x i8] c"string-at\00"
+@m_ostr2804 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2803 to ptr) }}
+@m_cstr2805 = private unnamed_addr constant [9 x i8] c"array-at\00"
+@m_ostr2806 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2805 to ptr) }}
+@m_cstr2807 = private unnamed_addr constant [15 x i8] c"string-compare\00"
+@m_ostr2808 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2807 to ptr) }}
+@m_cstr2809 = private unnamed_addr constant [14 x i8] c"string-length\00"
+@m_ostr2810 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2809 to ptr) }}
+@m_cstr2811 = private unnamed_addr constant [13 x i8] c"array-length\00"
+@m_ostr2812 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2811 to ptr) }}
+@m_cstr2813 = private unnamed_addr constant [17 x i8] c"long->lower-cell\00"
+@m_ostr2814 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2813 to ptr) }}
+@m_cstr2815 = private unnamed_addr constant [17 x i8] c"lower-cell->long\00"
+@m_ostr2816 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 33, ptr bitcast ([17 x i8]* @m_cstr2815 to ptr) }}
+@m_cstr2817 = private unnamed_addr constant [11 x i8] c"set-oop-at\00"
+@m_ostr2818 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2817 to ptr) }}
+@m_cstr2819 = private unnamed_addr constant [7 x i8] c"oop-at\00"
+@m_ostr2820 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2819 to ptr) }}
+@m_cstr2821 = private unnamed_addr constant [8 x i8] c"set-cdr\00"
+@m_ostr2822 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2821 to ptr) }}
+@m_cstr2823 = private unnamed_addr constant [8 x i8] c"set-car\00"
+@m_ostr2824 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2823 to ptr) }}
+@m_cstr2825 = private unnamed_addr constant [7 x i8] c"array?\00"
+@m_ostr2826 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2825 to ptr) }}
+@m_cstr2827 = private unnamed_addr constant [6 x i8] c"pair?\00"
+@m_ostr2828 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2827 to ptr) }}
+@m_cstr2829 = private unnamed_addr constant [8 x i8] c"symbol?\00"
+@m_ostr2830 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2829 to ptr) }}
+@m_cstr2831 = private unnamed_addr constant [8 x i8] c"string?\00"
+@m_ostr2832 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2831 to ptr) }}
+@m_cstr2833 = private unnamed_addr constant [8 x i8] c"type-of\00"
+@m_ostr2834 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2833 to ptr) }}
+@m_cstr2835 = private unnamed_addr constant [5 x i8] c"warn\00"
+@m_ostr2836 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2835 to ptr) }}
+@m_cstr2837 = private unnamed_addr constant [5 x i8] c"exit\00"
+@m_ostr2838 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2837 to ptr) }}
+@m_cstr2839 = private unnamed_addr constant [2 x i8] c"=\00"
+@m_ostr2840 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2839 to ptr) }}
+@m_cstr2841 = private unnamed_addr constant [2 x i8] c">\00"
+@m_ostr2842 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2841 to ptr) }}
+@m_cstr2843 = private unnamed_addr constant [3 x i8] c">=\00"
+@m_ostr2844 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr2843 to ptr) }}
+@m_cstr2845 = private unnamed_addr constant [3 x i8] c"<=\00"
+@m_ostr2846 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr2845 to ptr) }}
+@m_cstr2847 = private unnamed_addr constant [2 x i8] c"<\00"
+@m_ostr2848 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2847 to ptr) }}
+@m_cstr2849 = private unnamed_addr constant [14 x i8] c"bitwise-shift\00"
+@m_ostr2850 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2849 to ptr) }}
+@m_cstr2851 = private unnamed_addr constant [12 x i8] c"bitwise-not\00"
+@m_ostr2852 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2851 to ptr) }}
+@m_cstr2853 = private unnamed_addr constant [12 x i8] c"bitwise-xor\00"
+@m_ostr2854 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2853 to ptr) }}
+@m_cstr2855 = private unnamed_addr constant [11 x i8] c"bitwise-or\00"
+@m_ostr2856 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2855 to ptr) }}
+@m_cstr2857 = private unnamed_addr constant [12 x i8] c"bitwise-and\00"
 @m_ostr2858 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2857 to ptr) }}
-@m_cstr2859 = private unnamed_addr constant [23 x i8] c"file-modification-time\00"
-@m_ostr2860 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2859 to ptr) }}
-@m_cstr2861 = private unnamed_addr constant [16 x i8] c"file-write-byte\00"
-@m_ostr2862 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2861 to ptr) }}
-@m_cstr2863 = private unnamed_addr constant [15 x i8] c"file-read-byte\00"
-@m_ostr2864 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2863 to ptr) }}
-@m_cstr2865 = private unnamed_addr constant [11 x i8] c"file-close\00"
-@m_ostr2866 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2865 to ptr) }}
-@m_cstr2867 = private unnamed_addr constant [10 x i8] c"file-open\00"
-@m_ostr2868 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2867 to ptr) }}
-@m_cstr2869 = private unnamed_addr constant [22 x i8] c"set-working-directory\00"
-@m_ostr2870 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 43, ptr bitcast ([22 x i8]* @m_cstr2869 to ptr) }}
-@m_cstr2871 = private unnamed_addr constant [18 x i8] c"working-directory\00"
-@m_ostr2872 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2871 to ptr) }}
-@m_cstr2873 = private unnamed_addr constant [7 x i8] c"encode\00"
-@m_ostr2874 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2873 to ptr) }}
-@m_cstr2875 = private unnamed_addr constant [7 x i8] c"expand\00"
-@m_ostr2876 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2875 to ptr) }}
-@m_cstr2877 = private unnamed_addr constant [6 x i8] c"apply\00"
+@m_cstr2859 = private unnamed_addr constant [2 x i8] c"*\00"
+@m_ostr2860 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2859 to ptr) }}
+@m_cstr2861 = private unnamed_addr constant [2 x i8] c"/\00"
+@m_ostr2862 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2861 to ptr) }}
+@m_cstr2863 = private unnamed_addr constant [2 x i8] c"+\00"
+@m_ostr2864 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2863 to ptr) }}
+@m_cstr2865 = private unnamed_addr constant [2 x i8] c"-\00"
+@m_ostr2866 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 3, ptr bitcast ([2 x i8]* @m_cstr2865 to ptr) }}
+@m_cstr2867 = private unnamed_addr constant [4 x i8] c"not\00"
+@m_ostr2868 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2867 to ptr) }}
+@m_cstr2869 = private unnamed_addr constant [6 x i8] c"quote\00"
+@m_ostr2870 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2869 to ptr) }}
+@m_cstr2871 = private unnamed_addr constant [4 x i8] c"and\00"
+@m_ostr2872 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2871 to ptr) }}
+@m_cstr2873 = private unnamed_addr constant [3 x i8] c"or\00"
+@m_ostr2874 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr2873 to ptr) }}
+@m_cstr2875 = private unnamed_addr constant [3 x i8] c"if\00"
+@m_ostr2876 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 5, ptr bitcast ([3 x i8]* @m_cstr2875 to ptr) }}
+@m_cstr2877 = private unnamed_addr constant [6 x i8] c"while\00"
 @m_ostr2878 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2877 to ptr) }}
-@m_cstr2879 = private unnamed_addr constant [10 x i8] c"print-all\00"
-@m_ostr2880 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2879 to ptr) }}
-@m_cstr2881 = private unnamed_addr constant [9 x i8] c"dump-all\00"
-@m_ostr2882 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2881 to ptr) }}
-@m_cstr2883 = private unnamed_addr constant [6 x i8] c"print\00"
-@m_ostr2884 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2883 to ptr) }}
-@m_cstr2885 = private unnamed_addr constant [5 x i8] c"dump\00"
+@m_cstr2879 = private unnamed_addr constant [4 x i8] c"set\00"
+@m_ostr2880 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2879 to ptr) }}
+@m_cstr2881 = private unnamed_addr constant [4 x i8] c"let\00"
+@m_ostr2882 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2881 to ptr) }}
+@m_cstr2883 = private unnamed_addr constant [7 x i8] c"lambda\00"
+@m_ostr2884 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2883 to ptr) }}
+@m_cstr2885 = private unnamed_addr constant [5 x i8] c"eval\00"
 @m_ostr2886 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2885 to ptr) }}
-@m_cstr2887 = private unnamed_addr constant [5 x i8] c"read\00"
-@m_ostr2888 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2887 to ptr) }}
-@m_cstr2889 = private unnamed_addr constant [20 x i8] c"set-current-globals\00"
-@m_ostr2890 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr2889 to ptr) }}
-@m_cstr2891 = private unnamed_addr constant [16 x i8] c"current-globals\00"
-@m_ostr2892 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2891 to ptr) }}
-@m_cstr2893 = private unnamed_addr constant [19 x i8] c"environment-define\00"
-@m_ostr2894 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 37, ptr bitcast ([19 x i8]* @m_cstr2893 to ptr) }}
-@m_cstr2895 = private unnamed_addr constant [9 x i8] c"defined?\00"
-@m_ostr2896 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2895 to ptr) }}
-@m_cstr2897 = private unnamed_addr constant [15 x i8] c"symbol->string\00"
-@m_ostr2898 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2897 to ptr) }}
-@m_cstr2899 = private unnamed_addr constant [15 x i8] c"string->symbol\00"
-@m_ostr2900 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2899 to ptr) }}
-@m_cstr2901 = private unnamed_addr constant [18 x i8] c"set-string-length\00"
-@m_ostr2902 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2901 to ptr) }}
-@m_cstr2903 = private unnamed_addr constant [18 x i8] c"string-insert-all\00"
-@m_ostr2904 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2903 to ptr) }}
-@m_cstr2905 = private unnamed_addr constant [15 x i8] c"set-cell-64-at\00"
-@m_ostr2906 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2905 to ptr) }}
-@m_cstr2907 = private unnamed_addr constant [11 x i8] c"cell-64-at\00"
-@m_ostr2908 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2907 to ptr) }}
-@m_cstr2909 = private unnamed_addr constant [12 x i8] c"set-cell-at\00"
-@m_ostr2910 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2909 to ptr) }}
-@m_cstr2911 = private unnamed_addr constant [8 x i8] c"cell-at\00"
-@m_ostr2912 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2911 to ptr) }}
-@m_cstr2913 = private unnamed_addr constant [20 x i8] c"set-memory-block/at\00"
-@m_ostr2914 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr2913 to ptr) }}
-@m_cstr2915 = private unnamed_addr constant [16 x i8] c"memory-block/at\00"
-@m_ostr2916 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2915 to ptr) }}
-@m_cstr2917 = private unnamed_addr constant [20 x i8] c"memory-block/length\00"
-@m_ostr2918 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr2917 to ptr) }}
-@m_cstr2919 = private unnamed_addr constant [29 x i8] c"memory-block->lower/function\00"
-@m_ostr2920 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2919 to ptr) }}
-@m_cstr2921 = private unnamed_addr constant [13 x i8] c"memory-block\00"
-@m_ostr2922 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2921 to ptr) }}
-@m_cstr2923 = private unnamed_addr constant [4 x i8] c"cdr\00"
-@m_ostr2924 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2923 to ptr) }}
-@m_cstr2925 = private unnamed_addr constant [4 x i8] c"car\00"
-@m_ostr2926 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2925 to ptr) }}
-@m_cstr2927 = private unnamed_addr constant [12 x i8] c"environment\00"
-@m_ostr2928 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2927 to ptr) }}
-@m_cstr2929 = private unnamed_addr constant [9 x i8] c"variable\00"
-@m_ostr2930 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2929 to ptr) }}
-@m_cstr2931 = private unnamed_addr constant [6 x i8] c"fixed\00"
-@m_ostr2932 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2931 to ptr) }}
-@m_cstr2933 = private unnamed_addr constant [5 x i8] c"form\00"
-@m_ostr2934 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2933 to ptr) }}
-@m_cstr2935 = private unnamed_addr constant [6 x i8] c"array\00"
-@m_ostr2936 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2935 to ptr) }}
-@m_cstr2937 = private unnamed_addr constant [7 x i8] c"string\00"
-@m_ostr2938 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2937 to ptr) }}
-@m_cstr2939 = private unnamed_addr constant [5 x i8] c"cons\00"
-@m_ostr2940 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2939 to ptr) }}
-@m_cstr2941 = private unnamed_addr constant [14 x i8] c"allocate-data\00"
-@m_ostr2942 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2941 to ptr) }}
-@m_cstr2943 = private unnamed_addr constant [9 x i8] c"allocate\00"
-@m_ostr2944 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2943 to ptr) }}
-@m_cstr2945 = private unnamed_addr constant [6 x i8] c"abort\00"
-@m_ostr2946 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2945 to ptr) }}
-define %oop @m_fn2947(%oop %env, %oop %name) {
+@m_cstr2887 = private unnamed_addr constant [7 x i8] c"define\00"
+@m_ostr2888 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2887 to ptr) }}
+@m_cstr2889 = private unnamed_addr constant [5 x i8] c"load\00"
+@m_ostr2890 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2889 to ptr) }}
+@m_cstr2891 = private unnamed_addr constant [13 x i8] c"image-source\00"
+@m_ostr2892 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2891 to ptr) }}
+@m_cstr2893 = private unnamed_addr constant [12 x i8] c"repl-stream\00"
+@m_ostr2894 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2893 to ptr) }}
+@m_cstr2895 = private unnamed_addr constant [12 x i8] c"file-stream\00"
+@m_ostr2896 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2895 to ptr) }}
+@m_cstr2897 = private unnamed_addr constant [23 x i8] c"file-modification-time\00"
+@m_ostr2898 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 45, ptr bitcast ([23 x i8]* @m_cstr2897 to ptr) }}
+@m_cstr2899 = private unnamed_addr constant [16 x i8] c"file-write-byte\00"
+@m_ostr2900 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2899 to ptr) }}
+@m_cstr2901 = private unnamed_addr constant [15 x i8] c"file-read-byte\00"
+@m_ostr2902 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2901 to ptr) }}
+@m_cstr2903 = private unnamed_addr constant [11 x i8] c"file-close\00"
+@m_ostr2904 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2903 to ptr) }}
+@m_cstr2905 = private unnamed_addr constant [10 x i8] c"file-open\00"
+@m_ostr2906 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2905 to ptr) }}
+@m_cstr2907 = private unnamed_addr constant [22 x i8] c"set-working-directory\00"
+@m_ostr2908 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 43, ptr bitcast ([22 x i8]* @m_cstr2907 to ptr) }}
+@m_cstr2909 = private unnamed_addr constant [18 x i8] c"working-directory\00"
+@m_ostr2910 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2909 to ptr) }}
+@m_cstr2911 = private unnamed_addr constant [7 x i8] c"encode\00"
+@m_ostr2912 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2911 to ptr) }}
+@m_cstr2913 = private unnamed_addr constant [7 x i8] c"expand\00"
+@m_ostr2914 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2913 to ptr) }}
+@m_cstr2915 = private unnamed_addr constant [6 x i8] c"apply\00"
+@m_ostr2916 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2915 to ptr) }}
+@m_cstr2917 = private unnamed_addr constant [10 x i8] c"print-all\00"
+@m_ostr2918 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2917 to ptr) }}
+@m_cstr2919 = private unnamed_addr constant [9 x i8] c"dump-all\00"
+@m_ostr2920 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2919 to ptr) }}
+@m_cstr2921 = private unnamed_addr constant [6 x i8] c"print\00"
+@m_ostr2922 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2921 to ptr) }}
+@m_cstr2923 = private unnamed_addr constant [5 x i8] c"dump\00"
+@m_ostr2924 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2923 to ptr) }}
+@m_cstr2925 = private unnamed_addr constant [5 x i8] c"read\00"
+@m_ostr2926 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2925 to ptr) }}
+@m_cstr2927 = private unnamed_addr constant [20 x i8] c"set-current-globals\00"
+@m_ostr2928 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr2927 to ptr) }}
+@m_cstr2929 = private unnamed_addr constant [16 x i8] c"current-globals\00"
+@m_ostr2930 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2929 to ptr) }}
+@m_cstr2931 = private unnamed_addr constant [19 x i8] c"environment-define\00"
+@m_ostr2932 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 37, ptr bitcast ([19 x i8]* @m_cstr2931 to ptr) }}
+@m_cstr2933 = private unnamed_addr constant [9 x i8] c"defined?\00"
+@m_ostr2934 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2933 to ptr) }}
+@m_cstr2935 = private unnamed_addr constant [15 x i8] c"symbol->string\00"
+@m_ostr2936 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2935 to ptr) }}
+@m_cstr2937 = private unnamed_addr constant [15 x i8] c"string->symbol\00"
+@m_ostr2938 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2937 to ptr) }}
+@m_cstr2939 = private unnamed_addr constant [18 x i8] c"set-string-length\00"
+@m_ostr2940 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2939 to ptr) }}
+@m_cstr2941 = private unnamed_addr constant [18 x i8] c"string-insert-all\00"
+@m_ostr2942 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 35, ptr bitcast ([18 x i8]* @m_cstr2941 to ptr) }}
+@m_cstr2943 = private unnamed_addr constant [15 x i8] c"set-cell-64-at\00"
+@m_ostr2944 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 29, ptr bitcast ([15 x i8]* @m_cstr2943 to ptr) }}
+@m_cstr2945 = private unnamed_addr constant [11 x i8] c"cell-64-at\00"
+@m_ostr2946 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 21, ptr bitcast ([11 x i8]* @m_cstr2945 to ptr) }}
+@m_cstr2947 = private unnamed_addr constant [12 x i8] c"set-cell-at\00"
+@m_ostr2948 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2947 to ptr) }}
+@m_cstr2949 = private unnamed_addr constant [8 x i8] c"cell-at\00"
+@m_ostr2950 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 15, ptr bitcast ([8 x i8]* @m_cstr2949 to ptr) }}
+@m_cstr2951 = private unnamed_addr constant [20 x i8] c"set-memory-block/at\00"
+@m_ostr2952 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr2951 to ptr) }}
+@m_cstr2953 = private unnamed_addr constant [16 x i8] c"memory-block/at\00"
+@m_ostr2954 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 31, ptr bitcast ([16 x i8]* @m_cstr2953 to ptr) }}
+@m_cstr2955 = private unnamed_addr constant [20 x i8] c"memory-block/length\00"
+@m_ostr2956 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr2955 to ptr) }}
+@m_cstr2957 = private unnamed_addr constant [29 x i8] c"memory-block->lower/function\00"
+@m_ostr2958 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 57, ptr bitcast ([29 x i8]* @m_cstr2957 to ptr) }}
+@m_cstr2959 = private unnamed_addr constant [13 x i8] c"memory-block\00"
+@m_ostr2960 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2959 to ptr) }}
+@m_cstr2961 = private unnamed_addr constant [4 x i8] c"cdr\00"
+@m_ostr2962 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2961 to ptr) }}
+@m_cstr2963 = private unnamed_addr constant [4 x i8] c"car\00"
+@m_ostr2964 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 7, ptr bitcast ([4 x i8]* @m_cstr2963 to ptr) }}
+@m_cstr2965 = private unnamed_addr constant [12 x i8] c"environment\00"
+@m_ostr2966 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 23, ptr bitcast ([12 x i8]* @m_cstr2965 to ptr) }}
+@m_cstr2967 = private unnamed_addr constant [9 x i8] c"variable\00"
+@m_ostr2968 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2967 to ptr) }}
+@m_cstr2969 = private unnamed_addr constant [6 x i8] c"fixed\00"
+@m_ostr2970 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2969 to ptr) }}
+@m_cstr2971 = private unnamed_addr constant [5 x i8] c"form\00"
+@m_ostr2972 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2971 to ptr) }}
+@m_cstr2973 = private unnamed_addr constant [6 x i8] c"array\00"
+@m_ostr2974 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2973 to ptr) }}
+@m_cstr2975 = private unnamed_addr constant [7 x i8] c"string\00"
+@m_ostr2976 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2975 to ptr) }}
+@m_cstr2977 = private unnamed_addr constant [5 x i8] c"cons\00"
+@m_ostr2978 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2977 to ptr) }}
+@m_cstr2979 = private unnamed_addr constant [14 x i8] c"allocate-data\00"
+@m_ostr2980 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2979 to ptr) }}
+@m_cstr2981 = private unnamed_addr constant [9 x i8] c"allocate\00"
+@m_ostr2982 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2981 to ptr) }}
+@m_cstr2983 = private unnamed_addr constant [6 x i8] c"abort\00"
+@m_ostr2984 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 11, ptr bitcast ([6 x i8]* @m_cstr2983 to ptr) }}
+define %oop @m_fn2985(%oop %env, %oop %name) {
 	%t1 = alloca %oop
 	%t0 = alloca %oop
 	%t2 = alloca %oop
@@ -40155,9 +40404,9 @@ L1:
 	%r42 = load %oop, %oop* %t3
 	ret %oop %r42
 }
-@m_oclosure2948 = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @m_fn2947 to %oop), %"<string-h>"* null }}
-@m_cstr2949 = private unnamed_addr constant [48 x i8] c"populate-env-with-maru-primitives: final assert\00"
-@m_ostr2950 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 95, ptr bitcast ([48 x i8]* @m_cstr2949 to ptr) }}
+@m_oclosure2986 = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop, %oop)* @m_fn2985 to %oop), %"<string-h>"* null }}
+@m_cstr2987 = private unnamed_addr constant [48 x i8] c"populate-env-with-maru-primitives: final assert\00"
+@m_ostr2988 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 95, ptr bitcast ([48 x i8]* @m_cstr2987 to ptr) }}
 define %oop @m_populate-env-with-maru-primitives.code(%oop %env) {
 	%t0 = alloca %oop
 	%t1 = alloca %oop
@@ -40214,7 +40463,7 @@ define %oop @m_populate-env-with-maru-primitives.code(%oop %env) {
 	%r46 = icmp ne %word %r47, 0
 	br i1 %r46, label %L2, label %L1
 L2:
-	%r48 = getelementptr %"<header>", %"<header>"* @m_ostr2730, i32 1
+	%r48 = getelementptr %"<header>", %"<header>"* @m_ostr2766, i32 1
 	%r49 = call %oop @m_symbol.code(%oop %r48)
 	store %oop %r49, %oop* %t1
 	store %oop %r49, %oop* %t2
@@ -40232,7 +40481,7 @@ L1:
 	%r58 = load %oop, %oop* %t2
 	store %oop %r58, %oop* @"m_+end+"
 	%r59 = load %oop, %oop* %t0
-	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2732, i32 1
+	%r60 = getelementptr %"<header>", %"<header>"* @m_ostr2768, i32 1
 	%r61 = call %oop @"m_string->symbol.code"(%oop %r60)
 	%r63 = load %oop, %oop* @"m_+end+"
 	%r64 = call %oop @m_environment-define.code(%oop %r59, %oop %r61, %oop %r63)
@@ -40247,753 +40496,758 @@ L1:
 	%r74 = call %oop @m_environment-define.code(%oop %r71, %oop %r72, %oop %r73)
 	%r76 = inttoptr %word 0 to %oop
 	%r77 = load %oop, %oop* %t0
-	%r78 = getelementptr %"<header>", %"<header>"* @m_ostr2734, i32 1
+	%r78 = getelementptr %"<header>", %"<header>"* @m_ostr2770, i32 1
 	%r79 = getelementptr %"<header>", %"<header>"* @"m_run-program/evaluator-stub", i32 1
 	%r80 = inttoptr %word 0 to %oop
 	%r81 = call %oop @"m_%instantiate-vm-function.code"(%oop %r77, %oop %r78, %oop %r79, %oop %r80)
 	%r83 = load %oop, %oop* %t0
-	%r84 = getelementptr %"<header>", %"<header>"* @m_ostr2736, i32 1
+	%r84 = getelementptr %"<header>", %"<header>"* @m_ostr2772, i32 1
 	%r85 = getelementptr %"<header>", %"<header>"* @"m_spawn-program/evaluator-stub", i32 1
 	%r86 = inttoptr %word 0 to %oop
 	%r87 = call %oop @"m_%instantiate-vm-function.code"(%oop %r83, %oop %r84, %oop %r85, %oop %r86)
 	%r89 = load %oop, %oop* %t0
-	%r90 = getelementptr %"<header>", %"<header>"* @m_ostr2738, i32 1
+	%r90 = getelementptr %"<header>", %"<header>"* @m_ostr2774, i32 1
 	%r91 = getelementptr %"<header>", %"<header>"* @"m_call-x86-64-machine-code/evaluator-stub", i32 1
 	%r92 = inttoptr %word 0 to %oop
 	%r93 = call %oop @"m_%instantiate-vm-function.code"(%oop %r89, %oop %r90, %oop %r91, %oop %r92)
 	%r95 = load %oop, %oop* %t0
-	%r96 = getelementptr %"<header>", %"<header>"* @m_ostr2740, i32 1
+	%r96 = getelementptr %"<header>", %"<header>"* @m_ostr2776, i32 1
 	%r97 = getelementptr %"<header>", %"<header>"* @"m_pointer->target-function/evaluator-stub", i32 1
 	%r98 = inttoptr %word 0 to %oop
 	%r99 = call %oop @"m_%instantiate-vm-function.code"(%oop %r95, %oop %r96, %oop %r97, %oop %r98)
 	%r101 = load %oop, %oop* %t0
-	%r102 = getelementptr %"<header>", %"<header>"* @m_ostr2742, i32 1
+	%r102 = getelementptr %"<header>", %"<header>"* @m_ostr2778, i32 1
 	%r103 = getelementptr %"<header>", %"<header>"* @"m_lower/$put-all/evaluator-stub", i32 1
 	%r104 = inttoptr %word 0 to %oop
 	%r105 = call %oop @"m_%instantiate-vm-function.code"(%oop %r101, %oop %r102, %oop %r103, %oop %r104)
 	%r107 = load %oop, %oop* %t0
-	%r108 = getelementptr %"<header>", %"<header>"* @m_ostr2744, i32 1
+	%r108 = getelementptr %"<header>", %"<header>"* @m_ostr2780, i32 1
 	%r109 = getelementptr %"<header>", %"<header>"* @"m_string->integer/evaluator-stub", i32 1
 	%r110 = inttoptr %word 0 to %oop
 	%r111 = call %oop @"m_%instantiate-vm-function.code"(%oop %r107, %oop %r108, %oop %r109, %oop %r110)
 	%r113 = load %oop, %oop* %t0
-	%r114 = getelementptr %"<header>", %"<header>"* @m_ostr2746, i32 1
+	%r114 = getelementptr %"<header>", %"<header>"* @m_ostr2782, i32 1
 	%r115 = getelementptr %"<header>", %"<header>"* @"m_string->number/evaluator-stub", i32 1
 	%r116 = inttoptr %word 0 to %oop
 	%r117 = call %oop @"m_%instantiate-vm-function.code"(%oop %r113, %oop %r114, %oop %r115, %oop %r116)
 	%r119 = load %oop, %oop* %t0
-	%r120 = getelementptr %"<header>", %"<header>"* @m_ostr2748, i32 1
+	%r120 = getelementptr %"<header>", %"<header>"* @m_ostr2784, i32 1
 	%r121 = getelementptr %"<header>", %"<header>"* @"m_integer->string/evaluator-stub", i32 1
 	%r122 = inttoptr %word 0 to %oop
 	%r123 = call %oop @"m_%instantiate-vm-function.code"(%oop %r119, %oop %r120, %oop %r121, %oop %r122)
 	%r125 = load %oop, %oop* %t0
-	%r126 = getelementptr %"<header>", %"<header>"* @m_ostr2750, i32 1
+	%r126 = getelementptr %"<header>", %"<header>"* @m_ostr2786, i32 1
 	%r127 = getelementptr %"<header>", %"<header>"* @"m_number->string/evaluator-stub", i32 1
 	%r128 = inttoptr %word 0 to %oop
 	%r129 = call %oop @"m_%instantiate-vm-function.code"(%oop %r125, %oop %r126, %oop %r127, %oop %r128)
 	%r131 = load %oop, %oop* %t0
-	%r132 = getelementptr %"<header>", %"<header>"* @m_ostr2752, i32 1
+	%r132 = getelementptr %"<header>", %"<header>"* @m_ostr2788, i32 1
 	%r133 = getelementptr %"<header>", %"<header>"* @"m_string-append/evaluator-stub", i32 1
 	%r134 = inttoptr %word 0 to %oop
 	%r135 = call %oop @"m_%instantiate-vm-function.code"(%oop %r131, %oop %r132, %oop %r133, %oop %r134)
 	%r137 = load %oop, %oop* %t0
-	%r138 = getelementptr %"<header>", %"<header>"* @m_ostr2754, i32 1
+	%r138 = getelementptr %"<header>", %"<header>"* @m_ostr2790, i32 1
 	%r139 = getelementptr %"<header>", %"<header>"* @"m_array-append/evaluator-stub", i32 1
 	%r140 = inttoptr %word 0 to %oop
 	%r141 = call %oop @"m_%instantiate-vm-function.code"(%oop %r137, %oop %r138, %oop %r139, %oop %r140)
 	%r143 = load %oop, %oop* %t0
-	%r144 = getelementptr %"<header>", %"<header>"* @m_ostr2756, i32 1
+	%r144 = getelementptr %"<header>", %"<header>"* @m_ostr2792, i32 1
 	%r145 = getelementptr %"<header>", %"<header>"* @"m_string-insert/evaluator-stub", i32 1
 	%r146 = inttoptr %word 0 to %oop
 	%r147 = call %oop @"m_%instantiate-vm-function.code"(%oop %r143, %oop %r144, %oop %r145, %oop %r146)
 	%r149 = load %oop, %oop* %t0
-	%r150 = getelementptr %"<header>", %"<header>"* @m_ostr2758, i32 1
+	%r150 = getelementptr %"<header>", %"<header>"* @m_ostr2794, i32 1
 	%r151 = getelementptr %"<header>", %"<header>"* @"m_array-insert/evaluator-stub", i32 1
 	%r152 = inttoptr %word 0 to %oop
 	%r153 = call %oop @"m_%instantiate-vm-function.code"(%oop %r149, %oop %r150, %oop %r151, %oop %r152)
 	%r155 = load %oop, %oop* %t0
-	%r156 = getelementptr %"<header>", %"<header>"* @m_ostr2760, i32 1
+	%r156 = getelementptr %"<header>", %"<header>"* @m_ostr2796, i32 1
 	%r157 = getelementptr %"<header>", %"<header>"* @"m_set-char-at/evaluator-stub", i32 1
 	%r158 = inttoptr %word 0 to %oop
 	%r159 = call %oop @"m_%instantiate-vm-function.code"(%oop %r155, %oop %r156, %oop %r157, %oop %r158)
 	%r161 = load %oop, %oop* %t0
-	%r162 = getelementptr %"<header>", %"<header>"* @m_ostr2762, i32 1
+	%r162 = getelementptr %"<header>", %"<header>"* @m_ostr2798, i32 1
 	%r163 = getelementptr %"<header>", %"<header>"* @"m_set-string-at/evaluator-stub", i32 1
 	%r164 = inttoptr %word 0 to %oop
 	%r165 = call %oop @"m_%instantiate-vm-function.code"(%oop %r161, %oop %r162, %oop %r163, %oop %r164)
 	%r167 = load %oop, %oop* %t0
-	%r168 = getelementptr %"<header>", %"<header>"* @m_ostr2764, i32 1
+	%r168 = getelementptr %"<header>", %"<header>"* @m_ostr2800, i32 1
 	%r169 = getelementptr %"<header>", %"<header>"* @"m_set-array-at/evaluator-stub", i32 1
 	%r170 = inttoptr %word 0 to %oop
 	%r171 = call %oop @"m_%instantiate-vm-function.code"(%oop %r167, %oop %r168, %oop %r169, %oop %r170)
 	%r173 = load %oop, %oop* %t0
-	%r174 = getelementptr %"<header>", %"<header>"* @m_ostr2766, i32 1
+	%r174 = getelementptr %"<header>", %"<header>"* @m_ostr2802, i32 1
 	%r175 = getelementptr %"<header>", %"<header>"* @"m_char-at/evaluator-stub", i32 1
 	%r176 = inttoptr %word 0 to %oop
 	%r177 = call %oop @"m_%instantiate-vm-function.code"(%oop %r173, %oop %r174, %oop %r175, %oop %r176)
 	%r179 = load %oop, %oop* %t0
-	%r180 = getelementptr %"<header>", %"<header>"* @m_ostr2768, i32 1
+	%r180 = getelementptr %"<header>", %"<header>"* @m_ostr2804, i32 1
 	%r181 = getelementptr %"<header>", %"<header>"* @"m_string-at/evaluator-stub", i32 1
 	%r182 = inttoptr %word 0 to %oop
 	%r183 = call %oop @"m_%instantiate-vm-function.code"(%oop %r179, %oop %r180, %oop %r181, %oop %r182)
 	%r185 = load %oop, %oop* %t0
-	%r186 = getelementptr %"<header>", %"<header>"* @m_ostr2770, i32 1
+	%r186 = getelementptr %"<header>", %"<header>"* @m_ostr2806, i32 1
 	%r187 = getelementptr %"<header>", %"<header>"* @"m_array-at/evaluator-stub", i32 1
 	%r188 = inttoptr %word 0 to %oop
 	%r189 = call %oop @"m_%instantiate-vm-function.code"(%oop %r185, %oop %r186, %oop %r187, %oop %r188)
 	%r191 = load %oop, %oop* %t0
-	%r192 = getelementptr %"<header>", %"<header>"* @m_ostr2772, i32 1
+	%r192 = getelementptr %"<header>", %"<header>"* @m_ostr2808, i32 1
 	%r193 = getelementptr %"<header>", %"<header>"* @"m_string-compare/evaluator-stub", i32 1
 	%r194 = inttoptr %word 0 to %oop
 	%r195 = call %oop @"m_%instantiate-vm-function.code"(%oop %r191, %oop %r192, %oop %r193, %oop %r194)
 	%r197 = load %oop, %oop* %t0
-	%r198 = getelementptr %"<header>", %"<header>"* @m_ostr2774, i32 1
+	%r198 = getelementptr %"<header>", %"<header>"* @m_ostr2810, i32 1
 	%r199 = getelementptr %"<header>", %"<header>"* @"m_string-length/evaluator-stub", i32 1
 	%r200 = inttoptr %word 0 to %oop
 	%r201 = call %oop @"m_%instantiate-vm-function.code"(%oop %r197, %oop %r198, %oop %r199, %oop %r200)
 	%r203 = load %oop, %oop* %t0
-	%r204 = getelementptr %"<header>", %"<header>"* @m_ostr2776, i32 1
+	%r204 = getelementptr %"<header>", %"<header>"* @m_ostr2812, i32 1
 	%r205 = getelementptr %"<header>", %"<header>"* @"m_array-length/evaluator-stub", i32 1
 	%r206 = inttoptr %word 0 to %oop
 	%r207 = call %oop @"m_%instantiate-vm-function.code"(%oop %r203, %oop %r204, %oop %r205, %oop %r206)
 	%r209 = load %oop, %oop* %t0
-	%r210 = getelementptr %"<header>", %"<header>"* @m_ostr2778, i32 1
+	%r210 = getelementptr %"<header>", %"<header>"* @m_ostr2814, i32 1
 	%r211 = getelementptr %"<header>", %"<header>"* @"m_long->lower-cell/evaluator-stub", i32 1
 	%r212 = inttoptr %word 0 to %oop
 	%r213 = call %oop @"m_%instantiate-vm-function.code"(%oop %r209, %oop %r210, %oop %r211, %oop %r212)
 	%r215 = load %oop, %oop* %t0
-	%r216 = getelementptr %"<header>", %"<header>"* @m_ostr2780, i32 1
+	%r216 = getelementptr %"<header>", %"<header>"* @m_ostr2816, i32 1
 	%r217 = getelementptr %"<header>", %"<header>"* @"m_lower-cell->long/evaluator-stub", i32 1
 	%r218 = inttoptr %word 0 to %oop
 	%r219 = call %oop @"m_%instantiate-vm-function.code"(%oop %r215, %oop %r216, %oop %r217, %oop %r218)
 	%r221 = load %oop, %oop* %t0
-	%r222 = getelementptr %"<header>", %"<header>"* @m_ostr2782, i32 1
+	%r222 = getelementptr %"<header>", %"<header>"* @m_ostr2818, i32 1
 	%r223 = getelementptr %"<header>", %"<header>"* @"m_set-oop-at/evaluator-stub", i32 1
 	%r224 = inttoptr %word 0 to %oop
 	%r225 = call %oop @"m_%instantiate-vm-function.code"(%oop %r221, %oop %r222, %oop %r223, %oop %r224)
 	%r227 = load %oop, %oop* %t0
-	%r228 = getelementptr %"<header>", %"<header>"* @m_ostr2784, i32 1
+	%r228 = getelementptr %"<header>", %"<header>"* @m_ostr2820, i32 1
 	%r229 = getelementptr %"<header>", %"<header>"* @"m_oop-at/evaluator-stub", i32 1
 	%r230 = inttoptr %word 0 to %oop
 	%r231 = call %oop @"m_%instantiate-vm-function.code"(%oop %r227, %oop %r228, %oop %r229, %oop %r230)
 	%r233 = load %oop, %oop* %t0
-	%r234 = getelementptr %"<header>", %"<header>"* @m_ostr2786, i32 1
+	%r234 = getelementptr %"<header>", %"<header>"* @m_ostr2822, i32 1
 	%r235 = getelementptr %"<header>", %"<header>"* @"m_set-cdr/evaluator-stub", i32 1
 	%r236 = inttoptr %word 0 to %oop
 	%r237 = call %oop @"m_%instantiate-vm-function.code"(%oop %r233, %oop %r234, %oop %r235, %oop %r236)
 	%r239 = load %oop, %oop* %t0
-	%r240 = getelementptr %"<header>", %"<header>"* @m_ostr2788, i32 1
+	%r240 = getelementptr %"<header>", %"<header>"* @m_ostr2824, i32 1
 	%r241 = getelementptr %"<header>", %"<header>"* @"m_set-car/evaluator-stub", i32 1
 	%r242 = inttoptr %word 0 to %oop
 	%r243 = call %oop @"m_%instantiate-vm-function.code"(%oop %r239, %oop %r240, %oop %r241, %oop %r242)
 	%r245 = load %oop, %oop* %t0
-	%r246 = getelementptr %"<header>", %"<header>"* @m_ostr2790, i32 1
+	%r246 = getelementptr %"<header>", %"<header>"* @m_ostr2826, i32 1
 	%r247 = getelementptr %"<header>", %"<header>"* @"m_array?/evaluator-stub", i32 1
 	%r248 = inttoptr %word 0 to %oop
 	%r249 = call %oop @"m_%instantiate-vm-function.code"(%oop %r245, %oop %r246, %oop %r247, %oop %r248)
 	%r251 = load %oop, %oop* %t0
-	%r252 = getelementptr %"<header>", %"<header>"* @m_ostr2792, i32 1
+	%r252 = getelementptr %"<header>", %"<header>"* @m_ostr2828, i32 1
 	%r253 = getelementptr %"<header>", %"<header>"* @"m_pair?/evaluator-stub", i32 1
 	%r254 = inttoptr %word 0 to %oop
 	%r255 = call %oop @"m_%instantiate-vm-function.code"(%oop %r251, %oop %r252, %oop %r253, %oop %r254)
 	%r257 = load %oop, %oop* %t0
-	%r258 = getelementptr %"<header>", %"<header>"* @m_ostr2794, i32 1
+	%r258 = getelementptr %"<header>", %"<header>"* @m_ostr2830, i32 1
 	%r259 = getelementptr %"<header>", %"<header>"* @"m_symbol?/evaluator-stub", i32 1
 	%r260 = inttoptr %word 0 to %oop
 	%r261 = call %oop @"m_%instantiate-vm-function.code"(%oop %r257, %oop %r258, %oop %r259, %oop %r260)
 	%r263 = load %oop, %oop* %t0
-	%r264 = getelementptr %"<header>", %"<header>"* @m_ostr2796, i32 1
+	%r264 = getelementptr %"<header>", %"<header>"* @m_ostr2832, i32 1
 	%r265 = getelementptr %"<header>", %"<header>"* @"m_string?/evaluator-stub", i32 1
 	%r266 = inttoptr %word 0 to %oop
 	%r267 = call %oop @"m_%instantiate-vm-function.code"(%oop %r263, %oop %r264, %oop %r265, %oop %r266)
 	%r269 = load %oop, %oop* %t0
-	%r270 = getelementptr %"<header>", %"<header>"* @m_ostr2798, i32 1
+	%r270 = getelementptr %"<header>", %"<header>"* @m_ostr2834, i32 1
 	%r271 = getelementptr %"<header>", %"<header>"* @"m_type-of/evaluator-stub", i32 1
 	%r272 = inttoptr %word 0 to %oop
 	%r273 = call %oop @"m_%instantiate-vm-function.code"(%oop %r269, %oop %r270, %oop %r271, %oop %r272)
 	%r275 = load %oop, %oop* %t0
-	%r276 = getelementptr %"<header>", %"<header>"* @m_ostr2800, i32 1
+	%r276 = getelementptr %"<header>", %"<header>"* @m_ostr2836, i32 1
 	%r277 = getelementptr %"<header>", %"<header>"* @"m_warn/evaluator-stub", i32 1
 	%r278 = inttoptr %word 0 to %oop
 	%r279 = call %oop @"m_%instantiate-vm-function.code"(%oop %r275, %oop %r276, %oop %r277, %oop %r278)
 	%r281 = load %oop, %oop* %t0
-	%r282 = getelementptr %"<header>", %"<header>"* @m_ostr2802, i32 1
+	%r282 = getelementptr %"<header>", %"<header>"* @m_ostr2838, i32 1
 	%r283 = getelementptr %"<header>", %"<header>"* @"m_exit/evaluator-stub", i32 1
 	%r284 = inttoptr %word 0 to %oop
 	%r285 = call %oop @"m_%instantiate-vm-function.code"(%oop %r281, %oop %r282, %oop %r283, %oop %r284)
 	%r287 = load %oop, %oop* %t0
-	%r288 = getelementptr %"<header>", %"<header>"* @m_ostr2804, i32 1
+	%r288 = getelementptr %"<header>", %"<header>"* @m_ostr2840, i32 1
 	%r289 = getelementptr %"<header>", %"<header>"* @"m_=/evaluator-stub", i32 1
 	%r290 = inttoptr %word 0 to %oop
 	%r291 = call %oop @"m_%instantiate-vm-function.code"(%oop %r287, %oop %r288, %oop %r289, %oop %r290)
 	%r293 = load %oop, %oop* %t0
-	%r294 = getelementptr %"<header>", %"<header>"* @m_ostr2806, i32 1
+	%r294 = getelementptr %"<header>", %"<header>"* @m_ostr2842, i32 1
 	%r295 = getelementptr %"<header>", %"<header>"* @"m_>/evaluator-stub", i32 1
 	%r296 = inttoptr %word 0 to %oop
 	%r297 = call %oop @"m_%instantiate-vm-function.code"(%oop %r293, %oop %r294, %oop %r295, %oop %r296)
 	%r299 = load %oop, %oop* %t0
-	%r300 = getelementptr %"<header>", %"<header>"* @m_ostr2808, i32 1
+	%r300 = getelementptr %"<header>", %"<header>"* @m_ostr2844, i32 1
 	%r301 = getelementptr %"<header>", %"<header>"* @"m_>=/evaluator-stub", i32 1
 	%r302 = inttoptr %word 0 to %oop
 	%r303 = call %oop @"m_%instantiate-vm-function.code"(%oop %r299, %oop %r300, %oop %r301, %oop %r302)
 	%r305 = load %oop, %oop* %t0
-	%r306 = getelementptr %"<header>", %"<header>"* @m_ostr2810, i32 1
+	%r306 = getelementptr %"<header>", %"<header>"* @m_ostr2846, i32 1
 	%r307 = getelementptr %"<header>", %"<header>"* @"m_<=/evaluator-stub", i32 1
 	%r308 = inttoptr %word 0 to %oop
 	%r309 = call %oop @"m_%instantiate-vm-function.code"(%oop %r305, %oop %r306, %oop %r307, %oop %r308)
 	%r311 = load %oop, %oop* %t0
-	%r312 = getelementptr %"<header>", %"<header>"* @m_ostr2812, i32 1
+	%r312 = getelementptr %"<header>", %"<header>"* @m_ostr2848, i32 1
 	%r313 = getelementptr %"<header>", %"<header>"* @"m_</evaluator-stub", i32 1
 	%r314 = inttoptr %word 0 to %oop
 	%r315 = call %oop @"m_%instantiate-vm-function.code"(%oop %r311, %oop %r312, %oop %r313, %oop %r314)
 	%r317 = load %oop, %oop* %t0
-	%r318 = getelementptr %"<header>", %"<header>"* @m_ostr2814, i32 1
+	%r318 = getelementptr %"<header>", %"<header>"* @m_ostr2850, i32 1
 	%r319 = getelementptr %"<header>", %"<header>"* @"m_bitwise-shift/evaluator-stub", i32 1
 	%r320 = inttoptr %word 0 to %oop
 	%r321 = call %oop @"m_%instantiate-vm-function.code"(%oop %r317, %oop %r318, %oop %r319, %oop %r320)
 	%r323 = load %oop, %oop* %t0
-	%r324 = getelementptr %"<header>", %"<header>"* @m_ostr2816, i32 1
+	%r324 = getelementptr %"<header>", %"<header>"* @m_ostr2852, i32 1
 	%r325 = getelementptr %"<header>", %"<header>"* @"m_bitwise-not/evaluator-stub", i32 1
 	%r326 = inttoptr %word 0 to %oop
 	%r327 = call %oop @"m_%instantiate-vm-function.code"(%oop %r323, %oop %r324, %oop %r325, %oop %r326)
 	%r329 = load %oop, %oop* %t0
-	%r330 = getelementptr %"<header>", %"<header>"* @m_ostr2818, i32 1
+	%r330 = getelementptr %"<header>", %"<header>"* @m_ostr2854, i32 1
 	%r331 = getelementptr %"<header>", %"<header>"* @"m_bitwise-xor/evaluator-stub", i32 1
 	%r332 = inttoptr %word 0 to %oop
 	%r333 = call %oop @"m_%instantiate-vm-function.code"(%oop %r329, %oop %r330, %oop %r331, %oop %r332)
 	%r335 = load %oop, %oop* %t0
-	%r336 = getelementptr %"<header>", %"<header>"* @m_ostr2820, i32 1
+	%r336 = getelementptr %"<header>", %"<header>"* @m_ostr2856, i32 1
 	%r337 = getelementptr %"<header>", %"<header>"* @"m_bitwise-or/evaluator-stub", i32 1
 	%r338 = inttoptr %word 0 to %oop
 	%r339 = call %oop @"m_%instantiate-vm-function.code"(%oop %r335, %oop %r336, %oop %r337, %oop %r338)
 	%r341 = load %oop, %oop* %t0
-	%r342 = getelementptr %"<header>", %"<header>"* @m_ostr2822, i32 1
+	%r342 = getelementptr %"<header>", %"<header>"* @m_ostr2858, i32 1
 	%r343 = getelementptr %"<header>", %"<header>"* @"m_bitwise-and/evaluator-stub", i32 1
 	%r344 = inttoptr %word 0 to %oop
 	%r345 = call %oop @"m_%instantiate-vm-function.code"(%oop %r341, %oop %r342, %oop %r343, %oop %r344)
 	%r347 = load %oop, %oop* %t0
-	%r348 = getelementptr %"<header>", %"<header>"* @m_ostr2824, i32 1
+	%r348 = getelementptr %"<header>", %"<header>"* @m_ostr2860, i32 1
 	%r349 = getelementptr %"<header>", %"<header>"* @"m_*/evaluator-stub", i32 1
 	%r350 = inttoptr %word 0 to %oop
 	%r351 = call %oop @"m_%instantiate-vm-function.code"(%oop %r347, %oop %r348, %oop %r349, %oop %r350)
 	%r353 = load %oop, %oop* %t0
-	%r354 = getelementptr %"<header>", %"<header>"* @m_ostr2826, i32 1
+	%r354 = getelementptr %"<header>", %"<header>"* @m_ostr2862, i32 1
 	%r355 = getelementptr %"<header>", %"<header>"* @"m_//evaluator-stub", i32 1
 	%r356 = inttoptr %word 0 to %oop
 	%r357 = call %oop @"m_%instantiate-vm-function.code"(%oop %r353, %oop %r354, %oop %r355, %oop %r356)
 	%r359 = load %oop, %oop* %t0
-	%r360 = getelementptr %"<header>", %"<header>"* @m_ostr2828, i32 1
+	%r360 = getelementptr %"<header>", %"<header>"* @m_ostr2864, i32 1
 	%r361 = getelementptr %"<header>", %"<header>"* @"m_+/evaluator-stub", i32 1
 	%r362 = inttoptr %word 0 to %oop
 	%r363 = call %oop @"m_%instantiate-vm-function.code"(%oop %r359, %oop %r360, %oop %r361, %oop %r362)
 	%r365 = load %oop, %oop* %t0
-	%r366 = getelementptr %"<header>", %"<header>"* @m_ostr2830, i32 1
+	%r366 = getelementptr %"<header>", %"<header>"* @m_ostr2866, i32 1
 	%r367 = getelementptr %"<header>", %"<header>"* @"m_-/evaluator-stub", i32 1
 	%r368 = inttoptr %word 0 to %oop
 	%r369 = call %oop @"m_%instantiate-vm-function.code"(%oop %r365, %oop %r366, %oop %r367, %oop %r368)
 	%r371 = load %oop, %oop* %t0
-	%r372 = getelementptr %"<header>", %"<header>"* @m_ostr2832, i32 1
+	%r372 = getelementptr %"<header>", %"<header>"* @m_ostr2868, i32 1
 	%r373 = getelementptr %"<header>", %"<header>"* @"m_not/evaluator-stub", i32 1
 	%r374 = inttoptr %word 0 to %oop
 	%r375 = call %oop @"m_%instantiate-vm-function.code"(%oop %r371, %oop %r372, %oop %r373, %oop %r374)
 	%r377 = load %oop, %oop* %t0
-	%r378 = getelementptr %"<header>", %"<header>"* @m_ostr2834, i32 1
+	%r378 = getelementptr %"<header>", %"<header>"* @m_ostr2870, i32 1
 	%r379 = getelementptr %"<header>", %"<header>"* @"m_quote/evaluator-stub", i32 1
 	%r380 = inttoptr %word 1 to %oop
 	%r381 = call %oop @"m_%instantiate-vm-function.code"(%oop %r377, %oop %r378, %oop %r379, %oop %r380)
 	%r383 = load %oop, %oop* %t0
-	%r384 = getelementptr %"<header>", %"<header>"* @m_ostr2836, i32 1
+	%r384 = getelementptr %"<header>", %"<header>"* @m_ostr2872, i32 1
 	%r385 = getelementptr %"<header>", %"<header>"* @"m_and/evaluator-stub", i32 1
 	%r386 = inttoptr %word 1 to %oop
 	%r387 = call %oop @"m_%instantiate-vm-function.code"(%oop %r383, %oop %r384, %oop %r385, %oop %r386)
 	%r389 = load %oop, %oop* %t0
-	%r390 = getelementptr %"<header>", %"<header>"* @m_ostr2838, i32 1
+	%r390 = getelementptr %"<header>", %"<header>"* @m_ostr2874, i32 1
 	%r391 = getelementptr %"<header>", %"<header>"* @"m_or/evaluator-stub", i32 1
 	%r392 = inttoptr %word 1 to %oop
 	%r393 = call %oop @"m_%instantiate-vm-function.code"(%oop %r389, %oop %r390, %oop %r391, %oop %r392)
 	%r395 = load %oop, %oop* %t0
-	%r396 = getelementptr %"<header>", %"<header>"* @m_ostr2840, i32 1
+	%r396 = getelementptr %"<header>", %"<header>"* @m_ostr2876, i32 1
 	%r397 = getelementptr %"<header>", %"<header>"* @"m_if/evaluator-stub", i32 1
 	%r398 = inttoptr %word 1 to %oop
 	%r399 = call %oop @"m_%instantiate-vm-function.code"(%oop %r395, %oop %r396, %oop %r397, %oop %r398)
 	%r401 = load %oop, %oop* %t0
-	%r402 = getelementptr %"<header>", %"<header>"* @m_ostr2842, i32 1
+	%r402 = getelementptr %"<header>", %"<header>"* @m_ostr2878, i32 1
 	%r403 = getelementptr %"<header>", %"<header>"* @"m_while/evaluator-stub", i32 1
 	%r404 = inttoptr %word 1 to %oop
 	%r405 = call %oop @"m_%instantiate-vm-function.code"(%oop %r401, %oop %r402, %oop %r403, %oop %r404)
 	%r407 = load %oop, %oop* %t0
-	%r408 = getelementptr %"<header>", %"<header>"* @m_ostr2844, i32 1
+	%r408 = getelementptr %"<header>", %"<header>"* @m_ostr2880, i32 1
 	%r409 = getelementptr %"<header>", %"<header>"* @"m_set/evaluator-stub", i32 1
 	%r410 = inttoptr %word 1 to %oop
 	%r411 = call %oop @"m_%instantiate-vm-function.code"(%oop %r407, %oop %r408, %oop %r409, %oop %r410)
 	%r413 = load %oop, %oop* %t0
-	%r414 = getelementptr %"<header>", %"<header>"* @m_ostr2846, i32 1
+	%r414 = getelementptr %"<header>", %"<header>"* @m_ostr2882, i32 1
 	%r415 = getelementptr %"<header>", %"<header>"* @"m_let/evaluator-stub", i32 1
 	%r416 = inttoptr %word 1 to %oop
 	%r417 = call %oop @"m_%instantiate-vm-function.code"(%oop %r413, %oop %r414, %oop %r415, %oop %r416)
 	%r419 = load %oop, %oop* %t0
-	%r420 = getelementptr %"<header>", %"<header>"* @m_ostr2848, i32 1
+	%r420 = getelementptr %"<header>", %"<header>"* @m_ostr2884, i32 1
 	%r421 = getelementptr %"<header>", %"<header>"* @"m_lambda/evaluator-stub", i32 1
 	%r422 = inttoptr %word 1 to %oop
 	%r423 = call %oop @"m_%instantiate-vm-function.code"(%oop %r419, %oop %r420, %oop %r421, %oop %r422)
 	%r425 = load %oop, %oop* %t0
-	%r426 = getelementptr %"<header>", %"<header>"* @m_ostr2850, i32 1
+	%r426 = getelementptr %"<header>", %"<header>"* @m_ostr2886, i32 1
 	%r427 = getelementptr %"<header>", %"<header>"* @"m_eval/evaluator-stub", i32 1
 	%r428 = inttoptr %word 0 to %oop
 	%r429 = call %oop @"m_%instantiate-vm-function.code"(%oop %r425, %oop %r426, %oop %r427, %oop %r428)
 	%r431 = load %oop, %oop* %t0
-	%r432 = getelementptr %"<header>", %"<header>"* @m_ostr2852, i32 1
+	%r432 = getelementptr %"<header>", %"<header>"* @m_ostr2888, i32 1
 	%r433 = getelementptr %"<header>", %"<header>"* @"m_define/evaluator-stub", i32 1
 	%r434 = inttoptr %word 1 to %oop
 	%r435 = call %oop @"m_%instantiate-vm-function.code"(%oop %r431, %oop %r432, %oop %r433, %oop %r434)
 	%r437 = load %oop, %oop* %t0
-	%r438 = getelementptr %"<header>", %"<header>"* @m_ostr2854, i32 1
+	%r438 = getelementptr %"<header>", %"<header>"* @m_ostr2890, i32 1
 	%r439 = getelementptr %"<header>", %"<header>"* @"m_load/evaluator-stub", i32 1
 	%r440 = inttoptr %word 0 to %oop
 	%r441 = call %oop @"m_%instantiate-vm-function.code"(%oop %r437, %oop %r438, %oop %r439, %oop %r440)
 	%r443 = load %oop, %oop* %t0
-	%r444 = getelementptr %"<header>", %"<header>"* @m_ostr2856, i32 1
-	%r445 = getelementptr %"<header>", %"<header>"* @"m_repl-stream/evaluator-stub", i32 1
+	%r444 = getelementptr %"<header>", %"<header>"* @m_ostr2892, i32 1
+	%r445 = getelementptr %"<header>", %"<header>"* @"m_image-source/evaluator-stub", i32 1
 	%r446 = inttoptr %word 0 to %oop
 	%r447 = call %oop @"m_%instantiate-vm-function.code"(%oop %r443, %oop %r444, %oop %r445, %oop %r446)
 	%r449 = load %oop, %oop* %t0
-	%r450 = getelementptr %"<header>", %"<header>"* @m_ostr2858, i32 1
-	%r451 = getelementptr %"<header>", %"<header>"* @"m_file-stream/evaluator-stub", i32 1
+	%r450 = getelementptr %"<header>", %"<header>"* @m_ostr2894, i32 1
+	%r451 = getelementptr %"<header>", %"<header>"* @"m_repl-stream/evaluator-stub", i32 1
 	%r452 = inttoptr %word 0 to %oop
 	%r453 = call %oop @"m_%instantiate-vm-function.code"(%oop %r449, %oop %r450, %oop %r451, %oop %r452)
 	%r455 = load %oop, %oop* %t0
-	%r456 = getelementptr %"<header>", %"<header>"* @m_ostr2860, i32 1
-	%r457 = getelementptr %"<header>", %"<header>"* @"m_file-modification-time/evaluator-stub", i32 1
+	%r456 = getelementptr %"<header>", %"<header>"* @m_ostr2896, i32 1
+	%r457 = getelementptr %"<header>", %"<header>"* @"m_file-stream/evaluator-stub", i32 1
 	%r458 = inttoptr %word 0 to %oop
 	%r459 = call %oop @"m_%instantiate-vm-function.code"(%oop %r455, %oop %r456, %oop %r457, %oop %r458)
 	%r461 = load %oop, %oop* %t0
-	%r462 = getelementptr %"<header>", %"<header>"* @m_ostr2862, i32 1
-	%r463 = getelementptr %"<header>", %"<header>"* @"m_file-write-byte/evaluator-stub", i32 1
+	%r462 = getelementptr %"<header>", %"<header>"* @m_ostr2898, i32 1
+	%r463 = getelementptr %"<header>", %"<header>"* @"m_file-modification-time/evaluator-stub", i32 1
 	%r464 = inttoptr %word 0 to %oop
 	%r465 = call %oop @"m_%instantiate-vm-function.code"(%oop %r461, %oop %r462, %oop %r463, %oop %r464)
 	%r467 = load %oop, %oop* %t0
-	%r468 = getelementptr %"<header>", %"<header>"* @m_ostr2864, i32 1
-	%r469 = getelementptr %"<header>", %"<header>"* @"m_file-read-byte/evaluator-stub", i32 1
+	%r468 = getelementptr %"<header>", %"<header>"* @m_ostr2900, i32 1
+	%r469 = getelementptr %"<header>", %"<header>"* @"m_file-write-byte/evaluator-stub", i32 1
 	%r470 = inttoptr %word 0 to %oop
 	%r471 = call %oop @"m_%instantiate-vm-function.code"(%oop %r467, %oop %r468, %oop %r469, %oop %r470)
 	%r473 = load %oop, %oop* %t0
-	%r474 = getelementptr %"<header>", %"<header>"* @m_ostr2866, i32 1
-	%r475 = getelementptr %"<header>", %"<header>"* @"m_file-close/evaluator-stub", i32 1
+	%r474 = getelementptr %"<header>", %"<header>"* @m_ostr2902, i32 1
+	%r475 = getelementptr %"<header>", %"<header>"* @"m_file-read-byte/evaluator-stub", i32 1
 	%r476 = inttoptr %word 0 to %oop
 	%r477 = call %oop @"m_%instantiate-vm-function.code"(%oop %r473, %oop %r474, %oop %r475, %oop %r476)
 	%r479 = load %oop, %oop* %t0
-	%r480 = getelementptr %"<header>", %"<header>"* @m_ostr2868, i32 1
-	%r481 = getelementptr %"<header>", %"<header>"* @"m_file-open/evaluator-stub", i32 1
+	%r480 = getelementptr %"<header>", %"<header>"* @m_ostr2904, i32 1
+	%r481 = getelementptr %"<header>", %"<header>"* @"m_file-close/evaluator-stub", i32 1
 	%r482 = inttoptr %word 0 to %oop
 	%r483 = call %oop @"m_%instantiate-vm-function.code"(%oop %r479, %oop %r480, %oop %r481, %oop %r482)
 	%r485 = load %oop, %oop* %t0
-	%r486 = getelementptr %"<header>", %"<header>"* @m_ostr2870, i32 1
-	%r487 = getelementptr %"<header>", %"<header>"* @"m_set-working-directory/evaluator-stub", i32 1
+	%r486 = getelementptr %"<header>", %"<header>"* @m_ostr2906, i32 1
+	%r487 = getelementptr %"<header>", %"<header>"* @"m_file-open/evaluator-stub", i32 1
 	%r488 = inttoptr %word 0 to %oop
 	%r489 = call %oop @"m_%instantiate-vm-function.code"(%oop %r485, %oop %r486, %oop %r487, %oop %r488)
 	%r491 = load %oop, %oop* %t0
-	%r492 = getelementptr %"<header>", %"<header>"* @m_ostr2872, i32 1
-	%r493 = getelementptr %"<header>", %"<header>"* @"m_working-directory/evaluator-stub", i32 1
+	%r492 = getelementptr %"<header>", %"<header>"* @m_ostr2908, i32 1
+	%r493 = getelementptr %"<header>", %"<header>"* @"m_set-working-directory/evaluator-stub", i32 1
 	%r494 = inttoptr %word 0 to %oop
 	%r495 = call %oop @"m_%instantiate-vm-function.code"(%oop %r491, %oop %r492, %oop %r493, %oop %r494)
 	%r497 = load %oop, %oop* %t0
-	%r498 = getelementptr %"<header>", %"<header>"* @m_ostr2874, i32 1
-	%r499 = getelementptr %"<header>", %"<header>"* @"m_encode/evaluator-stub", i32 1
+	%r498 = getelementptr %"<header>", %"<header>"* @m_ostr2910, i32 1
+	%r499 = getelementptr %"<header>", %"<header>"* @"m_working-directory/evaluator-stub", i32 1
 	%r500 = inttoptr %word 0 to %oop
 	%r501 = call %oop @"m_%instantiate-vm-function.code"(%oop %r497, %oop %r498, %oop %r499, %oop %r500)
 	%r503 = load %oop, %oop* %t0
-	%r504 = getelementptr %"<header>", %"<header>"* @m_ostr2876, i32 1
-	%r505 = getelementptr %"<header>", %"<header>"* @"m_expand/evaluator-stub", i32 1
+	%r504 = getelementptr %"<header>", %"<header>"* @m_ostr2912, i32 1
+	%r505 = getelementptr %"<header>", %"<header>"* @"m_encode/evaluator-stub", i32 1
 	%r506 = inttoptr %word 0 to %oop
 	%r507 = call %oop @"m_%instantiate-vm-function.code"(%oop %r503, %oop %r504, %oop %r505, %oop %r506)
 	%r509 = load %oop, %oop* %t0
-	%r510 = getelementptr %"<header>", %"<header>"* @m_ostr2878, i32 1
-	%r511 = getelementptr %"<header>", %"<header>"* @"m_apply/evaluator-stub", i32 1
+	%r510 = getelementptr %"<header>", %"<header>"* @m_ostr2914, i32 1
+	%r511 = getelementptr %"<header>", %"<header>"* @"m_expand/evaluator-stub", i32 1
 	%r512 = inttoptr %word 0 to %oop
 	%r513 = call %oop @"m_%instantiate-vm-function.code"(%oop %r509, %oop %r510, %oop %r511, %oop %r512)
 	%r515 = load %oop, %oop* %t0
-	%r516 = getelementptr %"<header>", %"<header>"* @m_ostr2880, i32 1
-	%r517 = getelementptr %"<header>", %"<header>"* @"m_print-all/evaluator-stub", i32 1
+	%r516 = getelementptr %"<header>", %"<header>"* @m_ostr2916, i32 1
+	%r517 = getelementptr %"<header>", %"<header>"* @"m_apply/evaluator-stub", i32 1
 	%r518 = inttoptr %word 0 to %oop
 	%r519 = call %oop @"m_%instantiate-vm-function.code"(%oop %r515, %oop %r516, %oop %r517, %oop %r518)
 	%r521 = load %oop, %oop* %t0
-	%r522 = getelementptr %"<header>", %"<header>"* @m_ostr2882, i32 1
-	%r523 = getelementptr %"<header>", %"<header>"* @"m_dump-all/evaluator-stub", i32 1
+	%r522 = getelementptr %"<header>", %"<header>"* @m_ostr2918, i32 1
+	%r523 = getelementptr %"<header>", %"<header>"* @"m_print-all/evaluator-stub", i32 1
 	%r524 = inttoptr %word 0 to %oop
 	%r525 = call %oop @"m_%instantiate-vm-function.code"(%oop %r521, %oop %r522, %oop %r523, %oop %r524)
 	%r527 = load %oop, %oop* %t0
-	%r528 = getelementptr %"<header>", %"<header>"* @m_ostr2884, i32 1
-	%r529 = getelementptr %"<header>", %"<header>"* @"m_print/evaluator-stub", i32 1
+	%r528 = getelementptr %"<header>", %"<header>"* @m_ostr2920, i32 1
+	%r529 = getelementptr %"<header>", %"<header>"* @"m_dump-all/evaluator-stub", i32 1
 	%r530 = inttoptr %word 0 to %oop
 	%r531 = call %oop @"m_%instantiate-vm-function.code"(%oop %r527, %oop %r528, %oop %r529, %oop %r530)
 	%r533 = load %oop, %oop* %t0
-	%r534 = getelementptr %"<header>", %"<header>"* @m_ostr2886, i32 1
-	%r535 = getelementptr %"<header>", %"<header>"* @"m_dump/evaluator-stub", i32 1
+	%r534 = getelementptr %"<header>", %"<header>"* @m_ostr2922, i32 1
+	%r535 = getelementptr %"<header>", %"<header>"* @"m_print/evaluator-stub", i32 1
 	%r536 = inttoptr %word 0 to %oop
 	%r537 = call %oop @"m_%instantiate-vm-function.code"(%oop %r533, %oop %r534, %oop %r535, %oop %r536)
 	%r539 = load %oop, %oop* %t0
-	%r540 = getelementptr %"<header>", %"<header>"* @m_ostr2888, i32 1
-	%r541 = getelementptr %"<header>", %"<header>"* @"m_read/evaluator-stub", i32 1
+	%r540 = getelementptr %"<header>", %"<header>"* @m_ostr2924, i32 1
+	%r541 = getelementptr %"<header>", %"<header>"* @"m_dump/evaluator-stub", i32 1
 	%r542 = inttoptr %word 0 to %oop
 	%r543 = call %oop @"m_%instantiate-vm-function.code"(%oop %r539, %oop %r540, %oop %r541, %oop %r542)
 	%r545 = load %oop, %oop* %t0
-	%r546 = getelementptr %"<header>", %"<header>"* @m_ostr2890, i32 1
-	%r547 = getelementptr %"<header>", %"<header>"* @"m_set-current-globals/evaluator-stub", i32 1
+	%r546 = getelementptr %"<header>", %"<header>"* @m_ostr2926, i32 1
+	%r547 = getelementptr %"<header>", %"<header>"* @"m_read/evaluator-stub", i32 1
 	%r548 = inttoptr %word 0 to %oop
 	%r549 = call %oop @"m_%instantiate-vm-function.code"(%oop %r545, %oop %r546, %oop %r547, %oop %r548)
 	%r551 = load %oop, %oop* %t0
-	%r552 = getelementptr %"<header>", %"<header>"* @m_ostr2892, i32 1
-	%r553 = getelementptr %"<header>", %"<header>"* @"m_current-globals/evaluator-stub", i32 1
+	%r552 = getelementptr %"<header>", %"<header>"* @m_ostr2928, i32 1
+	%r553 = getelementptr %"<header>", %"<header>"* @"m_set-current-globals/evaluator-stub", i32 1
 	%r554 = inttoptr %word 0 to %oop
 	%r555 = call %oop @"m_%instantiate-vm-function.code"(%oop %r551, %oop %r552, %oop %r553, %oop %r554)
 	%r557 = load %oop, %oop* %t0
-	%r558 = getelementptr %"<header>", %"<header>"* @m_ostr2894, i32 1
-	%r559 = getelementptr %"<header>", %"<header>"* @"m_environment-define/evaluator-stub", i32 1
+	%r558 = getelementptr %"<header>", %"<header>"* @m_ostr2930, i32 1
+	%r559 = getelementptr %"<header>", %"<header>"* @"m_current-globals/evaluator-stub", i32 1
 	%r560 = inttoptr %word 0 to %oop
 	%r561 = call %oop @"m_%instantiate-vm-function.code"(%oop %r557, %oop %r558, %oop %r559, %oop %r560)
 	%r563 = load %oop, %oop* %t0
-	%r564 = getelementptr %"<header>", %"<header>"* @m_ostr2896, i32 1
-	%r565 = getelementptr %"<header>", %"<header>"* @"m_defined?/evaluator-stub", i32 1
+	%r564 = getelementptr %"<header>", %"<header>"* @m_ostr2932, i32 1
+	%r565 = getelementptr %"<header>", %"<header>"* @"m_environment-define/evaluator-stub", i32 1
 	%r566 = inttoptr %word 0 to %oop
 	%r567 = call %oop @"m_%instantiate-vm-function.code"(%oop %r563, %oop %r564, %oop %r565, %oop %r566)
 	%r569 = load %oop, %oop* %t0
-	%r570 = getelementptr %"<header>", %"<header>"* @m_ostr2898, i32 1
-	%r571 = getelementptr %"<header>", %"<header>"* @"m_symbol->string/evaluator-stub", i32 1
+	%r570 = getelementptr %"<header>", %"<header>"* @m_ostr2934, i32 1
+	%r571 = getelementptr %"<header>", %"<header>"* @"m_defined?/evaluator-stub", i32 1
 	%r572 = inttoptr %word 0 to %oop
 	%r573 = call %oop @"m_%instantiate-vm-function.code"(%oop %r569, %oop %r570, %oop %r571, %oop %r572)
 	%r575 = load %oop, %oop* %t0
-	%r576 = getelementptr %"<header>", %"<header>"* @m_ostr2900, i32 1
-	%r577 = getelementptr %"<header>", %"<header>"* @"m_string->symbol/evaluator-stub", i32 1
+	%r576 = getelementptr %"<header>", %"<header>"* @m_ostr2936, i32 1
+	%r577 = getelementptr %"<header>", %"<header>"* @"m_symbol->string/evaluator-stub", i32 1
 	%r578 = inttoptr %word 0 to %oop
 	%r579 = call %oop @"m_%instantiate-vm-function.code"(%oop %r575, %oop %r576, %oop %r577, %oop %r578)
 	%r581 = load %oop, %oop* %t0
-	%r582 = getelementptr %"<header>", %"<header>"* @m_ostr2902, i32 1
-	%r583 = getelementptr %"<header>", %"<header>"* @"m_set-string-length/evaluator-stub", i32 1
+	%r582 = getelementptr %"<header>", %"<header>"* @m_ostr2938, i32 1
+	%r583 = getelementptr %"<header>", %"<header>"* @"m_string->symbol/evaluator-stub", i32 1
 	%r584 = inttoptr %word 0 to %oop
 	%r585 = call %oop @"m_%instantiate-vm-function.code"(%oop %r581, %oop %r582, %oop %r583, %oop %r584)
 	%r587 = load %oop, %oop* %t0
-	%r588 = getelementptr %"<header>", %"<header>"* @m_ostr2904, i32 1
-	%r589 = getelementptr %"<header>", %"<header>"* @"m_string-insert-all/evaluator-stub", i32 1
+	%r588 = getelementptr %"<header>", %"<header>"* @m_ostr2940, i32 1
+	%r589 = getelementptr %"<header>", %"<header>"* @"m_set-string-length/evaluator-stub", i32 1
 	%r590 = inttoptr %word 0 to %oop
 	%r591 = call %oop @"m_%instantiate-vm-function.code"(%oop %r587, %oop %r588, %oop %r589, %oop %r590)
 	%r593 = load %oop, %oop* %t0
-	%r594 = getelementptr %"<header>", %"<header>"* @m_ostr2906, i32 1
-	%r595 = getelementptr %"<header>", %"<header>"* @"m_set-cell-64-at/evaluator-stub", i32 1
+	%r594 = getelementptr %"<header>", %"<header>"* @m_ostr2942, i32 1
+	%r595 = getelementptr %"<header>", %"<header>"* @"m_string-insert-all/evaluator-stub", i32 1
 	%r596 = inttoptr %word 0 to %oop
 	%r597 = call %oop @"m_%instantiate-vm-function.code"(%oop %r593, %oop %r594, %oop %r595, %oop %r596)
 	%r599 = load %oop, %oop* %t0
-	%r600 = getelementptr %"<header>", %"<header>"* @m_ostr2908, i32 1
-	%r601 = getelementptr %"<header>", %"<header>"* @"m_cell-64-at/evaluator-stub", i32 1
+	%r600 = getelementptr %"<header>", %"<header>"* @m_ostr2944, i32 1
+	%r601 = getelementptr %"<header>", %"<header>"* @"m_set-cell-64-at/evaluator-stub", i32 1
 	%r602 = inttoptr %word 0 to %oop
 	%r603 = call %oop @"m_%instantiate-vm-function.code"(%oop %r599, %oop %r600, %oop %r601, %oop %r602)
 	%r605 = load %oop, %oop* %t0
-	%r606 = getelementptr %"<header>", %"<header>"* @m_ostr2910, i32 1
-	%r607 = getelementptr %"<header>", %"<header>"* @"m_set-cell-at/evaluator-stub", i32 1
+	%r606 = getelementptr %"<header>", %"<header>"* @m_ostr2946, i32 1
+	%r607 = getelementptr %"<header>", %"<header>"* @"m_cell-64-at/evaluator-stub", i32 1
 	%r608 = inttoptr %word 0 to %oop
 	%r609 = call %oop @"m_%instantiate-vm-function.code"(%oop %r605, %oop %r606, %oop %r607, %oop %r608)
 	%r611 = load %oop, %oop* %t0
-	%r612 = getelementptr %"<header>", %"<header>"* @m_ostr2912, i32 1
-	%r613 = getelementptr %"<header>", %"<header>"* @"m_cell-at/evaluator-stub", i32 1
+	%r612 = getelementptr %"<header>", %"<header>"* @m_ostr2948, i32 1
+	%r613 = getelementptr %"<header>", %"<header>"* @"m_set-cell-at/evaluator-stub", i32 1
 	%r614 = inttoptr %word 0 to %oop
 	%r615 = call %oop @"m_%instantiate-vm-function.code"(%oop %r611, %oop %r612, %oop %r613, %oop %r614)
 	%r617 = load %oop, %oop* %t0
-	%r618 = getelementptr %"<header>", %"<header>"* @m_ostr2914, i32 1
-	%r619 = getelementptr %"<header>", %"<header>"* @"m_set-memory-block/at/evaluator-stub", i32 1
+	%r618 = getelementptr %"<header>", %"<header>"* @m_ostr2950, i32 1
+	%r619 = getelementptr %"<header>", %"<header>"* @"m_cell-at/evaluator-stub", i32 1
 	%r620 = inttoptr %word 0 to %oop
 	%r621 = call %oop @"m_%instantiate-vm-function.code"(%oop %r617, %oop %r618, %oop %r619, %oop %r620)
 	%r623 = load %oop, %oop* %t0
-	%r624 = getelementptr %"<header>", %"<header>"* @m_ostr2916, i32 1
-	%r625 = getelementptr %"<header>", %"<header>"* @"m_memory-block/at/evaluator-stub", i32 1
+	%r624 = getelementptr %"<header>", %"<header>"* @m_ostr2952, i32 1
+	%r625 = getelementptr %"<header>", %"<header>"* @"m_set-memory-block/at/evaluator-stub", i32 1
 	%r626 = inttoptr %word 0 to %oop
 	%r627 = call %oop @"m_%instantiate-vm-function.code"(%oop %r623, %oop %r624, %oop %r625, %oop %r626)
 	%r629 = load %oop, %oop* %t0
-	%r630 = getelementptr %"<header>", %"<header>"* @m_ostr2918, i32 1
-	%r631 = getelementptr %"<header>", %"<header>"* @"m_memory-block/length/evaluator-stub", i32 1
+	%r630 = getelementptr %"<header>", %"<header>"* @m_ostr2954, i32 1
+	%r631 = getelementptr %"<header>", %"<header>"* @"m_memory-block/at/evaluator-stub", i32 1
 	%r632 = inttoptr %word 0 to %oop
 	%r633 = call %oop @"m_%instantiate-vm-function.code"(%oop %r629, %oop %r630, %oop %r631, %oop %r632)
 	%r635 = load %oop, %oop* %t0
-	%r636 = getelementptr %"<header>", %"<header>"* @m_ostr2920, i32 1
-	%r637 = getelementptr %"<header>", %"<header>"* @"m_memory-block->lower/function/evaluator-stub", i32 1
+	%r636 = getelementptr %"<header>", %"<header>"* @m_ostr2956, i32 1
+	%r637 = getelementptr %"<header>", %"<header>"* @"m_memory-block/length/evaluator-stub", i32 1
 	%r638 = inttoptr %word 0 to %oop
 	%r639 = call %oop @"m_%instantiate-vm-function.code"(%oop %r635, %oop %r636, %oop %r637, %oop %r638)
 	%r641 = load %oop, %oop* %t0
-	%r642 = getelementptr %"<header>", %"<header>"* @m_ostr2922, i32 1
-	%r643 = getelementptr %"<header>", %"<header>"* @"m_memory-block/evaluator-stub", i32 1
+	%r642 = getelementptr %"<header>", %"<header>"* @m_ostr2958, i32 1
+	%r643 = getelementptr %"<header>", %"<header>"* @"m_memory-block->lower/function/evaluator-stub", i32 1
 	%r644 = inttoptr %word 0 to %oop
 	%r645 = call %oop @"m_%instantiate-vm-function.code"(%oop %r641, %oop %r642, %oop %r643, %oop %r644)
 	%r647 = load %oop, %oop* %t0
-	%r648 = getelementptr %"<header>", %"<header>"* @m_ostr2924, i32 1
-	%r649 = getelementptr %"<header>", %"<header>"* @"m_cdr/evaluator-stub", i32 1
+	%r648 = getelementptr %"<header>", %"<header>"* @m_ostr2960, i32 1
+	%r649 = getelementptr %"<header>", %"<header>"* @"m_memory-block/evaluator-stub", i32 1
 	%r650 = inttoptr %word 0 to %oop
 	%r651 = call %oop @"m_%instantiate-vm-function.code"(%oop %r647, %oop %r648, %oop %r649, %oop %r650)
 	%r653 = load %oop, %oop* %t0
-	%r654 = getelementptr %"<header>", %"<header>"* @m_ostr2926, i32 1
-	%r655 = getelementptr %"<header>", %"<header>"* @"m_car/evaluator-stub", i32 1
+	%r654 = getelementptr %"<header>", %"<header>"* @m_ostr2962, i32 1
+	%r655 = getelementptr %"<header>", %"<header>"* @"m_cdr/evaluator-stub", i32 1
 	%r656 = inttoptr %word 0 to %oop
 	%r657 = call %oop @"m_%instantiate-vm-function.code"(%oop %r653, %oop %r654, %oop %r655, %oop %r656)
 	%r659 = load %oop, %oop* %t0
-	%r660 = getelementptr %"<header>", %"<header>"* @m_ostr2928, i32 1
-	%r661 = getelementptr %"<header>", %"<header>"* @"m_environment/evaluator-stub", i32 1
+	%r660 = getelementptr %"<header>", %"<header>"* @m_ostr2964, i32 1
+	%r661 = getelementptr %"<header>", %"<header>"* @"m_car/evaluator-stub", i32 1
 	%r662 = inttoptr %word 0 to %oop
 	%r663 = call %oop @"m_%instantiate-vm-function.code"(%oop %r659, %oop %r660, %oop %r661, %oop %r662)
 	%r665 = load %oop, %oop* %t0
-	%r666 = getelementptr %"<header>", %"<header>"* @m_ostr2930, i32 1
-	%r667 = getelementptr %"<header>", %"<header>"* @"m_variable/evaluator-stub", i32 1
+	%r666 = getelementptr %"<header>", %"<header>"* @m_ostr2966, i32 1
+	%r667 = getelementptr %"<header>", %"<header>"* @"m_environment/evaluator-stub", i32 1
 	%r668 = inttoptr %word 0 to %oop
 	%r669 = call %oop @"m_%instantiate-vm-function.code"(%oop %r665, %oop %r666, %oop %r667, %oop %r668)
 	%r671 = load %oop, %oop* %t0
-	%r672 = getelementptr %"<header>", %"<header>"* @m_ostr2932, i32 1
-	%r673 = getelementptr %"<header>", %"<header>"* @"m_fixed/evaluator-stub", i32 1
+	%r672 = getelementptr %"<header>", %"<header>"* @m_ostr2968, i32 1
+	%r673 = getelementptr %"<header>", %"<header>"* @"m_variable/evaluator-stub", i32 1
 	%r674 = inttoptr %word 0 to %oop
 	%r675 = call %oop @"m_%instantiate-vm-function.code"(%oop %r671, %oop %r672, %oop %r673, %oop %r674)
 	%r677 = load %oop, %oop* %t0
-	%r678 = getelementptr %"<header>", %"<header>"* @m_ostr2934, i32 1
-	%r679 = getelementptr %"<header>", %"<header>"* @"m_form/evaluator-stub", i32 1
+	%r678 = getelementptr %"<header>", %"<header>"* @m_ostr2970, i32 1
+	%r679 = getelementptr %"<header>", %"<header>"* @"m_fixed/evaluator-stub", i32 1
 	%r680 = inttoptr %word 0 to %oop
 	%r681 = call %oop @"m_%instantiate-vm-function.code"(%oop %r677, %oop %r678, %oop %r679, %oop %r680)
 	%r683 = load %oop, %oop* %t0
-	%r684 = getelementptr %"<header>", %"<header>"* @m_ostr2936, i32 1
-	%r685 = getelementptr %"<header>", %"<header>"* @"m_array/evaluator-stub", i32 1
+	%r684 = getelementptr %"<header>", %"<header>"* @m_ostr2972, i32 1
+	%r685 = getelementptr %"<header>", %"<header>"* @"m_form/evaluator-stub", i32 1
 	%r686 = inttoptr %word 0 to %oop
 	%r687 = call %oop @"m_%instantiate-vm-function.code"(%oop %r683, %oop %r684, %oop %r685, %oop %r686)
 	%r689 = load %oop, %oop* %t0
-	%r690 = getelementptr %"<header>", %"<header>"* @m_ostr2938, i32 1
-	%r691 = getelementptr %"<header>", %"<header>"* @"m_string/evaluator-stub", i32 1
+	%r690 = getelementptr %"<header>", %"<header>"* @m_ostr2974, i32 1
+	%r691 = getelementptr %"<header>", %"<header>"* @"m_array/evaluator-stub", i32 1
 	%r692 = inttoptr %word 0 to %oop
 	%r693 = call %oop @"m_%instantiate-vm-function.code"(%oop %r689, %oop %r690, %oop %r691, %oop %r692)
 	%r695 = load %oop, %oop* %t0
-	%r696 = getelementptr %"<header>", %"<header>"* @m_ostr2940, i32 1
-	%r697 = getelementptr %"<header>", %"<header>"* @"m_cons/evaluator-stub", i32 1
+	%r696 = getelementptr %"<header>", %"<header>"* @m_ostr2976, i32 1
+	%r697 = getelementptr %"<header>", %"<header>"* @"m_string/evaluator-stub", i32 1
 	%r698 = inttoptr %word 0 to %oop
 	%r699 = call %oop @"m_%instantiate-vm-function.code"(%oop %r695, %oop %r696, %oop %r697, %oop %r698)
 	%r701 = load %oop, %oop* %t0
-	%r702 = getelementptr %"<header>", %"<header>"* @m_ostr2942, i32 1
-	%r703 = getelementptr %"<header>", %"<header>"* @"m_allocate-data/evaluator-stub", i32 1
+	%r702 = getelementptr %"<header>", %"<header>"* @m_ostr2978, i32 1
+	%r703 = getelementptr %"<header>", %"<header>"* @"m_cons/evaluator-stub", i32 1
 	%r704 = inttoptr %word 0 to %oop
 	%r705 = call %oop @"m_%instantiate-vm-function.code"(%oop %r701, %oop %r702, %oop %r703, %oop %r704)
 	%r707 = load %oop, %oop* %t0
-	%r708 = getelementptr %"<header>", %"<header>"* @m_ostr2944, i32 1
-	%r709 = getelementptr %"<header>", %"<header>"* @"m_allocate/evaluator-stub", i32 1
+	%r708 = getelementptr %"<header>", %"<header>"* @m_ostr2980, i32 1
+	%r709 = getelementptr %"<header>", %"<header>"* @"m_allocate-data/evaluator-stub", i32 1
 	%r710 = inttoptr %word 0 to %oop
 	%r711 = call %oop @"m_%instantiate-vm-function.code"(%oop %r707, %oop %r708, %oop %r709, %oop %r710)
 	%r713 = load %oop, %oop* %t0
-	%r714 = getelementptr %"<header>", %"<header>"* @m_ostr2946, i32 1
-	%r715 = getelementptr %"<header>", %"<header>"* @"m_abort/evaluator-stub", i32 1
+	%r714 = getelementptr %"<header>", %"<header>"* @m_ostr2982, i32 1
+	%r715 = getelementptr %"<header>", %"<header>"* @"m_allocate/evaluator-stub", i32 1
 	%r716 = inttoptr %word 0 to %oop
 	%r717 = call %oop @"m_%instantiate-vm-function.code"(%oop %r713, %oop %r714, %oop %r715, %oop %r716)
-	%r719 = inttoptr %word 1 to %oop
-	%r720 = load %oop, %oop* @"m_symbol/quote"
-	%r721 = load %oop, %oop* %t0
-	%r722 = call %oop @"m_defined?.code"(%oop %r720, %oop %r721)
-	%r727 = bitcast %oop %r722 to [0 x %oop]*
-	%r726 = ptrtoint %oop %r719 to %word
-	%r725 = getelementptr [0 x %oop], [0 x %oop]* %r727, %word 0, %word %r726
-	%r724 = load %oop, %oop* %r725
-	store %oop %r724, %oop* @"m_fixed-primitive-function/quote"
-	%r728 = inttoptr %word 1 to %oop
-	%r729 = load %oop, %oop* @"m_symbol/lambda"
-	%r730 = load %oop, %oop* %t0
-	%r731 = call %oop @"m_defined?.code"(%oop %r729, %oop %r730)
-	%r736 = bitcast %oop %r731 to [0 x %oop]*
-	%r735 = ptrtoint %oop %r728 to %word
-	%r734 = getelementptr [0 x %oop], [0 x %oop]* %r736, %word 0, %word %r735
-	%r733 = load %oop, %oop* %r734
-	store %oop %r733, %oop* @"m_fixed-primitive-function/lambda"
-	%r737 = inttoptr %word 1 to %oop
-	%r738 = load %oop, %oop* @"m_symbol/let"
-	%r739 = load %oop, %oop* %t0
-	%r740 = call %oop @"m_defined?.code"(%oop %r738, %oop %r739)
-	%r745 = bitcast %oop %r740 to [0 x %oop]*
-	%r744 = ptrtoint %oop %r737 to %word
-	%r743 = getelementptr [0 x %oop], [0 x %oop]* %r745, %word 0, %word %r744
-	%r742 = load %oop, %oop* %r743
-	store %oop %r742, %oop* @"m_fixed-primitive-function/let"
-	%r746 = inttoptr %word 1 to %oop
-	%r747 = load %oop, %oop* @"m_symbol/define"
-	%r748 = load %oop, %oop* %t0
-	%r749 = call %oop @"m_defined?.code"(%oop %r747, %oop %r748)
-	%r754 = bitcast %oop %r749 to [0 x %oop]*
-	%r753 = ptrtoint %oop %r746 to %word
-	%r752 = getelementptr [0 x %oop], [0 x %oop]* %r754, %word 0, %word %r753
-	%r751 = load %oop, %oop* %r752
-	store %oop %r751, %oop* @"m_fixed-primitive-function/define"
-	%r755 = inttoptr %word 1 to %oop
-	%r756 = load %oop, %oop* @"m_symbol/set"
-	%r757 = load %oop, %oop* %t0
-	%r758 = call %oop @"m_defined?.code"(%oop %r756, %oop %r757)
-	%r763 = bitcast %oop %r758 to [0 x %oop]*
-	%r762 = ptrtoint %oop %r755 to %word
-	%r761 = getelementptr [0 x %oop], [0 x %oop]* %r763, %word 0, %word %r762
-	%r760 = load %oop, %oop* %r761
-	store %oop %r760, %oop* @"m_fixed-primitive-function/set"
-	%r764 = getelementptr %"<header>", %"<header>"* @m_oclosure2948, i32 1
-	store %oop %r764, %oop* %t1
-	%r765 = load %oop, %oop* %t0
-	%r766 = load %oop, %oop* @"m_symbol/*expanders*"
-	%r767 = load %oop, %oop* %t1
-	%r768 = bitcast %oop %r767 to %"<target-function>"*
-	%r772 = bitcast %oop %r768 to [0 x %oop]*
-	%r771 = getelementptr [0 x %oop], [0 x %oop]* %r772, %word 0, %word 0
-	%r769 = load %oop, %oop* %r771
-	%r774 = bitcast %oop %r769 to %oop (%oop, %oop)*
-	%r773 = call %oop %r774(%oop %r765, %oop %r766)
-	%r775 = load %oop, %oop* %t0
-	%r776 = load %oop, %oop* @"m_symbol/*encoders*"
-	%r777 = load %oop, %oop* %t1
-	%r778 = bitcast %oop %r777 to %"<target-function>"*
-	%r782 = bitcast %oop %r778 to [0 x %oop]*
-	%r781 = getelementptr [0 x %oop], [0 x %oop]* %r782, %word 0, %word 0
-	%r779 = load %oop, %oop* %r781
-	%r784 = bitcast %oop %r779 to %oop (%oop, %oop)*
-	%r783 = call %oop %r784(%oop %r775, %oop %r776)
-	%r785 = load %oop, %oop* %t0
-	%r786 = load %oop, %oop* @"m_symbol/*evaluators*"
-	%r787 = load %oop, %oop* %t1
-	%r788 = bitcast %oop %r787 to %"<target-function>"*
-	%r792 = bitcast %oop %r788 to [0 x %oop]*
-	%r791 = getelementptr [0 x %oop], [0 x %oop]* %r792, %word 0, %word 0
-	%r789 = load %oop, %oop* %r791
-	%r794 = bitcast %oop %r789 to %oop (%oop, %oop)*
-	%r793 = call %oop %r794(%oop %r785, %oop %r786)
-	%r795 = load %oop, %oop* %t0
-	%r796 = load %oop, %oop* @"m_symbol/*applicators*"
-	%r797 = load %oop, %oop* %t1
-	%r798 = bitcast %oop %r797 to %"<target-function>"*
-	%r802 = bitcast %oop %r798 to [0 x %oop]*
-	%r801 = getelementptr [0 x %oop], [0 x %oop]* %r802, %word 0, %word 0
-	%r799 = load %oop, %oop* %r801
-	%r804 = bitcast %oop %r799 to %oop (%oop, %oop)*
-	%r803 = call %oop %r804(%oop %r795, %oop %r796)
-	%r805 = inttoptr %word 0 to %oop
-	store %oop %r805, %oop* %t1
-	%r806 = inttoptr %word 1 to %oop
-	store %oop %r806, %oop* %t2
-	%r807 = load %oop, %oop* @"m_fixed-primitive-function/quote"
-	%r808 = call %oop @m_type-of.code(%oop %r807)
-	%r810 = inttoptr %word 8 to %oop
-	%r814 = ptrtoint %oop %r810 to %word
-	%r813 = ptrtoint %oop %r808 to %word
-	%r812 = icmp eq %word %r814, %r813
-	%r811 = inttoptr i1 %r812 to %oop
-	store %oop %r811, %oop* %t2
-	%r815 = inttoptr %word 0 to %oop
-	%r819 = ptrtoint %oop %r815 to %word
-	%r818 = ptrtoint %oop %r811 to %word
-	%r817 = icmp eq %word %r819, %r818
-	%r816 = inttoptr i1 %r817 to %oop
-	%r821 = ptrtoint %oop %r816 to %word
-	%r820 = icmp ne %word %r821, 0
-	br i1 %r820, label %L5, label %L6
+	%r719 = load %oop, %oop* %t0
+	%r720 = getelementptr %"<header>", %"<header>"* @m_ostr2984, i32 1
+	%r721 = getelementptr %"<header>", %"<header>"* @"m_abort/evaluator-stub", i32 1
+	%r722 = inttoptr %word 0 to %oop
+	%r723 = call %oop @"m_%instantiate-vm-function.code"(%oop %r719, %oop %r720, %oop %r721, %oop %r722)
+	%r725 = inttoptr %word 1 to %oop
+	%r726 = load %oop, %oop* @"m_symbol/quote"
+	%r727 = load %oop, %oop* %t0
+	%r728 = call %oop @"m_defined?.code"(%oop %r726, %oop %r727)
+	%r733 = bitcast %oop %r728 to [0 x %oop]*
+	%r732 = ptrtoint %oop %r725 to %word
+	%r731 = getelementptr [0 x %oop], [0 x %oop]* %r733, %word 0, %word %r732
+	%r730 = load %oop, %oop* %r731
+	store %oop %r730, %oop* @"m_fixed-primitive-function/quote"
+	%r734 = inttoptr %word 1 to %oop
+	%r735 = load %oop, %oop* @"m_symbol/lambda"
+	%r736 = load %oop, %oop* %t0
+	%r737 = call %oop @"m_defined?.code"(%oop %r735, %oop %r736)
+	%r742 = bitcast %oop %r737 to [0 x %oop]*
+	%r741 = ptrtoint %oop %r734 to %word
+	%r740 = getelementptr [0 x %oop], [0 x %oop]* %r742, %word 0, %word %r741
+	%r739 = load %oop, %oop* %r740
+	store %oop %r739, %oop* @"m_fixed-primitive-function/lambda"
+	%r743 = inttoptr %word 1 to %oop
+	%r744 = load %oop, %oop* @"m_symbol/let"
+	%r745 = load %oop, %oop* %t0
+	%r746 = call %oop @"m_defined?.code"(%oop %r744, %oop %r745)
+	%r751 = bitcast %oop %r746 to [0 x %oop]*
+	%r750 = ptrtoint %oop %r743 to %word
+	%r749 = getelementptr [0 x %oop], [0 x %oop]* %r751, %word 0, %word %r750
+	%r748 = load %oop, %oop* %r749
+	store %oop %r748, %oop* @"m_fixed-primitive-function/let"
+	%r752 = inttoptr %word 1 to %oop
+	%r753 = load %oop, %oop* @"m_symbol/define"
+	%r754 = load %oop, %oop* %t0
+	%r755 = call %oop @"m_defined?.code"(%oop %r753, %oop %r754)
+	%r760 = bitcast %oop %r755 to [0 x %oop]*
+	%r759 = ptrtoint %oop %r752 to %word
+	%r758 = getelementptr [0 x %oop], [0 x %oop]* %r760, %word 0, %word %r759
+	%r757 = load %oop, %oop* %r758
+	store %oop %r757, %oop* @"m_fixed-primitive-function/define"
+	%r761 = inttoptr %word 1 to %oop
+	%r762 = load %oop, %oop* @"m_symbol/set"
+	%r763 = load %oop, %oop* %t0
+	%r764 = call %oop @"m_defined?.code"(%oop %r762, %oop %r763)
+	%r769 = bitcast %oop %r764 to [0 x %oop]*
+	%r768 = ptrtoint %oop %r761 to %word
+	%r767 = getelementptr [0 x %oop], [0 x %oop]* %r769, %word 0, %word %r768
+	%r766 = load %oop, %oop* %r767
+	store %oop %r766, %oop* @"m_fixed-primitive-function/set"
+	%r770 = getelementptr %"<header>", %"<header>"* @m_oclosure2986, i32 1
+	store %oop %r770, %oop* %t1
+	%r771 = load %oop, %oop* %t0
+	%r772 = load %oop, %oop* @"m_symbol/*expanders*"
+	%r773 = load %oop, %oop* %t1
+	%r774 = bitcast %oop %r773 to %"<target-function>"*
+	%r778 = bitcast %oop %r774 to [0 x %oop]*
+	%r777 = getelementptr [0 x %oop], [0 x %oop]* %r778, %word 0, %word 0
+	%r775 = load %oop, %oop* %r777
+	%r780 = bitcast %oop %r775 to %oop (%oop, %oop)*
+	%r779 = call %oop %r780(%oop %r771, %oop %r772)
+	%r781 = load %oop, %oop* %t0
+	%r782 = load %oop, %oop* @"m_symbol/*encoders*"
+	%r783 = load %oop, %oop* %t1
+	%r784 = bitcast %oop %r783 to %"<target-function>"*
+	%r788 = bitcast %oop %r784 to [0 x %oop]*
+	%r787 = getelementptr [0 x %oop], [0 x %oop]* %r788, %word 0, %word 0
+	%r785 = load %oop, %oop* %r787
+	%r790 = bitcast %oop %r785 to %oop (%oop, %oop)*
+	%r789 = call %oop %r790(%oop %r781, %oop %r782)
+	%r791 = load %oop, %oop* %t0
+	%r792 = load %oop, %oop* @"m_symbol/*evaluators*"
+	%r793 = load %oop, %oop* %t1
+	%r794 = bitcast %oop %r793 to %"<target-function>"*
+	%r798 = bitcast %oop %r794 to [0 x %oop]*
+	%r797 = getelementptr [0 x %oop], [0 x %oop]* %r798, %word 0, %word 0
+	%r795 = load %oop, %oop* %r797
+	%r800 = bitcast %oop %r795 to %oop (%oop, %oop)*
+	%r799 = call %oop %r800(%oop %r791, %oop %r792)
+	%r801 = load %oop, %oop* %t0
+	%r802 = load %oop, %oop* @"m_symbol/*applicators*"
+	%r803 = load %oop, %oop* %t1
+	%r804 = bitcast %oop %r803 to %"<target-function>"*
+	%r808 = bitcast %oop %r804 to [0 x %oop]*
+	%r807 = getelementptr [0 x %oop], [0 x %oop]* %r808, %word 0, %word 0
+	%r805 = load %oop, %oop* %r807
+	%r810 = bitcast %oop %r805 to %oop (%oop, %oop)*
+	%r809 = call %oop %r810(%oop %r801, %oop %r802)
+	%r811 = inttoptr %word 0 to %oop
+	store %oop %r811, %oop* %t1
+	%r812 = inttoptr %word 1 to %oop
+	store %oop %r812, %oop* %t2
+	%r813 = load %oop, %oop* @"m_fixed-primitive-function/quote"
+	%r814 = call %oop @m_type-of.code(%oop %r813)
+	%r816 = inttoptr %word 8 to %oop
+	%r820 = ptrtoint %oop %r816 to %word
+	%r819 = ptrtoint %oop %r814 to %word
+	%r818 = icmp eq %word %r820, %r819
+	%r817 = inttoptr i1 %r818 to %oop
+	store %oop %r817, %oop* %t2
+	%r821 = inttoptr %word 0 to %oop
+	%r825 = ptrtoint %oop %r821 to %word
+	%r824 = ptrtoint %oop %r817 to %word
+	%r823 = icmp eq %word %r825, %r824
+	%r822 = inttoptr i1 %r823 to %oop
+	%r827 = ptrtoint %oop %r822 to %word
+	%r826 = icmp ne %word %r827, 0
+	br i1 %r826, label %L5, label %L6
 L6:
-	%r822 = load %oop, %oop* @"m_fixed-primitive-function/lambda"
-	%r823 = call %oop @m_type-of.code(%oop %r822)
-	%r825 = inttoptr %word 8 to %oop
-	%r829 = ptrtoint %oop %r825 to %word
-	%r828 = ptrtoint %oop %r823 to %word
-	%r827 = icmp eq %word %r829, %r828
-	%r826 = inttoptr i1 %r827 to %oop
-	store %oop %r826, %oop* %t2
-	%r830 = inttoptr %word 0 to %oop
-	%r834 = ptrtoint %oop %r830 to %word
-	%r833 = ptrtoint %oop %r826 to %word
-	%r832 = icmp eq %word %r834, %r833
-	%r831 = inttoptr i1 %r832 to %oop
-	%r836 = ptrtoint %oop %r831 to %word
-	%r835 = icmp ne %word %r836, 0
-	br i1 %r835, label %L5, label %L7
+	%r828 = load %oop, %oop* @"m_fixed-primitive-function/lambda"
+	%r829 = call %oop @m_type-of.code(%oop %r828)
+	%r831 = inttoptr %word 8 to %oop
+	%r835 = ptrtoint %oop %r831 to %word
+	%r834 = ptrtoint %oop %r829 to %word
+	%r833 = icmp eq %word %r835, %r834
+	%r832 = inttoptr i1 %r833 to %oop
+	store %oop %r832, %oop* %t2
+	%r836 = inttoptr %word 0 to %oop
+	%r840 = ptrtoint %oop %r836 to %word
+	%r839 = ptrtoint %oop %r832 to %word
+	%r838 = icmp eq %word %r840, %r839
+	%r837 = inttoptr i1 %r838 to %oop
+	%r842 = ptrtoint %oop %r837 to %word
+	%r841 = icmp ne %word %r842, 0
+	br i1 %r841, label %L5, label %L7
 L7:
-	%r837 = load %oop, %oop* @"m_fixed-primitive-function/let"
-	%r838 = call %oop @m_type-of.code(%oop %r837)
-	%r840 = inttoptr %word 8 to %oop
-	%r844 = ptrtoint %oop %r840 to %word
-	%r843 = ptrtoint %oop %r838 to %word
-	%r842 = icmp eq %word %r844, %r843
-	%r841 = inttoptr i1 %r842 to %oop
-	store %oop %r841, %oop* %t2
-	%r845 = inttoptr %word 0 to %oop
-	%r849 = ptrtoint %oop %r845 to %word
-	%r848 = ptrtoint %oop %r841 to %word
-	%r847 = icmp eq %word %r849, %r848
-	%r846 = inttoptr i1 %r847 to %oop
-	%r851 = ptrtoint %oop %r846 to %word
-	%r850 = icmp ne %word %r851, 0
-	br i1 %r850, label %L5, label %L8
+	%r843 = load %oop, %oop* @"m_fixed-primitive-function/let"
+	%r844 = call %oop @m_type-of.code(%oop %r843)
+	%r846 = inttoptr %word 8 to %oop
+	%r850 = ptrtoint %oop %r846 to %word
+	%r849 = ptrtoint %oop %r844 to %word
+	%r848 = icmp eq %word %r850, %r849
+	%r847 = inttoptr i1 %r848 to %oop
+	store %oop %r847, %oop* %t2
+	%r851 = inttoptr %word 0 to %oop
+	%r855 = ptrtoint %oop %r851 to %word
+	%r854 = ptrtoint %oop %r847 to %word
+	%r853 = icmp eq %word %r855, %r854
+	%r852 = inttoptr i1 %r853 to %oop
+	%r857 = ptrtoint %oop %r852 to %word
+	%r856 = icmp ne %word %r857, 0
+	br i1 %r856, label %L5, label %L8
 L8:
-	%r852 = load %oop, %oop* @"m_fixed-primitive-function/define"
-	%r853 = call %oop @m_type-of.code(%oop %r852)
-	%r855 = inttoptr %word 8 to %oop
-	%r859 = ptrtoint %oop %r855 to %word
-	%r858 = ptrtoint %oop %r853 to %word
-	%r857 = icmp eq %word %r859, %r858
-	%r856 = inttoptr i1 %r857 to %oop
-	store %oop %r856, %oop* %t2
-	%r860 = inttoptr %word 0 to %oop
-	%r864 = ptrtoint %oop %r860 to %word
-	%r863 = ptrtoint %oop %r856 to %word
-	%r862 = icmp eq %word %r864, %r863
-	%r861 = inttoptr i1 %r862 to %oop
-	%r866 = ptrtoint %oop %r861 to %word
-	%r865 = icmp ne %word %r866, 0
-	br i1 %r865, label %L5, label %L9
+	%r858 = load %oop, %oop* @"m_fixed-primitive-function/define"
+	%r859 = call %oop @m_type-of.code(%oop %r858)
+	%r861 = inttoptr %word 8 to %oop
+	%r865 = ptrtoint %oop %r861 to %word
+	%r864 = ptrtoint %oop %r859 to %word
+	%r863 = icmp eq %word %r865, %r864
+	%r862 = inttoptr i1 %r863 to %oop
+	store %oop %r862, %oop* %t2
+	%r866 = inttoptr %word 0 to %oop
+	%r870 = ptrtoint %oop %r866 to %word
+	%r869 = ptrtoint %oop %r862 to %word
+	%r868 = icmp eq %word %r870, %r869
+	%r867 = inttoptr i1 %r868 to %oop
+	%r872 = ptrtoint %oop %r867 to %word
+	%r871 = icmp ne %word %r872, 0
+	br i1 %r871, label %L5, label %L9
 L9:
-	%r867 = load %oop, %oop* @"m_fixed-primitive-function/set"
-	%r868 = call %oop @m_type-of.code(%oop %r867)
-	%r870 = inttoptr %word 8 to %oop
-	%r874 = ptrtoint %oop %r870 to %word
-	%r873 = ptrtoint %oop %r868 to %word
-	%r872 = icmp eq %word %r874, %r873
-	%r871 = inttoptr i1 %r872 to %oop
-	store %oop %r871, %oop* %t2
-	%r875 = inttoptr %word 0 to %oop
-	%r879 = ptrtoint %oop %r875 to %word
-	%r878 = ptrtoint %oop %r871 to %word
-	%r877 = icmp eq %word %r879, %r878
-	%r876 = inttoptr i1 %r877 to %oop
-	%r881 = ptrtoint %oop %r876 to %word
-	%r880 = icmp ne %word %r881, 0
-	br i1 %r880, label %L5, label %L10
+	%r873 = load %oop, %oop* @"m_fixed-primitive-function/set"
+	%r874 = call %oop @m_type-of.code(%oop %r873)
+	%r876 = inttoptr %word 8 to %oop
+	%r880 = ptrtoint %oop %r876 to %word
+	%r879 = ptrtoint %oop %r874 to %word
+	%r878 = icmp eq %word %r880, %r879
+	%r877 = inttoptr i1 %r878 to %oop
+	store %oop %r877, %oop* %t2
+	%r881 = inttoptr %word 0 to %oop
+	%r885 = ptrtoint %oop %r881 to %word
+	%r884 = ptrtoint %oop %r877 to %word
+	%r883 = icmp eq %word %r885, %r884
+	%r882 = inttoptr i1 %r883 to %oop
+	%r887 = ptrtoint %oop %r882 to %word
+	%r886 = icmp ne %word %r887, 0
+	br i1 %r886, label %L5, label %L10
 L10:
 	br label %L5
 L5:
-	%r882 = load %oop, %oop* %t2
-	store %oop %r882, %oop* %t1
-	%r883 = inttoptr %word 0 to %oop
-	%r887 = ptrtoint %oop %r883 to %word
-	%r886 = ptrtoint %oop %r882 to %word
-	%r885 = icmp eq %word %r887, %r886
-	%r884 = inttoptr i1 %r885 to %oop
-	%r889 = ptrtoint %oop %r884 to %word
-	%r888 = icmp ne %word %r889, 0
-	br i1 %r888, label %L11, label %L4
+	%r888 = load %oop, %oop* %t2
+	store %oop %r888, %oop* %t1
+	%r889 = inttoptr %word 0 to %oop
+	%r893 = ptrtoint %oop %r889 to %word
+	%r892 = ptrtoint %oop %r888 to %word
+	%r891 = icmp eq %word %r893, %r892
+	%r890 = inttoptr i1 %r891 to %oop
+	%r895 = ptrtoint %oop %r890 to %word
+	%r894 = icmp ne %word %r895, 0
+	br i1 %r894, label %L11, label %L4
 L11:
-	%r890 = call %oop @m_error-prologue.code()
-	%r892 = getelementptr %"<header>", %"<header>"* @m_ostr2950, i32 1
-	%r893 = call %oop @"m_%error.code"(%oop %r892)
-	%r895 = call %oop @m_error-epilogue.code()
-	store %oop %r895, %oop* %t1
-	%r897 = inttoptr %word 0 to %oop
-	%r901 = ptrtoint %oop %r897 to %word
-	%r900 = ptrtoint %oop %r895 to %word
-	%r899 = icmp eq %word %r901, %r900
-	%r898 = inttoptr i1 %r899 to %oop
-	%r903 = ptrtoint %oop %r898 to %word
-	%r902 = icmp ne %word %r903, 0
-	br i1 %r902, label %L12, label %L4
+	%r896 = call %oop @m_error-prologue.code()
+	%r898 = getelementptr %"<header>", %"<header>"* @m_ostr2988, i32 1
+	%r899 = call %oop @"m_%error.code"(%oop %r898)
+	%r901 = call %oop @m_error-epilogue.code()
+	store %oop %r901, %oop* %t1
+	%r903 = inttoptr %word 0 to %oop
+	%r907 = ptrtoint %oop %r903 to %word
+	%r906 = ptrtoint %oop %r901 to %word
+	%r905 = icmp eq %word %r907, %r906
+	%r904 = inttoptr i1 %r905 to %oop
+	%r909 = ptrtoint %oop %r904 to %word
+	%r908 = icmp ne %word %r909, 0
+	br i1 %r908, label %L12, label %L4
 L12:
 	br label %L4
 L4:
-	%r904 = load %oop, %oop* %t1
-	ret %oop %r904
+	%r910 = load %oop, %oop* %t1
+	ret %oop %r910
 }
-@m_cstr2951 = private unnamed_addr constant [34 x i8] c"populate-env-with-maru-primitives\00"
-@m_ostr2952 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 67, ptr bitcast ([34 x i8]* @m_cstr2951 to ptr) }}
-@m_populate-env-with-maru-primitives = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @m_populate-env-with-maru-primitives.code to %oop), %"<string-h>"* @m_ostr2952 }}
-@m_cstr2953 = private unnamed_addr constant [5 x i8] c"maru\00"
-@m_ostr2954 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2953 to ptr) }}
-@m_cstr2955 = private unnamed_addr constant [7 x i8] c"*maru*\00"
-@m_ostr2956 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2955 to ptr) }}
-@m_cstr2957 = private unnamed_addr constant [10 x i8] c"maru-user\00"
-@m_ostr2958 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2957 to ptr) }}
+@m_cstr2989 = private unnamed_addr constant [34 x i8] c"populate-env-with-maru-primitives\00"
+@m_ostr2990 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 67, ptr bitcast ([34 x i8]* @m_cstr2989 to ptr) }}
+@m_populate-env-with-maru-primitives = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop (%oop)* @m_populate-env-with-maru-primitives.code to %oop), %"<string-h>"* @m_ostr2990 }}
+@m_cstr2991 = private unnamed_addr constant [5 x i8] c"maru\00"
+@m_ostr2992 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 9, ptr bitcast ([5 x i8]* @m_cstr2991 to ptr) }}
+@m_cstr2993 = private unnamed_addr constant [7 x i8] c"*maru*\00"
+@m_ostr2994 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2993 to ptr) }}
+@m_cstr2995 = private unnamed_addr constant [10 x i8] c"maru-user\00"
+@m_ostr2996 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2995 to ptr) }}
 define %oop @m_initialize-vm.code() {
 	%t0 = alloca %oop
 	%r1 = inttoptr %word 0 to %oop
@@ -41029,7 +41283,7 @@ define %oop @m_initialize-vm.code() {
 	%r37 = inttoptr %word 0 to %oop
 	%r38 = call %oop @m_environment.code(%oop %r35, %oop %r36, %oop %r37)
 	store %oop %r38, %oop* @"m_*maru*"
-	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2954, i32 1
+	%r40 = getelementptr %"<header>", %"<header>"* @m_ostr2992, i32 1
 	%r41 = inttoptr %word 5 to %oop
 	%r42 = load %oop, %oop* @"m_*maru*"
 	%r46 = bitcast %oop %r42 to [0 x %oop]*
@@ -41040,7 +41294,7 @@ define %oop @m_initialize-vm.code() {
 	%r47 = load %oop, %oop* @"m_*maru*"
 	%r48 = call %oop @m_populate-env-with-maru-primitives.code(%oop %r47)
 	%r50 = load %oop, %oop* @"m_*maru*"
-	%r51 = getelementptr %"<header>", %"<header>"* @m_ostr2956, i32 1
+	%r51 = getelementptr %"<header>", %"<header>"* @m_ostr2994, i32 1
 	%r52 = call %oop @"m_string->symbol.code"(%oop %r51)
 	%r54 = load %oop, %oop* @"m_*maru*"
 	%r55 = call %oop @m_environment-define.code(%oop %r50, %oop %r52, %oop %r54)
@@ -41050,7 +41304,7 @@ define %oop @m_initialize-vm.code() {
 	%r60 = inttoptr %word 0 to %oop
 	%r61 = call %oop @m_environment.code(%oop %r58, %oop %r59, %oop %r60)
 	store %oop %r61, %oop* %t0
-	%r63 = getelementptr %"<header>", %"<header>"* @m_ostr2958, i32 1
+	%r63 = getelementptr %"<header>", %"<header>"* @m_ostr2996, i32 1
 	%r64 = inttoptr %word 5 to %oop
 	%r65 = load %oop, %oop* %t0
 	%r69 = bitcast %oop %r65 to [0 x %oop]*
@@ -41064,24 +41318,24 @@ define %oop @m_initialize-vm.code() {
 	%r73 = inttoptr %word 0 to %oop
 	ret %oop %r73
 }
-@m_cstr2959 = private unnamed_addr constant [14 x i8] c"initialize-vm\00"
-@m_ostr2960 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2959 to ptr) }}
-@m_initialize-vm = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop ()* @m_initialize-vm.code to %oop), %"<string-h>"* @m_ostr2960 }}
-@m_cstr2961 = private unnamed_addr constant [7 x i8] c"Heap: \00"
-@m_ostr2962 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2961 to ptr) }}
-@m_cstr2963 = private unnamed_addr constant [13 x i8] c" objects in \00"
-@m_ostr2964 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr2963 to ptr) }}
-@m_cstr2965 = private unnamed_addr constant [9 x i8] c" bytes, \00"
-@m_ostr2966 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr2965 to ptr) }}
-@m_cstr2967 = private unnamed_addr constant [14 x i8] c" bytes free, \00"
-@m_ostr2968 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2967 to ptr) }}
-@m_cstr2969 = private unnamed_addr constant [10 x i8] c" GC runs\0A\00"
-@m_ostr2970 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr2969 to ptr) }}
+@m_cstr2997 = private unnamed_addr constant [14 x i8] c"initialize-vm\00"
+@m_ostr2998 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr2997 to ptr) }}
+@m_initialize-vm = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop ()* @m_initialize-vm.code to %oop), %"<string-h>"* @m_ostr2998 }}
+@m_cstr2999 = private unnamed_addr constant [7 x i8] c"Heap: \00"
+@m_ostr3000 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 13, ptr bitcast ([7 x i8]* @m_cstr2999 to ptr) }}
+@m_cstr3001 = private unnamed_addr constant [13 x i8] c" objects in \00"
+@m_ostr3002 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 25, ptr bitcast ([13 x i8]* @m_cstr3001 to ptr) }}
+@m_cstr3003 = private unnamed_addr constant [9 x i8] c" bytes, \00"
+@m_ostr3004 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 17, ptr bitcast ([9 x i8]* @m_cstr3003 to ptr) }}
+@m_cstr3005 = private unnamed_addr constant [14 x i8] c" bytes free, \00"
+@m_ostr3006 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 27, ptr bitcast ([14 x i8]* @m_cstr3005 to ptr) }}
+@m_cstr3007 = private unnamed_addr constant [10 x i8] c" GC runs\0A\00"
+@m_ostr3008 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 19, ptr bitcast ([10 x i8]* @m_cstr3007 to ptr) }}
 define %oop @"m_gc/print-statistics.code"() {
 	%r1 = load %oop, %oop* @"m_*maru*"
 	%r2 = load %oop, %oop* @"m_symbol/*error-output*"
 	%r3 = call %oop @m_variable-value.code(%oop %r1, %oop %r2)
-	%r5 = getelementptr %"<header>", %"<header>"* @m_ostr2962, i32 1
+	%r5 = getelementptr %"<header>", %"<header>"* @m_ostr3000, i32 1
 	%r6 = inttoptr %word 0 to %oop
 	%r7 = call %oop @m_do-print.code(%oop %r3, %oop %r5, %oop %r6)
 	%r9 = load %oop, %oop* @"m_*maru*"
@@ -41103,7 +41357,7 @@ define %oop @"m_gc/print-statistics.code"() {
 	%r27 = load %oop, %oop* @"m_*maru*"
 	%r28 = load %oop, %oop* @"m_symbol/*error-output*"
 	%r29 = call %oop @m_variable-value.code(%oop %r27, %oop %r28)
-	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr2964, i32 1
+	%r31 = getelementptr %"<header>", %"<header>"* @m_ostr3002, i32 1
 	%r32 = inttoptr %word 0 to %oop
 	%r33 = call %oop @m_do-print.code(%oop %r29, %oop %r31, %oop %r32)
 	%r35 = load %oop, %oop* @"m_*maru*"
@@ -41125,7 +41379,7 @@ define %oop @"m_gc/print-statistics.code"() {
 	%r53 = load %oop, %oop* @"m_*maru*"
 	%r54 = load %oop, %oop* @"m_symbol/*error-output*"
 	%r55 = call %oop @m_variable-value.code(%oop %r53, %oop %r54)
-	%r57 = getelementptr %"<header>", %"<header>"* @m_ostr2966, i32 1
+	%r57 = getelementptr %"<header>", %"<header>"* @m_ostr3004, i32 1
 	%r58 = inttoptr %word 0 to %oop
 	%r59 = call %oop @m_do-print.code(%oop %r55, %oop %r57, %oop %r58)
 	%r61 = load %oop, %oop* @"m_*maru*"
@@ -41147,7 +41401,7 @@ define %oop @"m_gc/print-statistics.code"() {
 	%r79 = load %oop, %oop* @"m_*maru*"
 	%r80 = load %oop, %oop* @"m_symbol/*error-output*"
 	%r81 = call %oop @m_variable-value.code(%oop %r79, %oop %r80)
-	%r83 = getelementptr %"<header>", %"<header>"* @m_ostr2968, i32 1
+	%r83 = getelementptr %"<header>", %"<header>"* @m_ostr3006, i32 1
 	%r84 = inttoptr %word 0 to %oop
 	%r85 = call %oop @m_do-print.code(%oop %r81, %oop %r83, %oop %r84)
 	%r87 = load %oop, %oop* @"m_*maru*"
@@ -41169,11 +41423,11 @@ define %oop @"m_gc/print-statistics.code"() {
 	%r105 = load %oop, %oop* @"m_*maru*"
 	%r106 = load %oop, %oop* @"m_symbol/*error-output*"
 	%r107 = call %oop @m_variable-value.code(%oop %r105, %oop %r106)
-	%r109 = getelementptr %"<header>", %"<header>"* @m_ostr2970, i32 1
+	%r109 = getelementptr %"<header>", %"<header>"* @m_ostr3008, i32 1
 	%r110 = inttoptr %word 0 to %oop
 	%r111 = call %oop @m_do-print.code(%oop %r107, %oop %r109, %oop %r110)
 	ret %oop %r111
 }
-@m_cstr2971 = private unnamed_addr constant [20 x i8] c"gc/print-statistics\00"
-@m_ostr2972 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr2971 to ptr) }}
-@"m_gc/print-statistics" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop ()* @"m_gc/print-statistics.code" to %oop), %"<string-h>"* @m_ostr2972 }}
+@m_cstr3009 = private unnamed_addr constant [20 x i8] c"gc/print-statistics\00"
+@m_ostr3010 = private unnamed_addr constant %"<string-h>" { %"<header>" { %word 3, %word 12}, %"<string>" { %word 39, ptr bitcast ([20 x i8]* @m_cstr3009 to ptr) }}
+@"m_gc/print-statistics" = private unnamed_addr constant %"<target-function-h>" { %"<header>" { %word 3, %word 19}, %"<target-function>" { %oop bitcast (%oop ()* @"m_gc/print-statistics.code" to %oop), %"<string-h>"* @m_ostr3010 }}

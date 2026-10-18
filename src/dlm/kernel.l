@@ -65,8 +65,10 @@
                  (dlm-body-vars (cdr body)))
     ()))
 
+(require "src/dlm/validation.l")
+
 (define-function dlm-safe? (r)
-  (and (dlm-body r)
+  (and (dlm-rule? r) (dlm-body r)
        (not (dlm-difference (dlm-vars (dlm-args (dlm-head r)))
                             (dlm-body-vars (dlm-body r))))))
 
@@ -135,10 +137,9 @@
 
 ;;; Full indexed/delta optimization is deliberately deferred; semantics first.
 ;;; Budget counts fixpoint passes, not instructions or unification operations.
-(define-function dlm-derive (proofs rules budget)
+(define-function dlm-derive-result (proofs rules budget)
   (let ((changed true))
-    (while changed
-      (if (<= budget 0) (error "DLM: fixpoint budget exhausted"))
+    (while (and changed (> budget 0))
       (set budget (- budget 1))
       (set changed false)
       (list-do r rules
@@ -150,7 +151,13 @@
                   (set proofs (dlm-append proofs
                     (list (dlm-rule-proof a r (dlm-nth state 1)))))
                   (set changed true)))))))
-    proofs))
+    (list 'derivation (if changed 'incomplete 'complete) proofs)))
+
+(define-function dlm-derive (proofs rules budget)
+  (let ((result (dlm-derive-result proofs rules budget)))
+    (if (= (dlm-nth result 1) 'incomplete)
+        (error "DLM: fixpoint budget exhausted; result is incomplete"))
+    (dlm-nth result 2)))
 
 (define-function dlm-proofs (facts rules budget)
   (dlm-derive (dlm-seed-proofs facts) rules budget))
@@ -179,10 +186,12 @@
 
 (set dlm-verify
   (lambda (p facts rules fuel)
-    (and (> fuel 0) (pair? p) (= (dlm-length p) 5) (= (car p) 'proof)
+    (and (> fuel 0) (pair? p) (dlm-proper? p 6)
+         (= (dlm-length p) 5) (= (car p) 'proof)
          (let ((a (dlm-conclusion p)) (kind (dlm-nth p 2))
                (r (dlm-nth p 3)) (ps (dlm-nth p 4)))
-           (and (dlm-ground? a)
+           (and (dlm-atom? a) (dlm-ground? a)
+                (dlm-proper? ps 1000)
                 (if (= kind 'fact)
                     (and (not r) (not ps) (dlm-member? a facts))
                   (and (= kind 'rule) (dlm-member? r rules) (dlm-safe? r)

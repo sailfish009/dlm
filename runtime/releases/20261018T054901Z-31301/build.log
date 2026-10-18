@@ -1,0 +1,5 @@
+Embedded 61 source/template/generator files
+warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
+1 warning generated.
+Built compiler-source image: /research/dlm_v0.0070/runtime/releases/20261018T054901Z-31301/maru
+Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.

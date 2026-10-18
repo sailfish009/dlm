@@ -1,0 +1,16 @@
+;;; -*- mode: lisp; coding: us-ascii -*-
+(dlm-check (= (dlm-nth (dlm-derive-result () () 0) 1) 'incomplete)
+           "budget exhaustion is incomplete, not false")
+(dlm-check (not (dlm-safe? 'invalid)) "malformed rule rejected")
+(dlm-check (not (dlm-atom? '(atom p invalid))) "malformed argument list rejected")
+(dlm-check (not (dlm-verify-proof '(proof invalid fact () ()) () ()))
+           "malformed proof conclusion rejected")
+(dlm-check (not (dlm-verify-proof '(proof) () ())) "truncated proof rejected")
+(let* ((x (dlm-var 'x))
+       (r (dlm-rule (dlm-atom 'q x) (dlm-atom 'p x) (dlm-atom 'r x)))
+       (facts (list (dlm-atom 'p 'a) (dlm-atom 'r 'b)))
+       (forged (dlm-rule-proof (dlm-atom 'q 'a) r
+                  (list (dlm-fact-proof (car facts))
+                        (dlm-fact-proof (dlm-nth facts 1))))))
+  (dlm-check (not (dlm-verify-proof forged facts (list r)))
+             "cross-premise binding conflict rejected"))

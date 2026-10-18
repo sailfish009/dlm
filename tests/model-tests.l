@@ -10,6 +10,7 @@
   (let* ((counter (dlm-episode 'counter facts () (list target)))
          (observed (dlm-commit after (dlm-observe-transition after (list counter))))
          (revised (dlm-commit observed (dlm-learning-transition observed 0))))
+    (dlm-check (not (dlm-nth observed 5)) "observation retracts before any query")
     (dlm-check (not (dlm-nth revised 5)) "counterexample retracts Experience")
     (dlm-check (= (dlm-length (dlm-nth revised 6)) 2) "lifecycle history retained"))
   (let* ((r (car (dlm-nth after 5)))
