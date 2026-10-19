@@ -1,0 +1,20 @@
+;;; -*- mode: lisp; coding: us-ascii -*-
+(define-function web-check (condition label)
+  (assert condition label)
+  (print "PASS " label "\n"))
+(define *web-fixture*
+  '(document dfixture (url h61) (final-url h61) (fetched-at h62)
+    (media-type h63) (sha256 h64) (raw h65) (source-group cfixture)
+    (status acquired-uninterpreted)))
+(define *web-batch* (list 'acquisition 74 (list *web-fixture*) ()))
+(define *web-state1* (web-ingest (web-new) *web-batch*))
+(define *web-state2* (web-ingest *web-state1* *web-batch*))
+(web-check (= (dlm-length (dlm-nth *web-state1* 2)) 1) "acquired source enters document memory")
+(web-check (= (dlm-length (dlm-nth *web-state2* 2)) 1) "cached acquisition does not duplicate observations")
+(web-check (= (dlm-length (dlm-nth *web-state2* 3)) 2) "repeated acquisition keeps event history")
+(web-check (equal *web-state2* (web-verify-state *web-state2*)) "web snapshot recomputed from events")
+(web-check (equal (dlm-assoc 'admitted-facts (cdr (web-report *web-state2*))) '(admitted-facts 0))
+           "fetch does not authorize Horn facts")
+(web-check (equal (dlm-nth *web-state2* 2) (dlm-nth (web-verify-state
+  (web-ingest *web-state2* '(acquisition 74 () ((failure h66 h67))))) 2))
+  "fetch failure adds no guessed documents")
