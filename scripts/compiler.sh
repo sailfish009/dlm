@@ -23,12 +23,18 @@ case "$MODE" in
   DIR="$ROOT/runtime/releases/$ID"
   (cd "$DIR"; sha256sum -c artifacts.sha256) > "$DIR/verify.log" 2>&1
   MARU="$DIR/maru" "$ROOT/scripts/run.sh" test >> "$DIR/verify.log" 2>&1
+  MARU="$DIR/maru" bash "$ROOT/tests/store-tests.sh" >> "$DIR/verify.log" 2>&1
+  MARU="$DIR/maru" bash "$ROOT/tests/runtime-tests.sh" >> "$DIR/verify.log" 2>&1
   "$TOOL" --self "$DIR/maru" "$DIR/next" >> "$DIR/verify.log" 2>&1
   cmp "$DIR/maru.ll" "$DIR/next.ll" >> "$DIR/verify.log" 2>&1
   cp "$DIR/maru" "$DIR/maru.stripped"; cp "$DIR/next" "$DIR/next.stripped"
   strip "$DIR/maru.stripped" "$DIR/next.stripped"
   cmp "$DIR/maru.stripped" "$DIR/next.stripped" >> "$DIR/verify.log" 2>&1
-  (cd "$ROOT"; sha256sum src/dlm/*.l tests/*.l experiments/*/*.l scripts/run.sh) > "$DIR/tests.sha256"
+  "$TOOL" --self "$DIR/next" "$DIR/third" >> "$DIR/verify.log" 2>&1
+  cmp "$DIR/next.ll" "$DIR/third.ll" >> "$DIR/verify.log" 2>&1
+  cp "$DIR/third" "$DIR/third.stripped"; strip "$DIR/third.stripped"
+  cmp "$DIR/next.stripped" "$DIR/third.stripped" >> "$DIR/verify.log" 2>&1
+  (cd "$ROOT"; sha256sum src/dlm/*.l tests/*.l tests/*.sh experiments/*/*.l scripts/*.sh) > "$DIR/tests.sha256"
   (cd "$DIR"; sha256sum artifacts.sha256 tests.sha256 verify.log) > "$DIR/verified"
   echo "Verified: $ID" ;;
  promote)

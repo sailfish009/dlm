@@ -309,3 +309,4 @@
 (require "source/selector.l")
 (require "source/printing.l")
 (require "source/generic.l")
+(require "source/symbolic.l")

@@ -1,0 +1,105 @@
+maru: OK
+maru.ll: OK
+sources.sha256: OK
+record: OK
+PASS: constant match with empty environment
+PASS: repeated variable conflict
+PASS: unsafe rule recognized
+PASS: recursive closure
+PASS: no reversed derivation
+PASS: proof verified
+PASS: absent rule rejected
+PASS: forged conclusion rejected
+PASS: explicit contradiction blocks admission
+closure: ((atom reach (a c)) (atom edge (b c)) (atom edge (a b)))
+proof verified: true
+absent rule rejected: true
+verdict: (verdict 1 0 0 (demo) 6 true)
+learn: (learning-result ((rule (atom reach ((var x) (var z))) ((atom edge ((var x) (var y))) (atom edge ((var y) (var z)))))) (rule (atom reach ((var x) (var z))) ((atom edge ((var x) (var y))) (atom edge ((var y) (var z))))) (verdict 1 0 0 (demo) 6 true) 6)
+DLM tests complete
+PASS: Experience admission
+PASS: evidence fixed
+PASS: Ground unchanged
+PASS: observation retracts before any query
+PASS: counterexample retracts Experience
+PASS: lifecycle history retained
+PASS: Ground conflict abstains
+DLM model tests complete
+PASS: budget exhaustion is incomplete, not false
+PASS: malformed rule rejected
+PASS: malformed argument list rejected
+PASS: malformed proof conclusion rejected
+PASS: truncated proof rejected
+PASS: cross-premise binding conflict rejected
+TRAINING (updates 3 search-calls 480)
+HELD-COLD (result learned 4 26 (calls 26))
+HELD-RANDOM (result random 3 26 (calls 43))
+HELD-TRAINED (result learned 26 26 (calls 100))
+HELD-SCRAMBLED (result scrambled 0 26 (calls 30))
+TRACE (rollout success (((u v w x) tail (running (v w x))) ((v w x) tail (running (w x))) ((w x) head (success w))) 3)
+PASS: execution feedback changes weights
+PASS: beats frozen cold controller
+PASS: beats random controller
+PASS: action intervention changes success
+PASS: new values and longer lists generalize
+PASS: zero action budget is incomplete
+PASS: unreachable goal is not fabricated
+PASS: tail executes Maru primitive
+PASS: forbidden action cannot return goal
+anchored-coloring DFS (csp-result complete (((a (green)) (b (red)) (c (green)) (d (red))) ((a (green)) (b (red)) (c (blue)) (d (red))) ((a (green)) (b (blue)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (blue)) (d (red))) ((a (blue)) (b (green)) (c (blue)) (d (red)))) 40 108 0)
+anchored-coloring PROP (csp-result complete (((a (green)) (b (red)) (c (green)) (d (red))) ((a (green)) (b (red)) (c (blue)) (d (red))) ((a (green)) (b (blue)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (blue)) (d (red))) ((a (blue)) (b (green)) (c (blue)) (d (red)))) 11 284 6)
+anchored-coloring MRV (csp-result complete (((a (green)) (b (red)) (c (green)) (d (red))) ((a (green)) (b (red)) (c (blue)) (d (red))) ((a (green)) (b (blue)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (blue)) (d (red))) ((a (blue)) (b (green)) (c (blue)) (d (red)))) 11 284 6)
+PASS: all arms complete
+PASS: propagation preserves complete solution set
+unsatisfiable-triangle DFS (csp-result complete () 15 24 0)
+unsatisfiable-triangle PROP (csp-result complete () 3 68 8)
+unsatisfiable-triangle MRV (csp-result complete () 3 68 8)
+PASS: all arms complete
+PASS: propagation preserves complete solution set
+role-candidates DFS (csp-result complete (((subject (pump)) (relation (uses)) (object (valve))) ((subject (valve)) (relation (used-by)) (object (pump)))) 15 16 0)
+role-candidates PROP (csp-result complete (((subject (pump)) (relation (uses)) (object (valve))) ((subject (valve)) (relation (used-by)) (object (pump)))) 3 64 4)
+role-candidates MRV (csp-result complete (((subject (pump)) (relation (uses)) (object (valve))) ((subject (valve)) (relation (used-by)) (object (pump)))) 3 64 4)
+PASS: all arms complete
+PASS: propagation preserves complete solution set
+TOTAL-NODES (dfs 70 propagate 17)
+PASS: propagation reduces expanded nodes
+PASS: branching preserves input domains
+PASS: sibling choices isolated
+PASS: backtracking enumerates alternatives
+PASS: budget exhaustion is not unsatisfiable
+PASS: exhausted inconsistent problem has no solution
+PASS: ambiguous role candidates retained, not asserted as unique
+SYMBOLIC cold (coverage 0 14 0)
+SYMBOLIC one-round (coverage 8 14 0)
+SYMBOLIC recursive (coverage 14 14 0)
+SYMBOLIC candidates-per-round 60
+SYMBOLIC experience-events 3
+PASS empty model has no domain axioms
+PASS one round learns first relational composition
+PASS recursive round enables dependent rule on unseen structures
+PASS no heldout explicit counterobservations derived
+PASS two variable-general rules learned without supplied domain axioms
+PASS saturated round does not invent evidence
+PASS experience replay reconstructs graph and theory
+PASS candidate evaluation leaves parent unchanged
+PASS new counterevidence retracts conflicting theory
+PASS retraction is replayable
+PASS self inequality cannot obtain support from a different value
+PASS Maru choice operator exposes isolated alternatives
+SYMBOLIC scrambled (coverage 0 14 0)
+PASS scrambled observations do not reproduce transfer
+PASS argument-role categories are induced from observation signatures
+PASS predicate index retains source observation records
+PASS failed and successful candidate verdicts are retained
+PASS process restart replays experience; corrupt and forged stores rejected without overwrite
+PASS source-free embedded symbolic choice/backtracking/propagation
+Generated candidate-vm.l from embedded sources using Maru
+warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
+1 warning generated.
+Built compiler-source image: /research/dlm_v0.0073/runtime/releases/20261019T015829Z-7615/next
+Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.
+Generated candidate-vm.l from embedded sources using Maru
+warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
+1 warning generated.
+Built compiler-source image: /research/dlm_v0.0073/runtime/releases/20261019T015829Z-7615/third
+Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.

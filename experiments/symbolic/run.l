@@ -1,0 +1,12 @@
+;;; -*- mode: lisp; coding: us-ascii -*-
+(require "experiments/symbolic/data.l")
+(define *sl-initial* (sl-new *sl-training*))
+(define *sl-budget* (dlm-length (sl-candidates *sl-training*)))
+(define *sl-round1* (sl-step *sl-initial* *sl-budget*))
+(define *sl-round2* (sl-step *sl-round1* *sl-budget*))
+(define *sl-round3* (sl-step *sl-round2* *sl-budget*))
+(print "SYMBOLIC cold " (sl-coverage *sl-initial* *sl-heldout*) "\n")
+(print "SYMBOLIC one-round " (sl-coverage *sl-round1* *sl-heldout*) "\n")
+(print "SYMBOLIC recursive " (sl-coverage *sl-round2* *sl-heldout*) "\n")
+(print "SYMBOLIC candidates-per-round " *sl-budget* "\n")
+(print "SYMBOLIC experience-events " (dlm-length (dlm-nth *sl-round3* 4)) "\n")
