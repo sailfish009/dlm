@@ -25,6 +25,7 @@ case "$MODE" in
   MARU="$DIR/maru" "$ROOT/scripts/run.sh" test >> "$DIR/verify.log" 2>&1
   MARU="$DIR/maru" bash "$ROOT/tests/store-tests.sh" >> "$DIR/verify.log" 2>&1
   MARU="$DIR/maru" bash "$ROOT/tests/runtime-tests.sh" >> "$DIR/verify.log" 2>&1
+  MARU="$DIR/maru" bash "$ROOT/tests/graph-store-tests.sh" >> "$DIR/verify.log" 2>&1
   MARU="$DIR/maru" python3 -m unittest discover -s "$ROOT/tests" -p test_web.py >> "$DIR/verify.log" 2>&1
   "$TOOL" --self "$DIR/maru" "$DIR/next" >> "$DIR/verify.log" 2>&1
   cmp "$DIR/maru.ll" "$DIR/next.ll" >> "$DIR/verify.log" 2>&1
@@ -35,7 +36,7 @@ case "$MODE" in
   cmp "$DIR/next.ll" "$DIR/third.ll" >> "$DIR/verify.log" 2>&1
   cp "$DIR/third" "$DIR/third.stripped"; strip "$DIR/third.stripped"
   cmp "$DIR/next.stripped" "$DIR/third.stripped" >> "$DIR/verify.log" 2>&1
-  (cd "$ROOT"; sha256sum src/dlm/*.l tests/*.l tests/*.sh tests/*.py adapters/*.py experiments/*/*.l scripts/*.sh) > "$DIR/tests.sha256"
+  (cd "$ROOT"; sha256sum src/dlm/*.l tests/*.l tests/*.sh tests/*.py adapters/*.py experiments/*/*.l experiments/graph/*.sexp scripts/*.sh) > "$DIR/tests.sha256"
   (cd "$DIR"; sha256sum artifacts.sha256 tests.sha256 verify.log) > "$DIR/verified"
   echo "Verified: $ID" ;;
  promote)

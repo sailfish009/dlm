@@ -1,114 +1,164 @@
-# DLM v0.0074: external web acquisition for the Maru application
+# DLM v0.0075: Maru graph reasoning layer
 
-0074 adds the cached Python HTTP acquisition pattern from
-`dlm_v0.0065/dlm/web.py`. There is no import or runtime dependency on old DLM
-versions. Python supplies documents; DLM remains a Maru application.
-The 0073 symbolic rule-learning demo is preserved, unchanged in semantics.
+0075 implements a graph execution layer in Maru. It takes design inspiration
+from NeuroSymbolic-IR's typed operations/provenance/traces and GraphReasoning's
+relation-path exploration. Neither project is imported or required at runtime.
+No LLM, tokenizer, embedding, PyTorch, GPU, NetworkX or Z3 dependency is added.
 
-## Fetch and ingest
-
-```sh
-cd /research/dlm_v0.0074
-./scripts/web.sh --url https://raw.githubusercontent.com/python/cpython/main/README.rst
-./scripts/web.sh --query 'deductive logic' --provider github --limit 2
-./scripts/web.sh --query 'Horn clause' --provider wikipedia --limit 2
-
-# Replay cached responses without network; a miss is a recorded failure.
-./scripts/web.sh --url https://raw.githubusercontent.com/python/cpython/main/README.rst --offline
-
-# Explicitly ask for a new network observation of a previously cached URL.
-./scripts/web.sh --url https://raw.githubusercontent.com/python/cpython/main/README.rst --refresh
-```
-
-`STORE=/path` chooses a separate acquisition store. `--offline` and `--refresh`
-are mutually exclusive. Defaults: 20-second socket timeout, 262144 bytes per HTTP
-response, 3 acquired documents per call; `--limit` accepts 1..20. Discovery adds
-HTTP calls and therefore this is not a total request/time budget. Duplicate URL
-arguments are fetched once. Documents beyond `--limit` are not acquired.
-
-## Boundary
-
-```text
-Python stdlib: URL/query -> bounded HTTP/cache -> acquisition datum
-Maru DLM: read DATA -> source-document checks -> deduplicated memory + events
-Future: sourced interpretation candidates -> evidence gate -> rule learning
-```
-
-- Supports explicit HTTP(S) URLs, GitHub repository README discovery, and
-  Wikipedia summary discovery. Search results themselves are not truth labels.
-- Retains requested/final URL, first fetch time, media type, SHA-256 and exact
-  response bytes. Wikipedia responses are retained as JSON bytes, not silently
-  converted to world facts. Other HTTP bodies are also stored without semantic
-  extraction or HTML execution.
-- Cache records are checked against content hashes before reuse. Explicit refresh
-  can add a new content version; older committed documents remain in memory.
-- Mirror content shares a content-hash source group. This detects exact mirrors,
-  not independent corroboration. Same URL+hash is one document; repeat fetch
-  timestamps and failures remain in acquisition events.
-- All external fields are ASCII hex symbols in the S-expression bridge. Input is
-  consumed with `read`, never `eval`; strings that resemble Lisp are only bytes.
-- Maru stores status `acquired-uninterpreted`. Reports explicitly show
-  `(admitted-facts 0)` and `(interpretation unresolved)`.
-
-**Fetching does not yet train the deductive model from raw text.** Claim/mention
-extraction, polarity/modality/condition/attribution handling, byte-to-text IR
-interpretation and an independent evidence gate are still needed. The existing
-synthetic self-SSL corpus is not replaced by fetched documents. No model-owned
-query selection, automatic acquisition loop or general semantic parser is claimed.
-
-## Files and persistence
-
-- `adapters/web.py`: stdlib HTTP/cache, provider discovery and data-only bridge.
-- `src/dlm/web.l`: source memory, deduplication, schema checks and replay.
-- `experiments/web/ingest.l`, `report.l`: thin Maru drivers.
-- `scripts/web.sh`: locked transport + ingestion + atomic state replacement.
-- `experiments/web/store/cache/fetch/*.json`: cached raw response and provenance.
-- `batch.sexp` and `batch.sexp.json`: latest acquisition and inspectable metadata.
-- `state.sexp`: current complete source memory/event log; dated `.sexp` files
-  retain previous committed generations. Source content is also retained there.
-
-Restart replays acquisition events and checks the snapshot before admitting new
-data. Failure does not delete previous documents or fabricate a replacement.
-Snapshots are local integrity/replay checks, not signed evidence. Python checks
-SHA-256; Maru does not independently implement cryptographic hashing. Stores and
-adapter are trusted local components. The HTTP client is not an SSRF sandbox:
-explicit URLs may address local networks. There is no fsync crash durability,
-strict total memory budget, incremental compact journal or hostile-input sandbox.
-
-## Verify
+## Run
 
 ```sh
-./scripts/run.sh test
-python3 -m unittest discover -s tests -p test_web.py -v
-bash tests/store-tests.sh
-bash tests/runtime-tests.sh
-python3 tests/differential.py   # optional sibling 0066 developer oracle
+cd /research/dlm_v0.0075
+./scripts/run.sh graph                 # diamond paths, proof/retraction tests, learned transfer
+./scripts/run.sh test                  # all 100 Maru assertions
+./scripts/graph.sh                     # persistent diamond fixture, starts empty
+./scripts/graph.sh my-actions.sexp 100  # apply a data-only action batch
+bash tests/graph-store-tests.sh        # restart/retraction/forged snapshot tests
+python3 tests/graph-differential.py    # optional 20-case independent Python0066 oracle
 ```
 
-Measured checks: 66 Maru/DLM assertions, 6 deterministic local-HTTP Python tests,
-20 optional seeded Horn differential cases. HTTP tests cover exact bytes and
-redirect provenance, offline replay/miss, oversized/error responses, cache hash
-corruption, data/code separation, mirrors, refresh, process restart and forged
-snapshot rejection. A live CPython README acquisition and offline replay both
-succeeded: one retained document, zero admitted facts.
+`STORE=/path` selects an isolated graph store. `graph.sh` uses an exclusive lock,
+reads data without eval, verifies the previous snapshot by event replay, and
+atomically replaces `state.sexp` only after every action succeeds. Dated snapshots
+retain previous full states. Empty action list `()` verifies/resumes without a
+model update. Repeating the fixture does not add new observations; it does append
+idempotent transition events. Budgets count fixpoint passes, not primitive work.
 
-The compiler lifecycle remains `scripts/compiler.sh rebuild|reproduce|verify ID|
-promote ID|rollback`. Verify also runs web-adapter tests and checks three image
-generations. No Maru evaluator/compiler semantics were changed in 0074.
+## Implemented
 
-## Existing recursive learning experiment
+- One immutable graph value carries interned entity/predicate/claim nodes,
+  observation/rule records, active claim ids, supports, indexes and event history.
+- Equal claims share a node while multiple observation sources and derivations
+  retain separate supports. Supports reference premise ids rather than copying
+  proof trees. Predicate arity is checked across facts and rules.
+- Predicate and bound-argument indexes drive rule-body joins. The function-free
+  Horn engine computes a synchronous least fixed point with explicit
+  `complete` / `incomplete` results.
+- Directed binary path enumeration uses bounded BFS and retains alternative
+  paths. A path is a search candidate, NOT permission to compose relations.
+- Queries distinguish `entailed`, `contradicted`, `conflict`, `unknown`,
+  `incomplete`. Positive answers carry a finite witness checked by the existing
+  membership-checking Horn kernel. Graph supports may be cyclic; proof witnesses
+  must be acyclic. Unsupported cycles disappear when their seed is withdrawn.
+- Observation/rule retraction rebuilds closure and supports from active seeds.
+  Surviving alternatives are preserved; catalog ids remain as inactive entries.
+- Learned rule transitions reject incomplete evaluation or explicit
+  counterevidence. This gate is applied during replay as well as normal updates.
+  Passing finite evidence is NOT a proof of a universally true learned rule.
+- 0073's two learned composition rules execute through the new graph engine on
+  unseen entity names and extra joins: 14/14 goals, zero explicit violations.
+  Held-out target labels do not enter those graphs as premises.
+
+## Representation and APIs
+
+Implementation: `src/dlm/graph.l` and `src/dlm/graph-query.l`.
+
+```lisp
+;; Provenance has a source id, optional span, and an admission category.
+(observation ab positive (atom edge (a b))
+  (provenance fixture () observed))
+
+(rule-record base
+  (rule (atom reach ((var x) (var y)))
+        ((atom edge ((var x) (var y)))))
+  (provenance fixture () given))
+```
+
+Core operations:
+
+```lisp
+(gr-new)
+(gr-apply graph '(observe OBSERVATION) 100)
+(gr-apply graph '(rule RULE-RECORD) 100)
+(gr-apply graph '(retract-observation ab) 100)
+(gr-apply graph '(retract-rule base) 100)
+(gr-apply graph '(recompute closure) 100)
+(gr-query graph '(atom reach (a d)))
+(gr-paths graph 'a 'd '(edge) 4 100 10)
+(gr-supports-for graph '(atom reach (a d)))
+(gr-verify-state graph)
+```
+
+`OBSERVATION` and `RULE-RECORD` above stand for complete data records; the fixture
+is `experiments/graph/actions.sexp`. Invalid actions return `(graph-error ...)`
+without modifying the input graph. `gr-admit-rule` offers a stricter consistent
+finite-evidence gate for proposed rules, including supplied rules.
+
+An `observed` record means a trusted caller has admitted a scoped observation.
+It is not a cryptographic source certificate or a claim of world truth. Acquired
+web documents cannot automatically become observations. A caller that can forge
+`observed` records remains inside the trust boundary. New contradictory
+observations are retained and exposed as conflicts, not silently resolved by
+confidence scores; existing rules are not automatically deleted on conflict.
+`given` rules are explicit assumptions, not newly learned truths.
+
+## Compared with the reference projects
+
+- NeuroSymbolic-IR: borrowed separation of typed records, source metadata and
+  reasoning traces, not its confidence-preferred conflict deletion or built-in
+  domain property assumptions. This is not full compatibility with its JSON ISA.
+- GraphReasoning: borrowed graph/path exploration, not embedding-based node
+  identity, LLM-generated hypotheses or unconditional transitive interpretation.
+- Graph topology, source observations and validated Horn derivations remain
+  distinct. No similarity score becomes an equality or proof.
+
+## Persistence, costs and limitations
+
+IDs are stable within one event history, not content hashes or globally canonical
+ids across independently ordered histories. Serialization remains S-expression;
+the runtime representation is an explicit id-referenced graph, not recursive
+expression duplication. Lookup/index structures are still immutable lists, not
+hash tables, and can be expensive. Index filtering is not a demonstrated speedup.
+
+The diamond example takes 3 passes, 25 indexed match attempts, and keeps two
+supports for reach(a,d). Metrics omit list scans, index rebuilds, proof checking,
+allocation and snapshot replay costs; they are not total operation counts.
+Retraction currently does full recomputation rather than a selective incremental
+truth-maintenance algorithm. Proof extraction can expand shared witnesses.
+
+Each graph snapshot retains the full event log. Replay grows with history; no
+compact journal/checkpoint or fsync crash durability is claimed. Validation is
+bounded shape checking, not hostile-code or arbitrary cyclic-memory safety.
+
+Graph75 is versioned separately from symbolic-state73 and web-state74. A unified
+model-wide journal/migration is not implemented. Raw-text semantic extraction,
+category/predicate discovery, learned graph search ordering, structural analogy
+learning, arbitrary negation, general compound terms and MLIR integration remain
+future work. The representation has explicit types, references, pure transitions
+and provenance boundaries suitable for a later DLM dialect, but no MLIR dialect
+or LLVM lowering is claimed in this release.
+
+## Verification record
+
+Active source-built release: `20261019T071252Z-31029`.
+
+- 100 Maru/DLM assertions pass; 6 local-HTTP acquisition tests pass.
+- 20 seeded graph closures match the independent Python0066 oracle; every
+  graph conclusion also yields a kernel-checked witness.
+- Existing 20 Horn differential cases pass.
+- Graph persistence checks restart, retraction, string/escape roundtrip, invalid
+  action atomicity and forged snapshot rejection. Serialization uses `dump`, not
+  human-readable `print`; serialized candidates are replay-verified before commit.
+- Candidate -> next -> third images have identical LLVM and stripped binaries.
+- Source-free symbolic runtime and inherited experience store checks pass.
+
+## Preserved features
 
 ```sh
 ./scripts/run.sh symbolic
 ./scripts/selfssl.sh 3
+./scripts/web.sh --url https://raw.githubusercontent.com/python/cpython/main/README.rst
+python3 -m unittest discover -s tests -p test_web.py -v
+bash tests/store-tests.sh
+bash tests/runtime-tests.sh
+python3 tests/differential.py
 ```
 
-Synthetic relational held-out results remain: cold0/14, one round8/14,
-recursive14/14, scrambled0/14, explicit violations0. Internal symbolic-state73
-and store73 codecs deliberately remain frozen; web-state74 is a separate source
-memory until a validated interpretation bridge is implemented. This release does
-not yet provide one unified model-state journal for both.
+Python stdlib is required only for web acquisition and optional developer oracles.
+Fetched documents remain unresolved; no automatic raw-text-to-graph admission is
+introduced. Compiler lifecycle gates still check three generations; no Maru
+compiler/evaluator semantics changed in 0075.
 
-Maru license/provenance remain `LICENSE.maru` / `maru.lock`. Adapter implementation
-is adapted from the local 0065 line, not copied from Bio/Screamer. DLM publication
-licensing remains to be confirmed.
+Maru license/provenance: `LICENSE.maru` / `maru.lock`. No source from
+NeuroSymbolic-IR or GraphReasoning was copied into the implementation. DLM
+publication licensing remains to be confirmed.

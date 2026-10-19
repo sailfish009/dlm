@@ -1,0 +1,13 @@
+;;; -*- mode: lisp; coding: us-ascii -*-
+(define *graph-input* (read *standard-input*))
+(assert (and (dlm-proper? *graph-input* 6) (= (dlm-length *graph-input*) 5)
+             (= (car *graph-input*) 'graph-input) (= (dlm-nth *graph-input* 1) 75)) "invalid graph session input")
+(define *graph-current* (if (dlm-nth *graph-input* 2)
+  (gr-verify-state (dlm-nth *graph-input* 2)) (gr-new)))
+(assert (dlm-proper? (dlm-nth *graph-input* 3) 10000) "invalid action list")
+(list-do action (dlm-nth *graph-input* 3)
+  (let ((next (gr-apply *graph-current* action (dlm-nth *graph-input* 4))))
+    (assert (= (car next) 'graph) "graph action rejected: " next)
+    (set *graph-current* next)))
+(dump *graph-current*)
+(print "\n")
