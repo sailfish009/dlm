@@ -5,7 +5,9 @@ MARU="${MARU:-$ROOT/maru-compiler}"
 # boot.l and compiler baseline dependencies are read from the executable.
 cd "$ROOT"
 files=(boot.l "$ROOT/src/dlm/kernel.l" "$ROOT/src/dlm/learning.l" "$ROOT/src/dlm/experience.l" "$ROOT/src/dlm/dialogue.l" "$ROOT/src/dlm/interaction.l" "$ROOT/src/dlm/constraints.l" "$ROOT/src/dlm/symbolic-learning.l" "$ROOT/src/dlm/web.l" "$ROOT/src/dlm/graph.l" "$ROOT/src/dlm/graph-query.l")
+files+=("$ROOT/src/dlm/formula.l" "$ROOT/src/dlm/sequent.l" "$ROOT/src/dlm/sequent-check.l" "$ROOT/src/dlm/countermodel.l" "$ROOT/src/dlm/sequent-search.l" "$ROOT/src/dlm/proof-store.l")
 case "${1:-repl}" in
+ proof) exec "$MARU" "${files[@]}" "${2:?proof driver required}" ;;
  graph-session) exec "$MARU" "${files[@]}" "$ROOT/experiments/graph/session.l" ;;
  graph-report) exec "$MARU" "${files[@]}" "$ROOT/experiments/graph/report.l" ;;
  graph) exec "$MARU" "${files[@]}" "$ROOT/experiments/graph/run.l" "$ROOT/tests/graph-tests.l" "$ROOT/experiments/graph/transfer.l" ;;
@@ -16,6 +18,6 @@ case "${1:-repl}" in
  constraints) exec "$MARU" "${files[@]}" "$ROOT/experiments/constraints/run.l" "$ROOT/tests/constraint-tests.l" ;;
  interaction) exec "$MARU" "${files[@]}" "$ROOT/experiments/interaction/run.l" "$ROOT/tests/interaction-tests.l" ;;
  repl) exec "$MARU" "${files[@]}" - ;;
- test) exec "$MARU" "${files[@]}" "$ROOT/tests/demo.l" "$ROOT/tests/kernel-tests.l" "$ROOT/tests/model-tests.l" "$ROOT/tests/safety-tests.l" "$ROOT/experiments/interaction/run.l" "$ROOT/tests/interaction-tests.l" "$ROOT/experiments/constraints/run.l" "$ROOT/tests/constraint-tests.l" "$ROOT/experiments/symbolic/run.l" "$ROOT/tests/symbolic-tests.l" "$ROOT/experiments/symbolic/controls.l" "$ROOT/tests/web-tests.l" "$ROOT/experiments/graph/run.l" "$ROOT/tests/graph-tests.l" "$ROOT/experiments/graph/transfer.l" ;;
- *) echo 'usage: run.sh [repl|test|interaction|constraints|symbolic|session|web-ingest|web-report|graph|graph-session|graph-report]' >&2; exit 2 ;;
+ test) exec "$MARU" "${files[@]}" "$ROOT/tests/demo.l" "$ROOT/tests/kernel-tests.l" "$ROOT/tests/model-tests.l" "$ROOT/tests/safety-tests.l" "$ROOT/experiments/interaction/run.l" "$ROOT/tests/interaction-tests.l" "$ROOT/experiments/constraints/run.l" "$ROOT/tests/constraint-tests.l" "$ROOT/experiments/symbolic/run.l" "$ROOT/tests/symbolic-tests.l" "$ROOT/experiments/symbolic/controls.l" "$ROOT/tests/web-tests.l" "$ROOT/experiments/graph/run.l" "$ROOT/tests/graph-tests.l" "$ROOT/experiments/graph/transfer.l" "$ROOT/tests/sequent-tests.l" ;;
+ *) echo 'usage: run.sh [proof DRIVER|repl|test|interaction|constraints|symbolic|session|web-ingest|web-report|graph|graph-session|graph-report]' >&2; exit 2 ;;
 esac

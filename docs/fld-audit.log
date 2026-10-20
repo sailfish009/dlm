@@ -1,0 +1,57 @@
+{
+  "adapter": "fld76-v1",
+  "grammar": "FLD generator left-associative equal-precedence",
+  "splits": {
+    "train": {
+      "rows": 100000,
+      "dataset_rows": 100000,
+      "columns": 27,
+      "counts": {
+        "supported": 38446,
+        "unsupported": 61554
+      },
+      "reasons": {
+        "quantifier": 61059,
+        "translation-only-placeholder": 495
+      },
+      "versions": {
+        "0.31": 100000
+      },
+      "sha256": "fd6c71ab50e05c0cc633cb8d7df3b03b9697d3e5afd0651b5460332e7fd2d429"
+    },
+    "validation": {
+      "rows": 5000,
+      "dataset_rows": 5000,
+      "columns": 27,
+      "counts": {
+        "unsupported": 3062,
+        "supported": 1938
+      },
+      "reasons": {
+        "quantifier": 3035,
+        "translation-only-placeholder": 27
+      },
+      "versions": {
+        "0.31": 5000
+      },
+      "sha256": "5dd4cf5b4a5e45cf9b2f52ae061c1546d65d183968a7f2f8f86f37c490fbb1db"
+    },
+    "test": {
+      "rows": 5000,
+      "dataset_rows": 5000,
+      "columns": 27,
+      "counts": {
+        "supported": 1935,
+        "unsupported": 3065
+      },
+      "reasons": {
+        "quantifier": 3038,
+        "translation-only-placeholder": 27
+      },
+      "versions": {
+        "0.31": 5000
+      },
+      "sha256": "cf1491f3435806992828db400d053e55de8600e08e2d4e51c59380088cd010aa"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+(define *proof-loaded* (read *standard-input*))
+(assert (= (read *standard-input*) +end+) "trailing proof store data")
+(assert (sq-store? *proof-loaded*) "invalid serialized proof store")
+(dump (list 'proof-report 'g3c76-v1 (dlm-nth (dlm-nth *proof-loaded* 4) 1)
+            (dlm-nth (dlm-nth *proof-loaded* 4) 3) (dlm-nth *proof-loaded* 5)))
+(print "\n")

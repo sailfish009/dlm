@@ -1,0 +1,20 @@
+{
+  "split": "validation",
+  "selection": "first N rows, no label filtering",
+  "evaluated_supported": 44,
+  "selected_total": 100,
+  "counts": {
+    "DISPROVED": 11,
+    "PROVED": 10,
+    "UNKNOWN": 10,
+    "incomplete": 13
+  },
+  "correct": 31,
+  "supported_accuracy": 0.7045454545454546,
+  "coverage": 0.44,
+  "search_obligations": 26004,
+  "budget_per_direction": 1000,
+  "policy": "fixed",
+  "training": false,
+  "wall_seconds": 21.41603430699979
+}

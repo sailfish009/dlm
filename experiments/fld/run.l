@@ -1,0 +1,12 @@
+;;; Reads data, never evals it. Input has no gold labels or teacher proofs.
+(define *fld-input* (read *standard-input*))
+(assert (= (read *standard-input*) +end+) "trailing FLD data")
+(assert (and (sq-shape? *fld-input* 2) (= (car *fld-input*) 'fld-batch-v1)
+             (dlm-proper? (dlm-nth *fld-input* 1) 110001)) "invalid FLD batch")
+(list-do row (dlm-nth *fld-input* 1)
+  (assert (and (sq-shape? row 2) (is <long> (car row)) (sq-problem? (dlm-nth row 1))
+               (= (dlm-length (sq-right (dlm-nth (dlm-nth row 1) 3))) 1)) "invalid FLD row")
+  (let ((p (dlm-nth row 1)))
+    (dump (list 'fld-result (car row)
+      (sq-classify (dlm-nth p 2) (sq-left (dlm-nth p 3)) (car (sq-right (dlm-nth p 3))) *fld-budget*)))
+    (print "\n")))

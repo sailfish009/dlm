@@ -1,0 +1,18 @@
+;;; Explicit proof-store-v1, independent of graph75/symbolic73/web74.
+;;; Search events are replayed by checking their evidence, not trusting outcomes.
+(define-function sq-result? (p r budget)
+  (and (sq-shape? r 4) (= (car r) 'result) (is <long> (dlm-nth r 3))
+       (>= (dlm-nth r 3) 0) (<= (dlm-nth r 3) budget)
+    (or (and (= (dlm-nth r 1) 'proved)
+             (= (sq-verify (dlm-nth r 2) (dlm-nth p 3) (dlm-nth p 2) 10000) 'verified))
+        (and (= (dlm-nth r 1) 'countermodel) (sq-check-countermodel p (dlm-nth r 2)))
+        (and (= (dlm-nth r 1) 'incomplete) (not (dlm-nth r 2)) (= (dlm-nth r 3) budget)))))
+(define-function sq-store? (store)
+  (and (sq-shape? store 7) (= (car store) 'proof-store-v1)
+       (= (dlm-nth store 1) 'g3c76-v1) (sq-problem? (dlm-nth store 2))
+       (sq-shape? (dlm-nth store 3) 3) (= (car (dlm-nth store 3)) 'search)
+       (= (dlm-nth (dlm-nth store 3) 1) 'fixed)
+       (is <long> (dlm-nth (dlm-nth store 3) 2))
+       (>= (dlm-nth (dlm-nth store 3) 2) 0) (<= (dlm-nth (dlm-nth store 3) 2) 9000)
+       (string? (dlm-nth store 5)) (string? (dlm-nth store 6))
+       (sq-result? (dlm-nth store 2) (dlm-nth store 4) (dlm-nth (dlm-nth store 3) 2))))

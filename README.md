@@ -1,164 +1,153 @@
-# DLM v0.0075: Maru graph reasoning layer
+# DLM v0.0076 — checked classical propositional sequents
 
-0075 implements a graph execution layer in Maru. It takes design inspiration
-from NeuroSymbolic-IR's typed operations/provenance/traces and GraphReasoning's
-relation-path exploration. Neither project is imported or required at runtime.
-No LLM, tokenizer, embedding, PyTorch, GPU, NetworkX or Z3 dependency is added.
+Implements the first P0/P1 release of `/research/design.md` on top of preserved
+0075 Horn/graph/web/symbolic behavior. All proof search, certificate checking and
+model evaluation run in Maru. No LLM, neural model, Z3 or Python runtime is used
+by the proof kernel. Maru/compiler sources are unchanged.
 
 ## Run
 
 ```sh
-cd /research/dlm_v0.0075
-./scripts/run.sh graph                 # diamond paths, proof/retraction tests, learned transfer
-./scripts/run.sh test                  # all 100 Maru assertions
-./scripts/graph.sh                     # persistent diamond fixture, starts empty
-./scripts/graph.sh my-actions.sexp 100  # apply a data-only action batch
-bash tests/graph-store-tests.sh        # restart/retraction/forged snapshot tests
-python3 tests/graph-differential.py    # optional 20-case independent Python0066 oracle
+cd /research/dlm_v0.0076
+./scripts/run.sh test
+./scripts/proof.sh                         # scoped modus ponens; persistent proof store
+STORE=/tmp/my-proof ./scripts/proof.sh my-problem.sexp 1000
+./scripts/proof-verify.sh /tmp/my-proof/state.sexp
+python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-`STORE=/path` selects an isolated graph store. `graph.sh` uses an exclusive lock,
-reads data without eval, verifies the previous snapshot by event replay, and
-atomically replaces `state.sexp` only after every action succeeds. Dated snapshots
-retain previous full states. Empty action list `()` verifies/resumes without a
-model update. Repeating the fixture does not add new observations; it does append
-idempotent transition events. Budgets count fixpoint passes, not primitive work.
+`proof.sh` uses a lock, verifies the previous store, normalizes the input, searches,
+serializes with reader-safe `dump`, rechecks serialized evidence and canonical
+input SHA256, retains a dated snapshot, then atomically replaces `state.sexp`.
+Failure preserves the old file. No fsync/power-loss durability or signatures are
+claimed. `sq-store?` checks evidence; use `proof-verify.sh` to also check the hash.
 
-## Implemented
+## Implemented logic
 
-- One immutable graph value carries interned entity/predicate/claim nodes,
-  observation/rule records, active claim ids, supports, indexes and event history.
-- Equal claims share a node while multiple observation sources and derivations
-  retain separate supports. Supports reference premise ids rather than copying
-  proof trees. Predicate arity is checked across facts and rules.
-- Predicate and bound-argument indexes drive rule-body joins. The function-free
-  Horn engine computes a synchronous least fixed point with explicit
-  `complete` / `incomplete` results.
-- Directed binary path enumeration uses bounded BFS and retains alternative
-  paths. A path is a search candidate, NOT permission to compose relations.
-- Queries distinguish `entailed`, `contradicted`, `conflict`, `unknown`,
-  `incomplete`. Positive answers carry a finite witness checked by the existing
-  membership-checking Horn kernel. Graph supports may be cyclic; proof witnesses
-  must be acyclic. Unsupported cycles disappear when their seed is withdrawn.
-- Observation/rule retraction rebuilds closure and supports from active seeds.
-  Surviving alternatives are preserved; catalog ids remain as inactive entries.
-- Learned rule transitions reject incomplete evaluation or explicit
-  counterevidence. This gate is applied during replay as well as normal updates.
-  Passing finite evidence is NOT a proof of a universally true learned rule.
-- 0073's two learned composition rules execute through the new graph engine on
-  unseen entity names and extra joins: 14/14 goals, zero explicit violations.
-  Held-out target labels do not enter those graphs as premises.
-
-## Representation and APIs
-
-Implementation: `src/dlm/graph.l` and `src/dlm/graph-query.l`.
+- Profile `classical-prop-v1`: ordered, duplicate-preserving antecedent/succedent
+  occurrences; ground predicates, bottom/top, not/and/or/imp. The succedent means
+  disjunction, **not** a choice of intuitionistic right-or rule.
+- Cut-free G3c with atomic identity, bottom-left and explicit top-right/top-left/
+  bottom-right rules. All generated premises are required, including both AND
+  branches. No structural rule or premise can be silently inserted or deleted.
+- Deterministic bounded search; independent certificate checker reconstructs
+  each rule, without calling the search successor implementation.
+- Topologically serialized certificate DAGs. Shared premises are allowed;
+  duplicate IDs, forward/missing references, cycles, changed contexts, malformed
+  occurrences, profile mixing, invented rules and missing branches are rejected.
+- A falsifying open leaf yields a total ground-atom valuation. Independent
+  evaluation checks it against the **original** root, not just the leaf.
+- Two-direction classification: PROVED has a proof of A; DISPROVED has a proof
+  of not A; UNKNOWN has two checked countermodels; CONFLICT has both proofs.
+  Resource exhaustion stays `incomplete`, never UNKNOWN. A positive countermodel
+  alone does not establish DISPROVED.
+- `proof-store-v1` / `g3c76-v1` retains the problem, fixed search event, result,
+  metadata and canonical input hash. It is not merged into graph75/symbolic73/
+  web74, and changes to a premise require a new checked problem/result.
 
 ```lisp
-;; Provenance has a source id, optional span, and an admission category.
-(observation ab positive (atom edge (a b))
-  (provenance fixture () observed))
-
-(rule-record base
-  (rule (atom reach ((var x) (var y)))
-        ((atom edge ((var x) (var y)))))
-  (provenance fixture () given))
+(problem classical-prop-v1 ((p 0) (q 0))
+ (sequent classical-prop-v1
+  ((pred p ()) (imp (pred p ()) (pred q ()))) ((pred q ()))))
 ```
 
-Core operations:
+A signature maps predicate names to arities (0..32). Ground `(const NAME)`
+arguments are also allowed: distinct ground predicate tuples are propositional
+atoms. This is quantifier-free relational reasoning, **not** quantified FOL or
+natural-language understanding. Unsupported/free/function/quantified terms do
+not pass the P1 runtime schema; the FLD adapter reports quantified input as
+`unsupported` rather than feeding it to the runtime. There are no initial domain
+axioms, and no automatic import of graph75 observations or web documents. In a
+classical context contradictory assumptions explode; Horn75 still does not.
+
+Runtime APIs (load with `scripts/run.sh repl`):
 
 ```lisp
-(gr-new)
-(gr-apply graph '(observe OBSERVATION) 100)
-(gr-apply graph '(rule RULE-RECORD) 100)
-(gr-apply graph '(retract-observation ab) 100)
-(gr-apply graph '(retract-rule base) 100)
-(gr-apply graph '(recompute closure) 100)
-(gr-query graph '(atom reach (a d)))
-(gr-paths graph 'a 'd '(edge) 4 100 10)
-(gr-supports-for graph '(atom reach (a d)))
-(gr-verify-state graph)
+(sq-formula? 'classical-prop-v1 formula signature)
+(sq-search problem 1000 'fixed)                 ; (result STATUS EVIDENCE VISITS)
+(sq-verify certificate root signature 10000)    ; verified / invalid-input / incomplete
+(sq-check-countermodel problem model)
+(sq-classify signature assumptions goal 1000)
 ```
 
-`OBSERVATION` and `RULE-RECORD` above stand for complete data records; the fixture
-is `experiments/graph/actions.sexp`. Invalid actions return `(graph-error ...)`
-without modifying the input graph. `gr-admit-rule` offers a stricter consistent
-finite-evidence gate for proposed rules, including supplied rules.
+Budgets count **visited obligations** or checked certificate nodes, not primitive
+instructions, schema traversal, list scans, allocation or verification work.
+The fixed policy does not learn and does not memoize; branching can be expensive.
+Input depth/context/signature limits are explicit in `formula.l`; search budgets
+are 0..9000. Verification is not an arbitrary hostile-input sandbox.
 
-An `observed` record means a trusted caller has admitted a scoped observation.
-It is not a cryptographic source certificate or a claim of world truth. Acquired
-web documents cannot automatically become observations. A caller that can forge
-`observed` records remains inside the trust boundary. New contradictory
-observations are retained and exposed as conflicts, not silently resolved by
-confidence scores; existing rules are not automatically deleted on conflict.
-`given` rules are explicit assumptions, not newly learned truths.
+## FLDx2 adapter and audit
 
-## Compared with the reference projects
-
-- NeuroSymbolic-IR: borrowed separation of typed records, source metadata and
-  reasoning traces, not its confidence-preferred conflict deletion or built-in
-  domain property assumptions. This is not full compatibility with its JSON ISA.
-- GraphReasoning: borrowed graph/path exploration, not embedding-based node
-  identity, LLM-generated hypotheses or unconditional transitive interpretation.
-- Graph topology, source observations and validated Horn derivations remain
-  distinct. No similarity score becomes an equality or proof.
-
-## Persistence, costs and limitations
-
-IDs are stable within one event history, not content hashes or globally canonical
-ids across independently ordered histories. Serialization remains S-expression;
-the runtime representation is an explicit id-referenced graph, not recursive
-expression duplication. Lookup/index structures are still immutable lists, not
-hash tables, and can be expensive. Index filtering is not a demonstrated speedup.
-
-The diamond example takes 3 passes, 25 indexed match attempts, and keeps two
-supports for reach(a,d). Metrics omit list scans, index rebuilds, proof checking,
-allocation and snapshot replay costs; they are not total operation counts.
-Retraction currently does full recomputation rather than a selective incremental
-truth-maintenance algorithm. Proof extraction can expand shared witnesses.
-
-Each graph snapshot retains the full event log. Replay grows with history; no
-compact journal/checkpoint or fsync crash durability is claimed. Validation is
-bounded shape checking, not hostile-code or arbitrary cyclic-memory safety.
-
-Graph75 is versioned separately from symbolic-state73 and web-state74. A unified
-model-wide journal/migration is not implemented. Raw-text semantic extraction,
-category/predicate discovery, learned graph search ordering, structural analogy
-learning, arbitrary negation, general compound terms and MLIR integration remain
-future work. The representation has explicit types, references, pure transitions
-and provenance boundaries suitable for a later DLM dialect, but no MLIR dialect
-or LLVM lowering is claimed in this release.
-
-## Verification record
-
-Active source-built release: `20261019T071252Z-31029`.
-
-- 100 Maru/DLM assertions pass; 6 local-HTTP acquisition tests pass.
-- 20 seeded graph closures match the independent Python0066 oracle; every
-  graph conclusion also yields a kernel-checked witness.
-- Existing 20 Horn differential cases pass.
-- Graph persistence checks restart, retraction, string/escape roundtrip, invalid
-  action atomicity and forged snapshot rejection. Serialization uses `dump`, not
-  human-readable `print`; serialized candidates are replay-verified before commit.
-- Candidate -> next -> third images have identical LLVM and stripped binaries.
-- Source-free symbolic runtime and inherited experience store checks pass.
-
-## Preserved features
+Optional adapter dependency: Python + pyarrow; proof runtime does not need either.
 
 ```sh
-./scripts/run.sh symbolic
-./scripts/selfssl.sh 3
-./scripts/web.sh --url https://raw.githubusercontent.com/python/cpython/main/README.rst
-python3 -m unittest discover -s tests -p test_web.py -v
-bash tests/store-tests.sh
-bash tests/runtime-tests.sh
-python3 tests/differential.py
+python3 adapters/fld.py --out experiments/fld/audit
+python3 adapters/fld.py --out experiments/fld/validation-smoke \
+  --split validation --limit 100 --evaluate --budget 1000
+# Data-only runtime batch (no labels):
+./scripts/fld.sh 1000 < experiments/fld/validation-smoke/validation.sexp
 ```
 
-Python stdlib is required only for web acquisition and optional developer oracles.
-Fetched documents remain unresolved; no automatic raw-text-to-graph admission is
-introduced. Compiler lifecycle gates still check three generations; no Maru
-compiler/evaluator semantics changed in 0075.
+The adapter follows the actual generator's left-associative equal-precedence
+binary grammar, respects parentheses and quantifier scope, and requires full
+consumption. Empty contexts are valid; `fake_formula` placeholders are explicitly
+unsupported. Row/version/file hashes, raw text and occurrence IDs are retained.
+Gold proofs/labels/negative hypotheses go to separate evaluator-only JSONL;
+only premises, target and signature are submitted to Maru. The negative example
+column is **not** treated as the current target's logical negation. Evaluation
+uses `proof_label`, not the closed-world `world_assump_label`.
 
-Maru license/provenance: `LICENSE.maru` / `maru.lock`. No source from
-NeuroSymbolic-IR or GraphReasoning was copied into the implementation. DLM
-publication licensing remains to be confirmed.
+Full audit (data version 0.31, all rows, no label filtering):
+
+| split | total | supported | quantified | placeholder |
+|---|---:|---:|---:|---:|
+| train | 100000 | 38446 | 61059 | 495 |
+| validation | 5000 | 1938 | 3035 | 27 |
+| test | 5000 | 1935 | 3038 | 27 |
+
+No parsing failures on this corpus. These are syntax-support counts, not solved
+counts. Full row provenance/reasons live under the generated audit directory;
+compact hashes and counts are in `docs/fld-audit.json`.
+
+Validation smoke: first 100 rows, 44 supported, 31 correct, 13 incomplete at 1000
+visits **per direction**; supported accuracy counting incomplete as incorrect is
+31/44 (70.45%), coverage 44/100. Resolved labels: 10 PROVED, 11 DISPROVED,
+10 UNKNOWN; no resolved mismatch. 26004 total search visits; about 21.4 seconds
+including process/checker overhead on this machine. No training, teacher, policy
+selection or test-set accuracy measurement was performed. This is not a full
+FLDx2 benchmark. Reports: `docs/fld-validation-smoke.json`, `docs/fld-evaluation.log`.
+
+## Verification and preserved features
+
+- Inherited 0075 tests rerun before changes: `docs/baseline75.log`.
+- Every G3c rule has a positive test and adversarial rule/context/reference/
+  occurrence/branch mutations. DAG-sharing and classical-vs-Horn behavior tested.
+- 3392 small sequents compared against all four independent two-atom truth-table
+  valuations: zero mismatches. Includes every pair of depth-one formulas plus
+  fixed-seed deeper/multi-succedent cases. Checker also runs without search loaded.
+- 18 Python tests: parser/gold isolation, oracle, proof-store lock/restart/hash/
+  string/forgery tests, inherited six HTTP tests. Inherited Horn and graph oracles
+  each compare 20 seeded cases. Logs in `docs/`.
+- Compiler lifecycle: `scripts/compiler.sh rebuild`, `verify ID`, `promote ID`.
+  Verification runs all tests, hashes adapters/scripts/fixtures, checks candidate/
+  next/third LLVM and stripped-binary equality, and retains source-free tests.
+  Release result is recorded in `docs/release.txt`.
+
+Preserved entry points: `scripts/run.sh graph|symbolic|constraints|interaction`,
+`scripts/graph.sh`, `scripts/selfssl.sh`, `scripts/web.sh`; inherited stores are
+not copied as training state. No existing logic profiles/codecs were changed.
+
+## Explicitly deferred
+
+P2 binder normalization, capture-free substitution, eigenvariables and fair FOL
+instantiation; P3 equality; P4 g-sequent accessibility/path-Horn transforms;
+P5 learned ordering/experience controls; MLIR, unified-store migration, domain
+semantics and natural-language extraction. These have **not** been implemented.
+Self-host equality is reproducibility evidence, not a proof of logical soundness.
+
+Licensing: Maru `LICENSE.maru`/`maru.lock`; local FLD-corpus license is CC BY 4.0,
+FLD-generator Apache-2.0. Original datasets are unchanged and not bundled as
+implementation source; the local FLDx2 card points to FLD-corpus without an
+explicit license field, so verify upstream attribution/terms before distribution.
+DLM publication licensing remains to be confirmed. No code from the reference
+calculi or FLD-generator was copied; their grammar/rules were independently used.

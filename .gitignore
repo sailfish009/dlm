@@ -5,3 +5,7 @@ __pycache__/
 experiments/*/cache/
 reports/
 output.json
+
+# Rebuildable FLDx2 exports; keep compact reports in docs/ instead.
+/experiments/fld/audit/
+/experiments/fld/validation-smoke/

@@ -1,0 +1,5 @@
+(define *proof-normalize* (read *standard-input*))
+(assert (= (read *standard-input*) +end+) "trailing problem data")
+(assert (sq-problem? *proof-normalize*) "invalid problem")
+(dump *proof-normalize*)
+(print "\n")

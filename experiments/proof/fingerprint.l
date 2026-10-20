@@ -1,0 +1,5 @@
+(define *proof-fingerprint* (read *standard-input*))
+(assert (= (read *standard-input*) +end+) "trailing proof data")
+(assert (sq-store? *proof-fingerprint*) "invalid proof store evidence")
+(dump (dlm-nth *proof-fingerprint* 2))
+(print "\n")

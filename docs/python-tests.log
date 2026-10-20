@@ -1,0 +1,24 @@
+test_data_strings (test_fld.ParserTests.test_data_strings) ... ok
+test_empty_and_placeholder (test_fld.ParserTests.test_empty_and_placeholder) ... ok
+test_full_consumption (test_fld.ParserTests.test_full_consumption) ... ok
+test_generator_associativity (test_fld.ParserTests.test_generator_associativity) ... ok
+test_ground_and_arity (test_fld.ParserTests.test_ground_and_arity) ... ok
+test_no_gold_dependency (test_fld.ParserTests.test_no_gold_dependency) ... ok
+test_quantifier_scope (test_fld.ParserTests.test_quantifier_scope) ... ok
+test_countermodel_and_budget (test_proof_store.ProofStoreTests.test_countermodel_and_budget) ... ok
+test_lock (test_proof_store.ProofStoreTests.test_lock) ... ok
+test_restart_strings_and_corruption (test_proof_store.ProofStoreTests.test_restart_strings_and_corruption) ... ok
+test_checker_without_search_loaded (test_sequent.OracleTests.test_checker_without_search_loaded) ... ok
+test_exhaustive_small_sequents (test_sequent.OracleTests.test_exhaustive_small_sequents) ... ok
+test_bounded_failure_is_not_data (test_web.WebTests.test_bounded_failure_is_not_data) ... ok
+test_bridge_resume_deduplicate_and_failure (test_web.WebTests.test_bridge_resume_deduplicate_and_failure) ... ok
+test_cache_hash_corruption_rejected (test_web.WebTests.test_cache_hash_corruption_rejected) ... ok
+test_external_text_cannot_become_code (test_web.WebTests.test_external_text_cannot_become_code) ... ok
+test_original_bytes_provenance_and_offline (test_web.WebTests.test_original_bytes_provenance_and_offline) ... ok
+test_refresh_and_malformed_discovery (test_web.WebTests.test_refresh_and_malformed_discovery) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 11.955s
+
+OK
+ORACLE 3392 sequents, all 4 valuations each, zero mismatches
