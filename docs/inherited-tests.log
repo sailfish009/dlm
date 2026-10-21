@@ -1,5 +1,0 @@
-PASS graph process restart, retraction replay, string roundtrip and atomic rejection
-PASS process restart replays experience; corrupt and forged stores rejected without overwrite
-PASS source-free embedded symbolic choice/backtracking/propagation
-PASS: 20 seeded graph closures against Python0066; all graph witnesses checked
-PASS: 20 fixed-seed closure comparisons against DLM 0066

@@ -1,5 +1,6 @@
 """Optional development check against 0066; never a runtime dependency."""
 from pathlib import Path
+import os
 import random
 import re
 import subprocess
@@ -28,7 +29,7 @@ for i in range(20):
     expected.append(set(closure(facts, (base, rec))))
     forms = ' '.join(f"(dlm-atom 'edge '{a.args[0]} '{a.args[1]})" for a in sorted(facts))
     program += f'(println "CASE{i} " (dlm-closure (list {forms}) rules))\n'
-p = subprocess.run([str(root/'maru-compiler'), 'boot.l', str(root/'src/dlm/kernel.l'), '-'],
+p = subprocess.run([os.environ.get('MARU', str(root/'maru-compiler')), 'boot.l', str(root/'src/dlm/kernel.l'), '-'],
                    cwd=root, input=program, text=True, capture_output=True, check=True, timeout=30)
 found = {}
 for line in p.stdout.splitlines():

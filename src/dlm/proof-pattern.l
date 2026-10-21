@@ -1,0 +1,45 @@
+;;; -*- mode: lisp; coding: us-ascii -*-
+;;; Atom-renaming patterns retain the ENTIRE sequent, including assumptions.
+(define-function p78-replace (x mapping)
+  (let ((entry (dlm-assoc x mapping)))
+    (if entry (dlm-nth entry 1)
+      (if (pair? x) (cons (p78-replace (car x) mapping) (p78-replace (cdr x) mapping)) x))))
+(define-function p78-mapping (root)
+  (let ((out ()) (i 0))
+    (list-do a (dlm-union (sq-context-atoms (sq-left root)) (sq-context-atoms (sq-right root)))
+      (set out (dlm-append out (list (list a (list 'pred (concat-strings "m78-" (number->string i)) ())))))
+      (set i (+ i 1))) out))
+(define-function p78-signature (mapping)
+  (let ((out ())) (list-do e mapping
+    (set out (dlm-append out (list (list (dlm-nth (dlm-nth e 1) 1) 0))))) out))
+(define-function p78-learn (problem cert)
+  (if (not (and (sq-problem? problem)
+                (= (sq-verify cert (dlm-nth problem 3) (dlm-nth problem 2) 10000) 'verified)))
+      (list 'rejected 'proof)
+    (let* ((m (p78-mapping (dlm-nth problem 3))) (sig (p78-signature m))
+           (root (p78-replace (dlm-nth problem 3) m)) (proof (p78-replace cert m)))
+      (if (= (sq-verify proof root sig 10000) 'verified)
+          (list 'pattern78 sig root proof) (list 'rejected 'generalization)))))
+(define-function p78-valid? (p)
+  (and (sq-shape? p 4) (= (car p) 'pattern78)
+       (= (sq-verify (dlm-nth p 3) (dlm-nth p 2) (dlm-nth p 1) 10000) 'verified)))
+(define-function p78-library? (xs)
+  (and (dlm-proper? xs 32)
+    (let ((ok true) (seen ())) (list-do p xs
+      (if (and (p78-valid? p) (not (dlm-member? (dlm-nth p 2) seen)))
+          (set seen (cons (dlm-nth p 2) seen)) (set ok false))) ok)))
+(define-function p78-find (library problem)
+  (let* ((root (dlm-nth problem 3)) (m (p78-mapping root))
+         (canonical (p78-replace root m)) (inverse ()) (out ()))
+    (list-do e m (set inverse (cons (list (dlm-nth e 1) (car e)) inverse)))
+    (list-do p library
+      (if (and (not out) (equal canonical (dlm-nth p 2)))
+          (let ((cert (p78-replace (dlm-nth p 3) inverse)))
+            (if (= (sq-verify cert root (dlm-nth problem 2) 10000) 'verified) (set out cert))))) out))
+(define-function p78-admit (library problem cert)
+  (let ((p (p78-learn problem cert)))
+    (if (= (car p) 'rejected) library
+      (if (or (>= (dlm-length library) 32)
+              (let ((found false)) (list-do old library
+                (if (equal (dlm-nth old 2) (dlm-nth p 2)) (set found true))) found)) library
+        (dlm-append library (list p))))))

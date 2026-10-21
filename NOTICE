@@ -1,4 +1,4 @@
-DLM v0.0075 derives its model from the local DLM v0.0067/0068 Maru port,
+DLM v0.0078 derives its model from the local DLM v0.0067/0068 Maru port,
 following v0.0066's deductive design. Confirm DLM authorship/license before public
 release; this NOTICE does not grant a license.
 
@@ -10,4 +10,11 @@ source payloads, memory reader, manifest, loader template and Maru generator.
 Subsequent --self builds retain the compiler-image functionality. Working source
 edits require rebuild mode; reproduce mode retains the embedded snapshot.
 
+DLM0077 adds opt-in cooperative tasks to the existing Maru REPL reader,
+Linux x86-64 poll readiness and native session file operations. DLM learning
+semantics remain in src/dlm. No Shen implementation was copied or required.
+
+DLM0078 adds a data-frame nondeterministic machine, checked proof-pattern
+reuse, native reasoning-session replay and bounded propositional Beth/Craig
+experiments. Screamer and OpenLogic are design references, not imported runtimes.
 DeepLog is a theoretical reference; no DeepLog implementation is included.

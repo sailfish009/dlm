@@ -1,0 +1,34 @@
+Actual PTY, process 1: save a partially completed proof.
+DLM 0.0078 nondeterministic reasoning in the original Maru REPL.
+DLM78: think PROBLEM, choose-program TASKS, advance TICKS, branches, resume-branches, next-branch, learn-proof, proof-library.
+Stores: nd-open PATH, nd-save, nd-close. Idle: nd-start MS; pause stops either scheduler.
+Experiments: interpolate SIGNATURE A B BUDGET; beth SIGNATURE THEORY TARGET BUDGET.
+(reasoning-opened missing)
+No ready reasoning job. Submit (dlm 'think 'PROBLEM), then (dlm 'nd-start 1000).
+maru> (dlm 'think '(problem classical-prop-v1 ((p 0) (q 0)) (sequent classical-prop-v1 ((imp (pred p ()) (pred q ())) (pred p ())) ((pred q ())))))
+(nondeterministic78 incomplete ticks 0 branches 2 answers 0 failed 0)
+maru> (dlm 'advance 3)
+(nondeterministic78 incomplete ticks 3 branches 2 answers 0 failed 0)
+maru> (dlm 'save)
+(saved /tmp/dlm78-pty-vgj8sed4/model.sexp)
+maru> (dlm 'close)
+(reasoning-closed)
+maru> 
+morituri te salutant
+
+Actual PTY, process 2: replay and finish in the original REPL.
+DLM 0.0078 nondeterministic reasoning in the original Maru REPL.
+DLM78: think PROBLEM, choose-program TASKS, advance TICKS, branches, resume-branches, next-branch, learn-proof, proof-library.
+Stores: nd-open PATH, nd-save, nd-close. Idle: nd-start MS; pause stops either scheduler.
+Experiments: interpolate SIGNATURE A B BUDGET; beth SIGNATURE THEORY TARGET BUDGET.
+(reasoning-opened loaded)
+maru> 
+Reasoning answer checked; new proof patterns: 1.
+maru> (dlm 'proof-library)
+((pattern78 ((m78-0 0) (m78-1 0)) (sequent classical-prop-v1 ((imp (pred m78-0 ()) (pred m78-1 ())) (pred m78-0 ())) ((pred m78-1 ()))) (certificate classical-prop-v1 2 ((proof-node 0 (sequent classical-prop-v1 ((pred m78-0 ())) ((pred m78-1 ()) (pred m78-0 ()))) init (both 0 1) () ()) (proof-node 1 (sequent classical-prop-v1 ((pred m78-0 ()) (pred m78-1 ())) ((pred m78-1 ()))) init (both 1 0) () ()) (proof-node 2 (sequent classical-prop-v1 ((imp (pred m78-0 ()) (pred m78-1 ())) (pred m78-0 ())) ((pred m78-1 ()))) imp-left (left 0) () (0 1))))))
+maru> (+ 20 22)
+42
+maru> (dlm 'close)
+(reasoning-closed)
+maru> 
+morituri te salutant

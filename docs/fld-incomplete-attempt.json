@@ -1,0 +1,14 @@
+{
+  "status": "incomplete-external-timeout",
+  "configuration": {
+    "limit_first_rows_per_split": 100,
+    "budget_per_direction_per_slice": 200,
+    "train_passes": 2,
+    "include_test": true
+  },
+  "external_command_timeout_seconds": 180,
+  "completed_evaluation": false,
+  "accuracy": null,
+  "held_out_test_result": null,
+  "notes": "Native stdout was captured by the adapter; the overall command deadline interrupted it before a completed report. No gold-based result was produced. This is a resource failure, not logical UNKNOWN or evidence of learning. The later completed smaller run is validation-only, not a fresh test claim. Local generated inputs remain under the ignored experiments/fld/recursive-smoke directory."
+}

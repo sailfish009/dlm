@@ -1,0 +1,121 @@
+{
+  "config": {
+    "adapter": "recursive-fld78-v1",
+    "budget_per_direction_per_slice": 40,
+    "train_passes": 2,
+    "test_enabled": false,
+    "selection": "first N rows, no label filtering",
+    "scope": "ground propositional only",
+    "learning": "checked whole-sequent atom-renaming proof patterns",
+    "max_patterns": 32,
+    "branch_policies": [
+      "left-first",
+      "right-first"
+    ],
+    "tuning": false
+  },
+  "groups": {
+    "train/learned/pass1": {
+      "counts": {
+        "PROVED": 1,
+        "incomplete": 9,
+        "UNKNOWN": 2,
+        "DISPROVED": 1
+      },
+      "correct": 4,
+      "evaluated_supported": 13,
+      "cumulative_machine_ticks": 831,
+      "checked_reuse_hits": 0,
+      "selected_total": 20,
+      "supported_accuracy": 0.3076923076923077,
+      "coverage": 0.65
+    },
+    "train/cold/pass1": {
+      "counts": {
+        "PROVED": 1,
+        "incomplete": 9,
+        "UNKNOWN": 2,
+        "DISPROVED": 1
+      },
+      "correct": 4,
+      "evaluated_supported": 13,
+      "cumulative_machine_ticks": 831,
+      "checked_reuse_hits": 0,
+      "selected_total": 20,
+      "supported_accuracy": 0.3076923076923077,
+      "coverage": 0.65
+    },
+    "train/learned/pass2": {
+      "counts": {
+        "PROVED": 1,
+        "incomplete": 9,
+        "UNKNOWN": 2,
+        "DISPROVED": 1
+      },
+      "correct": 4,
+      "evaluated_supported": 13,
+      "cumulative_machine_ticks": 1489,
+      "checked_reuse_hits": 0,
+      "selected_total": 20,
+      "supported_accuracy": 0.3076923076923077,
+      "coverage": 0.65
+    },
+    "train/cold/pass2": {
+      "counts": {
+        "PROVED": 1,
+        "incomplete": 9,
+        "UNKNOWN": 2,
+        "DISPROVED": 1
+      },
+      "correct": 4,
+      "evaluated_supported": 13,
+      "cumulative_machine_ticks": 1489,
+      "checked_reuse_hits": 0,
+      "selected_total": 20,
+      "supported_accuracy": 0.3076923076923077,
+      "coverage": 0.65
+    },
+    "validation/cold/pass0": {
+      "counts": {
+        "incomplete": 3,
+        "PROVED": 1,
+        "UNKNOWN": 1
+      },
+      "correct": 2,
+      "evaluated_supported": 5,
+      "cumulative_machine_ticks": 330,
+      "checked_reuse_hits": 0,
+      "selected_total": 20,
+      "supported_accuracy": 0.4,
+      "coverage": 0.25
+    },
+    "validation/learned/pass0": {
+      "counts": {
+        "incomplete": 3,
+        "PROVED": 1,
+        "UNKNOWN": 1
+      },
+      "correct": 2,
+      "evaluated_supported": 5,
+      "cumulative_machine_ticks": 330,
+      "checked_reuse_hits": 0,
+      "selected_total": 20,
+      "supported_accuracy": 0.4,
+      "coverage": 0.25
+    }
+  },
+  "learned_patterns": 2,
+  "serialized_library_bytes": 2047,
+  "serialized_training_state_bytes": 1031987,
+  "serialized_runtime_input_bytes": 13422,
+  "serialized_runtime_output_bytes": 1037350,
+  "native_resources": {
+    "user_seconds": 4.482424,
+    "system_seconds": 0.22613999999999998,
+    "max_rss_kib": 246052,
+    "rss_scope": "child high-water mark in this adapter process; standalone CLI has one native child"
+  },
+  "adapter_subprocess_wall_seconds": 4.752633710000737,
+  "accounting": "machine ticks are cooperative frame transitions, not G3 obligations or primitive work; lookup/check/replay costs are included in wall/CPU/RSS, not ticks; RSS and timings cover the combined native training plus cold and learned evaluation; no compression or GPU/LLM equivalence claim",
+  "total_export_and_evaluation_wall_seconds": 5.359324590999677
+}

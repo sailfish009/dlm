@@ -128,6 +128,21 @@
                  char
                -1)))))
 
+;; Linux x86-64 pollfd is { int fd; short events; short revents; }.
+;; Keep readiness separate from the reader so partial forms use the same parser.
+(define-constant linux/repl-SYS-poll 7)
+(define-constant linux/repl-POLLIN 1)
+(define-function platform/input-ready? (stream milliseconds)
+  (if (is <fd-stream> stream)
+      (if (<= 0 (<fd-stream>-peeked-value stream)) true
+        (let ((descriptor (bitwise-or (<fd-stream>-fd stream)
+                           (bitwise-shift linux/repl-POLLIN 32))) (rc 0))
+          (while (= (- linux/EINTR)
+                    (set rc (syscall linux/repl-SYS-poll (address-of descriptor) 1 milliseconds))))
+          (when (< rc 0) (error "poll: input readiness failed"))
+          (> rc 0)))
+    true))
+
 (define-method $at-end? <fd-stream> ()
   (%ensure-peeked self)
   (< self.peeked-value 0))

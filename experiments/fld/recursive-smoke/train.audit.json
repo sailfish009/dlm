@@ -1,0 +1,23 @@
+{
+  "adapter": "fld76-v1",
+  "grammar": "FLD generator left-associative equal-precedence",
+  "splits": {
+    "train": {
+      "rows": 100,
+      "dataset_rows": 100000,
+      "columns": 27,
+      "counts": {
+        "supported": 43,
+        "unsupported": 57
+      },
+      "reasons": {
+        "quantifier": 56,
+        "translation-only-placeholder": 1
+      },
+      "versions": {
+        "0.31": 100
+      },
+      "sha256": "fd6c71ab50e05c0cc633cb8d7df3b03b9697d3e5afd0651b5460332e7fd2d429"
+    }
+  }
+}

@@ -30,6 +30,9 @@
   (initialize-stream err-handle	*error-output*)
   (initialize-stream err-handle	*debug-output*))
 
+(require "source/platforms/linux/session-files.l")
+(require "source/evaluator/repl-tasks.l")
+
 (define-vm-function repl-stream ((input _ *standard-input*)
                                         (output _ *standard-output*)
                                         (interactive? _ true))
@@ -40,12 +43,13 @@
   ;;   (let ((libc-handle (unbox <lower-cell> (<libc-stream>-handle input))))
   ;;     (libc/fscanf libc-handle "#!%*[^\x0a\x0d]"))) ; drop the possible #!./eval first line of the file
   (gc/let* (exp
-            result)
+            result
+            (reader-input (if interactive? (cooperative-input input output) input)))
     (while (let ()
              (when interactive?
                ($put-all output "maru> ")
                (platform/flush-streams))
-             (not (= +end+ (set exp (read input)))))
+             (not (= +end+ (set exp (read reader-input)))))
       (unless (= +end+ exp)
         (set result (expand-encode-eval exp))
         (when interactive?
