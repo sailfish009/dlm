@@ -1,0 +1,22 @@
+{
+  "release": "20261021T030429Z-24439",
+  "review_type": "read-only production source review, temporary adversarial probes",
+  "existing_python_tests": {"run": 43, "result": "passed", "seconds": 78.993},
+  "source_and_test_manifests": "unchanged and matching the promoted release",
+  "confirmed_reproductions": [
+    {"probe": "invalid-definition.l", "shell_exit_status": 139, "signal": "SIGSEGV", "expected": "rejected definition"},
+    {"probe": "invalid-snapshot.l", "shell_exit_status": 139, "signal": "SIGSEGV", "expected": "false or rejected snapshot"},
+    {"probe": "lifecycle.l", "case": "next after first success followed by final failure", "actual_status": "waiting", "remaining_events": 0, "expected_status": "exhausted"},
+    {"probe": "lifecycle.l", "case": "two Beth jobs submitted with 63 definitions", "declared_limit": 64, "actual_definitions": 65},
+    {"probe": "lifecycle.l", "case": "definition use with 256 validated premises", "actual_job_status": "waiting", "actual_unit_status": "suspended", "remaining_events": 0, "result": null}
+  ],
+  "annotation_traversal": [
+    {"repeated_conjunction_depth": 2, "certificate_nodes": 3, "annotation_events": 10},
+    {"repeated_conjunction_depth": 4, "certificate_nodes": 5, "annotation_events": 46},
+    {"repeated_conjunction_depth": 6, "certificate_nodes": 7, "annotation_events": 190},
+    {"repeated_conjunction_depth": 8, "certificate_nodes": 9, "annotation_events": 766},
+    {"repeated_conjunction_depth": 10, "certificate_nodes": 11, "annotation_events": 3070}
+  ],
+  "annotation_note": "Exponential in compact certificate DAG node count for this repeated-dependency family; not a claim of exponential overhead relative to fully expanded textual formula size. Partition-aware annotation memoization is absent.",
+  "changes": "No production source, test or runtime changes. Only review documentation/evidence added. No Git commit or push."
+}

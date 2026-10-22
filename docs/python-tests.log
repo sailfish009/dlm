@@ -21,6 +21,11 @@ test_one_process_selfssl_launcher (test_repl.ReplTests.test_one_process_selfssl_
 test_opt_in_parser_and_source_free (test_repl.ReplTests.test_opt_in_parser_and_source_free) ... ok
 test_packaging_keeps_runtime_but_not_generated_data (test_repl.ReplTests.test_packaging_keeps_runtime_but_not_generated_data) ... ok
 test_pty_existing_prompt (test_repl.ReplTests.test_pty_existing_prompt) ... ok
+test_alternative_exhaustion_is_terminal (test_review80.Review80Tests.test_alternative_exhaustion_is_terminal) ... ok
+test_annotation_traversal_is_linear_in_certificate_dag (test_review80.Review80Tests.test_annotation_traversal_is_linear_in_certificate_dag) ... ok
+test_check_failure_finishes_the_purpose_job (test_review80.Review80Tests.test_check_failure_finishes_the_purpose_job) ... ok
+test_child_job_rejection_and_beth_capacity_are_explicit (test_review80.Review80Tests.test_child_job_rejection_and_beth_capacity_are_explicit) ... ok
+test_malformed_signature_is_rejected_not_a_crash (test_review80.Review80Tests.test_malformed_signature_is_rejected_not_a_crash) ... ok
 test_checker_without_search_loaded (test_sequent.OracleTests.test_checker_without_search_loaded) ... ok
 test_exhaustive_small_sequents (test_sequent.OracleTests.test_exhaustive_small_sequents) ... ok
 test_primitive_path_semantics (test_session77.DefinitionOracleTests.test_primitive_path_semantics) ... ok
@@ -30,6 +35,11 @@ test_corrupt_snapshot_is_not_overwritten_or_evaluated (test_session77.NativeStor
 test_native_lock (test_session77.NativeStoreTests.test_native_lock) ... ok
 test_restart_retract_and_strings (test_session77.NativeStoreTests.test_restart_retract_and_strings) ... ok
 test_unreadable_is_not_missing (test_session77.NativeStoreTests.test_unreadable_is_not_missing) ... ok
+test_graph_semantics_and_slices (test_space79.Space79Tests.test_graph_semantics_and_slices) ... ok
+test_native_lock_changed_checkpoint_and_idle (test_space79.Space79Tests.test_native_lock_changed_checkpoint_and_idle) ... ok
+test_proof_annotations_and_beth (test_space79.Space79Tests.test_proof_annotations_and_beth) ... ok
+test_scope_isolation_alternatives_and_layout (test_space79.Space79Tests.test_scope_isolation_alternatives_and_layout) ... ok
+test_snapshot_async_prefix_restart_and_forgery (test_space79.Space79Tests.test_snapshot_async_prefix_restart_and_forgery) ... ok
 test_bounded_failure_is_not_data (test_web.WebTests.test_bounded_failure_is_not_data) ... ok
 test_bridge_resume_deduplicate_and_failure (test_web.WebTests.test_bridge_resume_deduplicate_and_failure) ... ok
 test_cache_hash_corruption_rejected (test_web.WebTests.test_cache_hash_corruption_rejected) ... ok
@@ -38,10 +48,12 @@ test_original_bytes_provenance_and_offline (test_web.WebTests.test_original_byte
 test_refresh_and_malformed_discovery (test_web.WebTests.test_refresh_and_malformed_discovery) ... ok
 
 ----------------------------------------------------------------------
-Ran 38 tests in 37.876s
+Ran 48 tests in 72.774s
 
 OK
 DEFINABILITY-ORACLE 16 Beth theories, 256 Craig pairs, zero mismatches
 ND78-ORACLE 417 sequents, four valuations each, zero mismatches
 ORACLE 3392 sequents, all 4 valuations each, zero mismatches
 DEFINITION-ORACLE 8 graphs, 47 definitions, zero mismatches
+SPACE79-ORACLE 417 sequents, zero mismatches
+SPACE79-INTERPOLATION 100 formula pairs; BETH six theories, zero mismatches

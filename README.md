@@ -1,184 +1,260 @@
-# DLM 0.0078
+# DLM 0.0082 — native grounded graph and adaptive 3D index
 
-Exploratory Maru-native deductive learning. This version adds **first-class
-nondeterministic execution**, checked conditional-proof patterns, recursive
-FLDx2 training and small propositional Beth/Craig operators. It is not an
-established deductive attention architecture or an LLM-equivalent learner.
-
-`v0.0077` and earlier directories/stores are unchanged. No user stores or FLD
-exports were copied. No Python, GPU, Shen or Screamer runtime is used by the
-model. Python/pyarrow are dataset adapters and independent test drivers.
-
-## Original Maru REPL, one process
+v0.0082 adds a separate native Maru provenance/support graph, independent 3D
+placements, local layout relaxation, exact-formula candidate retrieval with
+complete fallback, evidence retraction and replay-verified snapshot data.
+No LLM or neural representation is used. This is a bounded reference prototype,
+not yet a demonstrated speedup or an actual LLVM MLIR dialect.
+See [the contracts and limitations](docs/ground82-design.md).
 
 ```sh
-./scripts/selfssl.sh --reasoning /tmp/reasoning78.sexp
+./scripts/run.sh proof experiments/space/ground82.l
+python3 -m unittest discover -s tests -p test_ground82.py -v
+```
+
+Six new tests bring the full Python suite to 61 tests. Previous version
+directories and existing store formats are preserved.
+
+## Inherited v0.0081 front-end
+
+v0.0081 adds an optional **MLIR-shaped Python front-end**, not a registered
+LLVM MLIR dialect. It verifies SSA/operation structure and lowers to the existing
+Maru API without changing the compiler bootstrap chain. Direct `.l` execution
+remains available. See [the scope and syntax](docs/space-dialect.md).
+
+```sh
+./scripts/dialect.sh verify experiments/space/dialect.mlir
+./scripts/dialect.sh run experiments/space/dialect.mlir
+```
+
+Seven new translation/roundtrip tests bring the Python suite to 55 tests.
+The rest of this document describes the inherited space79 engine.
+
+Research question: **Which local operating rules let connected units constitute
+reasoning, learning and reusable structure?** This is an exploratory execution
+model, not a settled deductive architecture or a benchmark-performance release.
+
+New: one Maru event space connects scoped nondeterministic programs, G3c proof
+obligations, partial-proof learning, formula naming, proof-based propositional
+interpolation and Beth definition jobs. All use the same ready queue and explicit
+state. No MLIR, neural framework, GPU, external Screamer runtime or worker thread.
+
+v0.0080 fixes the executable defects found in the v0.0079 review: malformed
+definition signatures are rejected instead of crashing, failed certificate checks
+finish the waiting job, alternative exhaustion is terminal, rejected child jobs
+and Beth capacity exhaustion are explicit, and annotation traversal memoizes on
+`(node-id, left-colors, right-colors)` instead of re-walking shared DAG regions.
+
+Prior version directories and user stores are preserved. Old `dlm` APIs, profiles,
+codecs and `selfssl.sh --demo/--reasoning` paths remain available. `space-session79`
+is a separate, explicit format; old stores are not silently migrated.
+
+## Run in the original REPL
+
+```sh
+./scripts/selfssl.sh --space /tmp/space79.sexp
 ```
 
 ```lisp
-(dlm 'think
+(space 'study 'example
  '(problem classical-prop-v1 ((p 0) (q 0))
-   (sequent classical-prop-v1
-     ((imp (pred p ()) (pred q ())) (pred p ())) ((pred q ())))))
-(dlm 'advance 3)          ; partial work, not logical failure
-(dlm 'branches)           ; contexts, frames, remaining obligations, partial DAG
-(dlm 'nd-start 1000)      ; original reader runs cooperative idle slices
-(dlm 'pause)
-(dlm 'learn-proof)        ; admission requires independent certificate checking
-(dlm 'proof-library)
-(dlm 'save)
-(dlm 'close)
+   (sequent classical-prop-v1 ((pred p ()))
+     ((and (pred p ()) (pred p ()))))))
+(space 'step 6)
+(space 'unit 0)
+(space 'start 100)        ; cooperative execution while original reader waits
+(space 'pause)
+(space 'job 'example)
+(space 'library)
+(space 'definitions)
+(space 'save)
+(space 'close)
 ```
 
-Restore the same path to resume a saved ready job. New stores start empty, not
-with implicit domain knowledge. `think` replaces the current job explicitly;
-learned patterns remain. `advance` is manual; `nd-start` schedules 20-transition
-slices. One idle-task slot is shared with the inherited relation learner.
-Long checks/replay/evaluation are **not preempted**. Ctrl-C exits, Ctrl-D ends the
-original REPL. There is no new terminal frontend or shell-per-round runner.
+`prove` submits a query. `study` submits a query and automatically schedules
+learning from its successful proof. Several jobs progress in one process.
+Loading a store restores partial obligations and queues; the launcher schedules
+ready work. New stores start empty. No fixed domain facts are injected.
 
-Branch-local provisional execution:
+## Local operating rules
+
+- **Request:** intern an obligation by exact signature, ordered sequent, scope
+  and pattern-library epoch. Identical requests subscribe to the same unit.
+- **Expand:** a G3c unit emits required child obligations and an AND rule unit.
+- **Wait:** a unit with unmet dependencies emits no periodic polling traffic.
+- **Notify:** a completed child wakes only its registered consumers. Duplicate
+  deliveries cannot complete an AND rule with missing premises.
+- **Compose:** every required child must be proved; the rule is independently
+  checked. An exported topological certificate is checked one node per event.
+- **Choose/backtrack:** programs fork contexts and continuations. Bindings,
+  assumptions and local definitions cannot leak into sibling scopes.
+- **Suspend/resume:** preserve unfinished work. A budget/capacity limit never
+  becomes logical refutation.
+- **Learn:** traverse actual solved sub-obligations, canonicalize checked
+  certificates and preserve their entire conditional contexts.
+- **Name:** give encountered compound goal formulas fresh definition units;
+  names alone assert no fact.
+- **Reuse:** later fresh obligations can instantiate learned subproofs inside
+  a different outer goal, not just match an entire old problem.
+
+Ground propositional G3 rules are invertible, so this version chooses one fixed
+rule ordering instead of branching over redundant left/right permutations.
+Nondeterministic interpretation/assumption alternatives live in program choice
+units; no false claim of additional logical power from rule permutations.
+
+Every unit has a deterministic 3D grid position. `(space 'place ID '(X Y Z))`
+changes layout only; it does not change logical meaning, routing costs or proof
+rules. Logical dependency, branch scope and spatial location are distinct.
+This is not a biological spiking-neuron simulation.
+
+### Scoped nondeterministic program with real G3 work
 
 ```lisp
-(dlm 'choose-program
- '((choose (((assume provisional) (define-local concept candidate)
-             (bind x a) (require x b))
-            ((bind x b) (suspend need-evidence) (accept answer))))))
-(dlm 'advance 50)
-(dlm 'branches)
-(dlm 'resume-branches)
-(dlm 'advance 50)
-(dlm 'next-branch)        ; discard delivered answer, backtrack to remaining ORs
-(dlm 'advance 50)
+(space 'program 'alternatives
+ '((choose
+    (((assume (pred p ()))
+      (ask (problem classical-prop-v1 ((p 0))
+             (sequent classical-prop-v1 () ((pred p ())))))
+      (bind x a) (suspend need-input) (accept first))
+     ((bind x b) (require x a) (accept impossible))))))
+(space 'step 100)
+(space 'resume 'alternatives)
+(space 'step 100)
+(space 'job 'alternatives)
 ```
 
-`choose`, `assume`, `bind`, `require`, `define-local`, `fail`, `suspend` and
-`accept` operate on immutable branch contexts. These results are explicitly
-**provisional**, never independently true axioms or checked G3 theorems.
-Bindings use consistency matching, not general unification. Suspended branches
-remain saved; the scheduler skips them. FIFO scheduling is deterministic and
-fair over ready branches, not random or hardware-parallel.
+`ask` creates a G3 obligation with that branch's assumptions explicitly included
+in its antecedent. Proof success resumes the continuation; a checked countermodel
+fails only that branch. `accept` is still a **provisional program result**, not a
+world fact. `define-local` stays branch-local. Bind/require is exact consistency,
+not general first-order unification. `next NAME` acknowledges a delivered answer
+and reactivates remaining alternatives. Suspended capacity cannot be fixed merely
+by resuming under unchanged bounds.
 
-## G3 and learning semantics
+## Structural learning and definition formation
 
-- Existing `classical-prop-v1` and independent checker are unchanged.
-- OR alternatives are two branch-local left-first/right-first decomposition
-  strategies. A selected rule's **every** child is required (AND).
-- Explicit `prove`/`assemble` frames and partial DAGs survive interruption. A
-  candidate countermodel must falsify the **original** root, not just a leaf.
-- Learning canonicalizes a checked proof's ground atoms by first occurrence,
-  keeping repeated atoms, **both complete ordered contexts**, and its DAG.
-- Later problems may instantiate a pattern with unseen predicates, arities and
-  objects. Every instance is checked again; no trusted `lemma` rule is added.
-- This is whole-sequent **bijective atom-renaming reuse**, not arbitrary formula
-  substitution, context weakening, unrestricted lemma composition or universal
-  rule induction. Lookup is currently a bounded linear structural search.
-- Stored conditional lemmas do not certify that their premises are world facts.
-  No gold labels, empirical assumptions or provisional branch definitions are
-  promoted through this admission path.
+Patterns remain checked bijective **ground-atom renaming**, now harvested from
+reachable subproofs and available at every obligation. Repeated children share
+one proof unit. A library epoch is immutable and inherited by that obligation's
+children; later learning does not silently alter a running proof's lookup view.
+Subsequent program `ask`s are new requests and may use a newer epoch.
 
-Limits: 64 live OR branches; 16 alternatives/choice; program nesting16;
-256 instructions/list; at most32 proof patterns; reasoning log128 events and
-20,000 requested transitions per store. Formula/context/checker bounds are
-inherited. Context/branch capacity suspends work, not logical refutation.
-`advance` accepts0..1000 transitions. Capacity suspension cannot be solved just
-by resuming with unchanged limits. Ticks do not bound individual checks.
-
-## Native persistence and compatibility
-
-`nd-open`, `nd-save`, `nd-close` explicitly manage `reasoning-session78` files.
-Snapshots contain library, machine, contexts, partial certificates and semantic
-`proof/program/run/resume/next/learn` events. Load replays from empty state and
-compares the **entire** result; persisted frames are not trusted. Writes use
-advisory locking, data-only dump/read, validation, `.previous` checkpoint and
-atomic replacement. No eval of snapshot data, signatures or fsync guarantee.
-Malformed reader syntax can still abort as in Maru. Replay is bounded but costly
-and is included in REPL latency; repeated commits replay prior work.
-
-Existing `axiom-space77`, `dlm-session77`, graph75, proof-store-v1, symbolic73,
-web74 and legacy public function signatures remain supported. They are **not**
-silently merged or migrated into the new store. The relation learner remains:
-
-```sh
-./scripts/selfssl.sh --demo /tmp/relations77.sexp
-```
-
-Its `start/status/observe/query/retract` commands and fixed relation-composition
-grammar are unchanged. New reasoning uses `nd-start/branches/proof-library`.
-`pause` stops either scheduler; `save/stop/close` recognize an attached reasoning
-store. Use `nd-close` explicitly when independently managing both store kinds.
-Application modules still load from `src/dlm`; the embedded compiler and generic
-REPL tasks retain the existing source-free/self-hosting behavior.
-
-## Bounded Beth/Craig experiments
+`study` also creates fresh names for compound single-goal formulas encountered
+in proved sub-obligations. This is formula naming, not universal concept discovery
+or an information-compression claim. No ranking reward or held-out accuracy gain
+is required to keep the research direction.
 
 ```lisp
-(dlm 'interpolate '((p 0) (q 0))
- '(and (pred p ()) (pred q ())) '(pred q ()) 1000)
-(dlm 'beth '((p 0) (q 0))
+(space 'define 'pair '((a 0) (b 0))
+ '(and (pred a ()) (pred b ())))
+(space 'use 'pair-query 'pair '((pred a ()) (pred b ())))
+(space 'step 1000)
+(space 'job 'pair-query)
+```
+
+Definition use requests both the original named goal and its unfolded body.
+Fresh definitions introduce an **explicit iff condition** in the original
+certificate; Beth definitions retain their theory as a condition. No opaque
+trusted macro/lemma rule is added to the old checker. Empty observations do not
+become true just because a formula has a name. Partial modules still require exact
+ordered contexts: arbitrary weakening, formula substitution, unification and
+unrestricted program synthesis are absent.
+
+## Proof-based Craig and Beth jobs
+
+```lisp
+(space 'interpolate 'interface '((p 0) (q 0))
+ '(and (pred p ()) (pred q ())) '(pred q ()))
+(space 'beth 'explicit '((p 0) (q 0))
  '(and (imp (pred p ()) (pred q ())) (imp (pred q ()) (pred p ())))
- '(pred p ()) 1000)
+ '(pred p ()))
+(space 'start 100)
 ```
 
-Nullary propositional vocabulary only, at most4 atoms. Craig constructs a
-shared-atom DNF by finite model projection and checks `A |- I` and `I |- B`.
-Beth rejects inconsistent theories, checks uniqueness using a fresh renamed
-predicate, constructs a target-free DNF and checks both conditional directions.
-Proof budgets can prevent certification. These are bounded experiments, not
-minimal definitions, proof-extracted interpolants or general FOL algorithms.
-They do not automatically enter the learned library.
+Craig follows a checked G3 proof with occurrence-partition annotations (Maehara
+style), composing intermediate formulas locally. Each annotation frame is an
+event, and both resulting entailments are separately checked by graph jobs.
+No truth-table projection constructs the new interpolant. At most6 nullary atoms;
+excessive annotation depth can produce an explicit incomplete result.
 
-## Fixed-data FLDx2 experiment
+Beth (at most4 original nullary atoms) runs consistency, fresh-renamed-target
+uniqueness, interpolation and both definition directions as dependent jobs on the
+same engine. Inconsistent theories are rejected. Success adds a conditional
+`definition79` unit. `use` can subsequently activate it under its original theory.
+A defining expression is not automatically minimal, empirical truth or a new
+independent axiom. These are classical propositional operators, not ST/MQST,
+G3T, a specifically named G3S calculus or general FOL Beth.
 
-```sh
-python3 adapters/recursive_fld.py \
-  --out experiments/fld/recursive-small --limit 20 --budget 40 --passes 2
-```
+## Persistence and responsiveness
 
-The native process receives only premises/goals, selected split membership and
-fixed budgets. Train passes resume unresolved positive/negative proof machines;
-checked patterns can affect later fresh jobs. Cold training uses identical
-slices without admission/reuse. Validation/test freeze the train library and
-compare cold versus learned arms with the same transition budget. Gold is opened
-only after native execution. Test is opt-in (`--include-test`); the completed
-small experiment did **not** evaluate test. Unsupported quantified inputs remain
-unsupported, never UNKNOWN or training failures.
+Normal commands apply only the new transition, not the entire history. Jobs,
+contexts, shared proof graph, layout and library versions are persistent values.
 
-Observed small run, first20 unfiltered rows per split:
+- `save`: capture current state, replay the full semantic log, validate, write
+  data, read back, keep `.previous` and atomically replace while holding a lock.
+- `save-async`: validate an immutable captured prefix one log event per service
+  step. Model work can continue; the saved file truthfully records that prefix.
+- `save-step`: manually service pending validation. `start` also services it.
+- `close`: synchronously drain validation and save the latest state before
+  releasing the lock. It refuses to close on a failed save.
 
-| Evaluation | Supported | Correct | Incomplete | Reuse hits |
-|---|---:|---:|---:|---:|
-| validation, cold | 5/20 | 2/5 | 3 | 0 |
-| validation, learned | 5/20 | 2/5 | 3 | 0 |
+Restore always replays from empty state and compares the **entire graph**, not
+just the output. Forged queue/status/definition data are rejected, never evaluated.
+Unexpected external checkpoint changes are not overwritten. No fsync, signing,
+remote-reader sandbox or crash-safe append journal is claimed. After a failed
+save, the current consistent in-memory state remains **unsaved**, not rolled back.
+Only explicit completed saves are durable; idle ticks do not checkpoint each time.
 
-Training supported13/20, learned2 patterns. Two passes did not improve train
-classification in this sample. Library serialization2,047 bytes; learned train
-state1,031,987 bytes, including unfinished search/certificates and copied
-library snapshots. This is **not compression**. See `docs/fld-recursive-small.json`
-for wall/CPU/RSS, all arms and accounting. Tick savings on a constructed unseen
-renaming are tested, but **no FLDx2 validation improvement was observed**.
-A larger first100/budget200/two-pass run with test enabled was externally stopped
-at180 seconds; it has no completed evaluation and is not evidence of quality.
+This remains one-thread cooperative execution, not physical parallelism. The
+original reader has one idle-task slot, shared with legacy modes. `space start`
+stops the legacy task before registering its own. Checks of boundary certificates
+are incremental, but rule expansion, table lookup, proof export, learning admission,
+serialization and file I/O may still take time within an event. There is **no hard
+wall-time bound per event**, and synchronous `save/close` can block the REPL.
 
-## Verification and remaining work
+## Bounds and efficiency boundaries
+
+- Two-stack FIFO avoids scanning all units for readiness.
+- Waiter links and shared obligation IDs avoid duplicate subgoal execution.
+- New units prepend to persistent ID tables; updates preserve older snapshots.
+- ID/key tables are bounded association lists, **not constant-time hash maps**.
+- Certificate materialization occurs at boundaries; completed jobs/check tasks and
+  historical library values still cost memory and serialized bytes.
+
+Unit ID limit4096, execution stops at4000 to reserve creation headroom; pending
+work is incomplete. Pattern limit32; definition limit64; log limit1024 events and
+100,000 requested transitions; manual slices0..1000. Completed units are retained;
+retirement/graph compaction is not implemented. Formula/context bounds are inherited.
+These are bounded investigations, not an endless autonomous curriculum.
+
+## Investigation and verification
 
 ```sh
 ./scripts/run.sh test
 python3 -m unittest discover -s tests -p 'test_*.py' -v
+python3 adapters/space_report.py
 ./scripts/compiler.sh rebuild
 ./scripts/compiler.sh verify RELEASE_ID
 ./scripts/compiler.sh promote RELEASE_ID
 ```
 
-See `docs/implementation.md`, `docs/verification.log`, `docs/release.txt` and the
-actual PTY transcript. New independent checks cover417 sequents,16 Beth theories,
-256 Craig pairs, deterministic slicing, isolated provisional contexts, replay
-forgery, locks, atomic rollback and frozen-gold isolation. The inherited3,392-case
-G3 oracle and relation/graph/Horn tests remain mandatory.
+`experiments/space/run.l` is an operating-rule probe: shared requests, partial
+learning, renamed subproof reuse inside a different goal, definition activation,
+proof interpolation and Beth on one event engine. It is **not** a benchmark or
+an architectural promotion gate. `docs/space-experiment.sexp` and resource report
+record actual behavior and costs, including serialized inspection state.
 
-**Not implemented:** quantified G3/FOL, binder normalization/capture-free
-substitution/eigenvariables, equality, G3T, Russellian descriptions, arbitrary
-predicate/program synthesis, general axiom composition, proof-derived concept
-invention, unified storage migration or task-level LLM/resource equivalence.
-The runtime and research operators here are a bounded foundation, not completion
-of the entire proposed v0.0078 research program. No GitHub commit/push is made.
+The inherited Python tests cover new417-sequent truth-table comparisons,100 interpolation
+pairs, six Beth theories, branch isolation/backtracking, layout invariance,
+async-prefix replay, forged snapshots, locks, original REPL interactivity and
+five v0.0080 review-regression contracts and seven v0.0081 front-end tests.
+Inherited3392-case and other oracles remain. Native tests additionally cover
+partial reuse, naming without asserting facts, and capacity/incomplete behavior.
+See `docs/verification.log`, `docs/repl-transcript.txt`, `docs/release.txt` and
+source/test manifests for the final self-host checks.
+
+Maru compiler/platform sources are unchanged; DLM modules still load externally.
+The embedded compiler remains self-reproducing through external clang/linker.
+No real multicore execution, neural plasticity, distance-sensitive geometry,
+quantified reasoning, general concept/program induction, optimal compression or
+LLM-equivalent task/resource claim is made. No GitHub commit/push is performed.

@@ -1,0 +1,21 @@
+;;; Compact versions of the public state-machine boundary probes.
+(define s (s79-run (s79-program-job (s79-new) 'enumerate
+ '((choose (((accept first)) ((fail no-more)))))) 100))
+(set s (s79-run (s79-program-resume s 'enumerate true) 100))
+(dump (list 'exhaustion-status (dlm-nth (s79-job s 'enumerate) 3)
+ 'remaining-events (+ (dlm-length (dlm-nth s 5)) (dlm-length (dlm-nth s 6))))) (print "\n")
+(define t (s79-new))
+(times-do 63 (set t (e79-transition t (list 'define
+ (concat-strings "d" (number->string (dlm-length (dlm-nth t 12)))) '((p 0)) '(pred p ())))))
+(set t (e79-transition t '(beth b1 ((p 0)) (pred p ()) (pred p ()))))
+(set t (e79-transition t '(beth b2 ((p 0)) (pred p ()) (pred p ()))))
+(set t (e79-transition t '(run 1000)))
+(dump (list 'declared-definition-limit s79-definition-limit 'actual-count (dlm-length (dlm-nth t 12)))) (print "\n")
+(define u (d79-define (s79-new) 'd '((p 0)) '(pred p ())))
+(define premises ())
+(times-do 256 (set premises (cons '(pred p ()) premises)))
+(set u (s79-run (d79-use u 'use 'd premises) 1000))
+(dump (list 'accepted-premises (sq-formulas? premises '((p 0)))
+ 'job-status (dlm-nth (s79-job u 'use) 3) 'result (dlm-nth (s79-job u 'use) 5)
+ 'unit-status (dlm-nth (s79-unit u (dlm-nth (s79-job u 'use) 4)) 4)
+ 'remaining-events (+ (dlm-length (dlm-nth u 5)) (dlm-length (dlm-nth u 6))))) (print "\n")

@@ -1,34 +1,46 @@
-Actual PTY, process 1: save a partially completed proof.
-DLM 0.0078 nondeterministic reasoning in the original Maru REPL.
-DLM78: think PROBLEM, choose-program TASKS, advance TICKS, branches, resume-branches, next-branch, learn-proof, proof-library.
-Stores: nd-open PATH, nd-save, nd-close. Idle: nd-start MS; pause stops either scheduler.
-Experiments: interpolate SIGNATURE A B BUDGET; beth SIGNATURE THEORY TARGET BUDGET.
-(reasoning-opened missing)
-No ready reasoning job. Submit (dlm 'think 'PROBLEM), then (dlm 'nd-start 1000).
-maru> (dlm 'think '(problem classical-prop-v1 ((p 0) (q 0)) (sequent classical-prop-v1 ((imp (pred p ()) (pred q ())) (pred p ())) ((pred q ())))))
-(nondeterministic78 incomplete ticks 0 branches 2 answers 0 failed 0)
-maru> (dlm 'advance 3)
-(nondeterministic78 incomplete ticks 3 branches 2 answers 0 failed 0)
-maru> (dlm 'save)
-(saved /tmp/dlm78-pty-vgj8sed4/model.sexp)
-maru> (dlm 'close)
-(reasoning-closed)
+Actual PTY process1: partial graph save.
+DLM 0.0079: connected computational units in the original Maru REPL.
+space79: prove/study NAME PROBLEM; program NAME TASKS; learn NAME PROOF-JOB; step EVENTS; start MS; pause
+interpolate NAME SIGNATURE A B; beth NAME SIGNATURE THEORY TARGET; define NAME SIGNATURE BODY; use NAME DEFINITION PREMISES
+status; job NAME; unit ID; inspect; library; definitions; open PATH; save; save-async; save-step; close
+(space-opened empty)
+Space is empty or quiescent. Submit prove/study/program/interpolate/beth, then start.
+maru> (space 'study 'source '(problem classical-prop-v1 ((p 0) (q 0)) (sequent classical-prop-v1 ((pred p ())) ((and (pred p ()) (pred p ()))))))
+(space79 epoch 0 ticks 0 units 1 queued 1 patterns 0 definitions 0 stats (1 0 0 0 0( space 'st0ep 3)
+) jobs ((source proof waiting)) save (not-saved))
+maru> (space79 epoch 0 ticks 3 units 4 queued 2 patterns 0 definitions 0 stats (4 1 2 0 0 0) jobs (space ('save)(
+source proof waiting)) save (not-saved))
+maru> (saved /tmp/dlm79-pty-tvmet799/space.sexp prefix-events 2)
+maru> (space 'close)
+(space-closed)
 maru> 
 morituri te salutant
 
-Actual PTY, process 2: replay and finish in the original REPL.
-DLM 0.0078 nondeterministic reasoning in the original Maru REPL.
-DLM78: think PROBLEM, choose-program TASKS, advance TICKS, branches, resume-branches, next-branch, learn-proof, proof-library.
-Stores: nd-open PATH, nd-save, nd-close. Idle: nd-start MS; pause stops either scheduler.
-Experiments: interpolate SIGNATURE A B BUDGET; beth SIGNATURE THEORY TARGET BUDGET.
-(reasoning-opened loaded)
+Actual PTY process2: resume, automatic study, partial-module reuse.
+DLM 0.0079: connected computational units in the original Maru REPL.
+space79: prove/study NAME PROBLEM; program NAME TASKS; learn NAME PROOF-JOB; step EVENTS; start MS; pause
+interpolate NAME SIGNATURE A B; beth NAME SIGNATURE THEORY TARGET; define NAME SIGNATURE BODY; use NAME DEFINITION PREMISES
+status; job NAME; unit ID; inspect; library; definitions; open PATH; save; save-async; save-step; close
+(space-opened restored)
 maru> 
-Reasoning answer checked; new proof patterns: 1.
-maru> (dlm 'proof-library)
-((pattern78 ((m78-0 0) (m78-1 0)) (sequent classical-prop-v1 ((imp (pred m78-0 ()) (pred m78-1 ())) (pred m78-0 ())) ((pred m78-1 ()))) (certificate classical-prop-v1 2 ((proof-node 0 (sequent classical-prop-v1 ((pred m78-0 ())) ((pred m78-1 ()) (pred m78-0 ()))) init (both 0 1) () ()) (proof-node 1 (sequent classical-prop-v1 ((pred m78-0 ()) (pred m78-1 ())) ((pred m78-1 ()))) init (both 1 0) () ()) (proof-node 2 (sequent classical-prop-v1 ((imp (pred m78-0 ()) (pred m78-1 ())) (pred m78-0 ())) ((pred m78-1 ()))) imp-left (left 0) () (0 1))))))
+maru> 
+Space quiescent: (space79 epoch 2 ticks 17 units 6 queued (space 'definitions)
+0 patterns 2 definitions 1 stats (6 1 2 0 2 4) jobs ((source proof done) (study79-5 learn done)) save (not-saved))
+maru> (space 'prove 'transfer '(problem classical-prop-v1 ((r 0) (s 0)) (sequent classical-prop-v1 ((pred r ())) ((and (and (pred r ()) (pred r ())) (imp (pred s ()) (pred s ())))))))
+((motif79-0 (definition79 motif79-0 ((p 0) (q 0) (defined79-6-0 0)) (pred defined79-6-0 ()) (and (pred p ()) (pred p ())) (top) fresh (naming-only))))
+maru> (space79 epoch 2 ticks 17 units 7 queued 1 patterns 2 definitions 1 stats (7 1 2 0 2 4) jobs ((source proof done) (study79-5 learn done) (transfer proof waiting)) save (not-saved))
+maru> (space 'start 30)
+(space-scheduled)
+maru> 
+maru> 
+maru> 
+maru> 
+Space quiescent: (space79 epoch 2 ticks 43 units 15 queued 0 patterns 2 definitions 1 stats ((space 'job 'transfer)
+15 1 6 1 9 11) jobs ((source proof done) (study79-5 learn done) (transfer proof done)) save (not-saved))
 maru> (+ 20 22)
-42
-maru> (dlm 'close)
-(reasoning-closed)
+(job79 transfer proof done 6 (result proved (certificate classical-prop-v1 4 ((proof-node 0 (sequent classical-prop-v1 ((pred r ())) ((pred r ()))) init (both 0 0) () ()) (proof-node 1 (sequent classical-prop-v1 ((pred r ())) ((and (pred r ()) (pred r ())))) and-right (right 0) () (0 0)) (proof-node 2 (sequent classical-prop-v1 ((pred r ()) (pred s ())) ((pred s ()))) init (both 1 0) () ()) (proof-node 3 (sequent classical-prop-v1 ((pred r ())) ((imp (pred s ()) (pred s ())))) imp-right (right 0) () (2)) (proof-node 4 (sequent classical-prop-v1 ((pred r ())) ((and (and (pred r ()) (pred r ())) (imp (pred s ()) (pred s ()))))) and-right (right 0) () (1 3))))) (problem classical-prop-v1 ((r 0) (s 0)) (sequent classical-prop-v1 ((pred r ())) ((and (and (pred r ()) (pred r ())) (imp (pred s ()) (pred s ())))))))
+maru> 42
+maru> (space 'close)
+(space-closed)
 maru> 
 morituri te salutant

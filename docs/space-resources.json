@@ -1,0 +1,13 @@
+{
+  "purpose": "local operating rules, structural reuse, and definition formation; no benchmark promotion",
+  "model": "DLM0079, classical-prop-v1",
+  "wall_seconds": 1.8422713609979837,
+  "user_seconds": 1.311684,
+  "system_seconds": 0.521199,
+  "max_rss_kib": 22276,
+  "rss_scope": "child high-water mark; standalone CLI has one native child",
+  "serialized_inspection_state_bytes": 406636,
+  "inspection_state_sha256": "de3770b629d639bc836bd6c752f86aad9a121e5572816db8bc7d8f6b9a6c479a",
+  "report_sha256": "735156f7d92dc3d258a00d3143a10c6113a16a6f9bc40c9fa0e3719f00b363dd",
+  "note": "State is an inspection dump, not a trusted restart snapshot. Includes boundary certificates and retained jobs. Event counts are not primitive or elapsed-time budgets. No physical parallelism, compression or brain-equivalence claim."
+}

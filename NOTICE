@@ -1,4 +1,4 @@
-DLM v0.0078 derives its model from the local DLM v0.0067/0068 Maru port,
+DLM v0.0079 derives its model from the local DLM v0.0067/0068 Maru port,
 following v0.0066's deductive design. Confirm DLM authorship/license before public
 release; this NOTICE does not grant a license.
 
@@ -17,4 +17,8 @@ semantics remain in src/dlm. No Shen implementation was copied or required.
 DLM0078 adds a data-frame nondeterministic machine, checked proof-pattern
 reuse, native reasoning-session replay and bounded propositional Beth/Craig
 experiments. Screamer and OpenLogic are design references, not imported runtimes.
+DLM0079 adds a Maru event space for shared G3c obligations, scoped
+nondeterministic programs, subproof learning, proof-based propositional
+interpolation and Beth definitions. Spatial coordinates are layout metadata.
+No neural, Screamer, MLIR or other external runtime is imported.
 DeepLog is a theoretical reference; no DeepLog implementation is included.

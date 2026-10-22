@@ -1,0 +1,28 @@
+;;; Data-only semantic/layout log. No eval or file effects. Native dump/read
+;;; may transport the snapshot; loading must call g82-restore, never trust state.
+(define-function g82-event (s e)
+  (if (not (and (dlm-proper? e 8) (pair? e))) '(rejected event)
+    (let ((op (car e)) (n (dlm-length e)))
+      (cond
+        ((and (= op 'evidence) (= n 6))
+          (g82-evidence s (dlm-nth e 1) (dlm-nth e 2) (dlm-nth e 3) (dlm-nth e 4) (dlm-nth e 5)))
+        ((and (= op 'observe) (= n 4)) (g82-observe s (dlm-nth e 1) (dlm-nth e 2) (dlm-nth e 3)))
+        ((and (= op 'derive) (= n 5)) (g82-derive s (dlm-nth e 1) (dlm-nth e 2) (dlm-nth e 3) (dlm-nth e 4)))
+        ((and (= op 'retract) (= n 2)) (g82-retract s (dlm-nth e 1)))
+        ((and (= op 'place) (= n 3)) (g82-place s (dlm-nth e 1) (dlm-nth e 2)))
+        ((and (= op 'relax) (= n 3)) (g82-relax s (dlm-nth e 1) (dlm-nth e 2)))
+        (else '(rejected event))))))
+(define-function g82-replay (sig events)
+  (if (not (and (sq-signature? sig) (dlm-proper? events 1024))) '(rejected log)
+    (let ((s (g82-new sig)) (ok true))
+      (list-do e events
+        (if ok (begin (set s (g82-event s e)) (if (not (= (car s) 'ground82)) (set ok false)))))
+      (if ok s '(rejected replay)))))
+(define-function g82-snapshot (sig events)
+  (let ((s (g82-replay sig events)))
+    (if (= (car s) 'ground82) (list 'ground-session82 1 sig events s) '(rejected snapshot))))
+(define-function g82-restore (snapshot)
+  (if (not (and (sq-shape? snapshot 5) (= (car snapshot) 'ground-session82) (= (dlm-nth snapshot 1) 1)))
+      '(rejected snapshot)
+    (let ((s (g82-replay (dlm-nth snapshot 2) (dlm-nth snapshot 3))))
+      (if (and (= (car s) 'ground82) (equal s (dlm-nth snapshot 4))) s '(rejected snapshot)))))

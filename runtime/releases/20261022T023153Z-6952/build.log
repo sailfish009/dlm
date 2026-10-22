@@ -1,0 +1,5 @@
+Generated candidate-vm.l from embedded sources using Maru
+warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
+1 warning generated.
+Built compiler-source image: /research/dlm_v0.0081/runtime/releases/20261022T023153Z-6952/maru
+Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.

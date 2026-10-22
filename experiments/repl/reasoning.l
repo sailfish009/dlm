@@ -1,5 +1,5 @@
 ;;; -*- mode: lisp; coding: us-ascii -*-
-(print "DLM 0.0078 nondeterministic reasoning in the original Maru REPL.\n")
+(print "DLM 0.0079 legacy nondeterministic reasoning in the original Maru REPL.\n")
 (dlm 'nd-help)
 (dump (dlm 'nd-open *dlm-session-path*)) (print "\n")
 (if *r78-path*

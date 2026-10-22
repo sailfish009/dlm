@@ -235,3 +235,4 @@ PASS new observations reactivate a saturated learner
 PASS unknown REPL command rejected
 PASS REPL command arity checked
 ND78, proof patterns, Beth/Craig: passed
+SPACE79: event sharing, G3, branches, partial learning, proof interpolation and Beth passed
