@@ -1,0 +1,28 @@
+{
+  "python_tests": {"count": 76, "seconds": 94.968, "result": "OK"},
+  "native_tests": "passed",
+  "capacity_restart": {
+    "definitions": 12,
+    "pending_candidates": 10,
+    "before": "(capacity pair-checks 0), saturated true",
+    "uninterrupted_next": "(round 14 (waiting pair-checks 0))",
+    "fresh_process_next": "(round 14 (capacity pair-checks 0))",
+    "fresh_process_initial_saturated": false
+  },
+  "log_exhaustion": {
+    "events": 256,
+    "first": "(round 1 (rejected invalid-transition-or-event-limit))",
+    "second": "(round 2 (rejected invalid-transition-or-event-limit))",
+    "running": true,
+    "saturated": false
+  },
+  "release": {
+    "active_runtime": "runtime/releases/20261022T050940Z-18663/maru",
+    "release_0084_note_exists": false,
+    "inherited_test_manifest_failures": [
+      "scripts/run.sh", "src/dlm/axiom-space.l", "src/dlm/repl.l",
+      "src/dlm/session-store.l", "VERSION"
+    ],
+    "new_version_three_generation_verification": "not performed in this read-only review"
+  }
+}

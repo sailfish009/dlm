@@ -1,0 +1,6 @@
+(dlm 'observe 'dense '((atom r (a a)) (atom r (a b)) (atom r (a c)) (atom r (b a)) (atom r (b b)) (atom r (b c)) (atom r (c a)) (atom r (c b)) (atom r (c c)) (atom s (a a)) (atom s (a b)) (atom s (a c)) (atom s (b a)) (atom s (b b)) (atom s (b c)) (atom s (c a)) (atom s (c b)) (atom s (c c))))
+(dlm 'search 'cache)
+(times-do 13 (dlm 'step))
+(dump (list 'before *dlm-last* 'saturated *dlm-saturated* 'definitions (dlm-length (a77-defs *dlm-model*)) 'pool (dlm-length (dlm-nth *s84-control* 3)))) (print "\n")
+(d77-write "/tmp/review84-capacity.sexp" (d77-pack *dlm-model* *dlm-round* *dlm-events*))
+(dump (list 'uninterrupted-next (dlm 'step))) (print "\n")

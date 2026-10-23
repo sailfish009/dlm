@@ -1,0 +1,7 @@
+(round 1 (learned (definition77 "c77-0" (edge edge) (compose edge edge)) instances 6 pair-checks 2))
+(ground83 ready routing true units 14 evidence 2 order-calls 1 candidate-cache-hits 4 query-proof-hits 0)
+(round 2 (learned (definition77 "c77-1" (edge edge edge) (compose edge "c77-0")) instances 4 pair-checks 7))
+(ground83 ready routing true units 18 evidence 2 order-calls 2 candidate-cache-hits 11 query-proof-hits 0)
+(round 3 (learned (definition77 "c77-2" (edge edge edge edge) (compose edge "c77-1")) instances 2 pair-checks 8))
+(ground83 ready routing true units 20 evidence 2 order-calls 3 candidate-cache-hits 20 query-proof-hits 0)
+(proved (proof (atom "c77-0" (a c)) rule (rule (atom "c77-0" ((var x) (var z))) ((atom edge ((var x) (var y))) (atom edge ((var y) (var z))))) ((proof (atom edge (a b)) fact () ()) (proof (atom edge (b c)) fact () ()))))

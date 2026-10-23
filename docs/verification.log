@@ -243,6 +243,12 @@ SPACE79: event sharing, G3, branches, partial learning, proof interpolation and 
 PASS process restart replays experience; corrupt and forged stores rejected without overwrite
 PASS source-free embedded symbolic choice/backtracking/propagation
 PASS graph process restart, retraction replay, string roundtrip and atomic rejection
+test_idle_learning_in_original_repl (test_bridge83.Bridge83Tests.test_idle_learning_in_original_repl) ... ok
+test_invalid_mode_does_not_commit (test_bridge83.Bridge83Tests.test_invalid_mode_does_not_commit) ... ok
+test_next_round_uses_previous_verified_cache (test_bridge83.Bridge83Tests.test_next_round_uses_previous_verified_cache) ... ok
+test_retract_removes_stale_episode_support (test_bridge83.Bridge83Tests.test_retract_removes_stale_episode_support) ... ok
+test_saved_mode_cache_and_next_step_restore_in_new_process (test_bridge83.Bridge83Tests.test_saved_mode_cache_and_next_step_restore_in_new_process) ... ok
+test_unsupported_projection_falls_back_without_changing_learning (test_bridge83.Bridge83Tests.test_unsupported_projection_falls_back_without_changing_learning) ... ok
 test_data_strings (test_fld.ParserTests.test_data_strings) ... ok
 test_empty_and_placeholder (test_fld.ParserTests.test_empty_and_placeholder) ... ok
 test_full_consumption (test_fld.ParserTests.test_full_consumption) ... ok
@@ -265,6 +271,14 @@ test_idle_reasoning_same_repl (test_reasoning78.Reasoning78Tests.test_idle_reaso
 test_lock_and_atomic_failed_admission (test_reasoning78.Reasoning78Tests.test_lock_and_atomic_failed_admission) ... ok
 test_native_snapshot_restores_continuation_and_rejects_forgery (test_reasoning78.Reasoning78Tests.test_native_snapshot_restores_continuation_and_rejects_forgery) ... ok
 test_truth_tables_and_tick_slicing (test_reasoning78.Reasoning78Tests.test_truth_tables_and_tick_slicing) ... ok
+test_actual_recursive_learning_and_hindsight_branch_labels (test_recursive86.Recursive86Tests.test_actual_recursive_learning_and_hindsight_branch_labels) ... ok
+test_bare_accept_cannot_bypass_native_gate (test_recursive86.Recursive86Tests.test_bare_accept_cannot_bypass_native_gate) ... ok
+test_cli_validation_and_corrupt_store_are_fail_closed (test_recursive86.Recursive86Tests.test_cli_validation_and_corrupt_store_are_fail_closed) ... ok
+test_finite_shell_demo_and_restart_preserve_evidence_and_log (test_recursive86.Recursive86Tests.test_finite_shell_demo_and_restart_preserve_evidence_and_log) ... ok
+test_fresh_process_replays_machine_feedback_and_next_step (test_recursive86.Recursive86Tests.test_fresh_process_replays_machine_feedback_and_next_step) ... ok
+test_generated_alternatives_fail_and_succeed_without_admitting (test_recursive86.Recursive86Tests.test_generated_alternatives_fail_and_succeed_without_admitting) ... ok
+test_interactive_shell_is_one_original_native_repl_process (test_recursive86.Recursive86Tests.test_interactive_shell_is_one_original_native_repl_process) ... ok
+test_unknown_failure_is_retryable (test_recursive86.Recursive86Tests.test_unknown_failure_is_retryable) ... ok
 test_transfer_frozen_library_and_gold_isolation (test_recursive_fld78.RecursiveFld78Tests.test_transfer_frozen_library_and_gold_isolation) ... ok
 test_file_load_does_not_run_idle_task (test_repl.ReplTests.test_file_load_does_not_run_idle_task) ... ok
 test_native_recursive_learning_pause_and_reactivate (test_repl.ReplTests.test_native_recursive_learning_pause_and_reactivate) ... ok
@@ -277,6 +291,20 @@ test_annotation_traversal_is_linear_in_certificate_dag (test_review80.Review80Te
 test_check_failure_finishes_the_purpose_job (test_review80.Review80Tests.test_check_failure_finishes_the_purpose_job) ... ok
 test_child_job_rejection_and_beth_capacity_are_explicit (test_review80.Review80Tests.test_child_job_rejection_and_beth_capacity_are_explicit) ... ok
 test_malformed_signature_is_rejected_not_a_crash (test_review80.Review80Tests.test_malformed_signature_is_rejected_not_a_crash) ... ok
+test_bad_events_and_checkpoint_rollback (test_search84.Search84Tests.test_bad_events_and_checkpoint_rollback) ... ok
+test_fixed_point_ucb_explores_untried_family (test_search84.Search84Tests.test_fixed_point_ucb_explores_untried_family) ... ok
+test_indexed_search_and_native_proof_gate (test_search84.Search84Tests.test_indexed_search_and_native_proof_gate) ... ok
+test_live_budget_guard_matches_replay_bound (test_search84.Search84Tests.test_live_budget_guard_matches_replay_bound) ... ok
+test_negative_transpositions_and_evidence_invalidation (test_search84.Search84Tests.test_negative_transpositions_and_evidence_invalidation) ... ok
+test_original_idle_repl_uses_search_controller (test_search84.Search84Tests.test_original_idle_repl_uses_search_controller) ... ok
+test_persistent_statistics_and_next_step_match_fresh_process (test_search84.Search84Tests.test_persistent_statistics_and_next_step_match_fresh_process) ... ok
+test_saturation_wait_state_restores (test_search84.Search84Tests.test_saturation_wait_state_restores) ... ok
+test_verification_failure_is_not_memoized (test_search84.Search84Tests.test_verification_failure_is_not_memoized) ... ok
+test_cumulative_request_limit_preflight_with_valid_history (test_search85.Search85Tests.test_cumulative_request_limit_preflight_with_valid_history) ... ok
+test_definition_capacity_restores_with_nonempty_pool (test_search85.Search85Tests.test_definition_capacity_restores_with_nonempty_pool) ... ok
+test_event_limit_pauses_real_idle_without_search_work (test_search85.Search85Tests.test_event_limit_pauses_real_idle_without_search_work) ... ok
+test_indexed_only_isolates_negative_cache (test_search85.Search85Tests.test_indexed_only_isolates_negative_cache) ... ok
+test_old84_is_accepted_new_modes_require85_tag (test_search85.Search85Tests.test_old84_is_accepted_new_modes_require85_tag) ... ok
 test_checker_without_search_loaded (test_sequent.OracleTests.test_checker_without_search_loaded) ... ok
 test_exhaustive_small_sequents (test_sequent.OracleTests.test_exhaustive_small_sequents) ... ok
 test_primitive_path_semantics (test_session77.DefinitionOracleTests.test_primitive_path_semantics) ... ok
@@ -306,7 +334,7 @@ test_original_bytes_provenance_and_offline (test_web.WebTests.test_original_byte
 test_refresh_and_malformed_discovery (test_web.WebTests.test_refresh_and_malformed_discovery) ... ok
 
 ----------------------------------------------------------------------
-Ran 61 tests in 80.867s
+Ran 89 tests in 124.199s
 
 OK
 DEFINABILITY-ORACLE 16 Beth theories, 256 Craig pairs, zero mismatches
@@ -320,10 +348,10 @@ PASS: 20 fixed-seed closure comparisons against DLM 0066
 Generated candidate-vm.l from embedded sources using Maru
 warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
 1 warning generated.
-Built compiler-source image: /research/dlm_v0.0082/runtime/releases/20261022T043320Z-15600/next
+Built compiler-source image: /research/dlm_v0.0086/runtime/releases/20261023T104654Z-20404/next
 Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.
 Generated candidate-vm.l from embedded sources using Maru
 warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
 1 warning generated.
-Built compiler-source image: /research/dlm_v0.0082/runtime/releases/20261022T043320Z-15600/third
+Built compiler-source image: /research/dlm_v0.0086/runtime/releases/20261023T104654Z-20404/third
 Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.

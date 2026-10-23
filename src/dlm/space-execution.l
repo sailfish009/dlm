@@ -46,6 +46,9 @@
                    (r (s79-check-create s (car d) (dlm-nth d 1) cert (list 'job name))))
               (set s (car r))
               (s79-job-put s (s79-field j 3 (if (dlm-nth r 1) 'checking 'suspended)))) s)))))
+;;; Optional data-only native definition gate, installed by recursive86.l.
+(define s86-action? ())
+(define s86-certify ())
 (define-function s79-program? (tasks fuel)
   (and (> fuel 0) (dlm-proper? tasks 256)
     (let ((ok true)) (list-do t tasks
@@ -54,6 +57,8 @@
           ((= (car t) 'choose) (and (sq-shape? t 2) (dlm-nth t 1) (dlm-proper? (dlm-nth t 1) 16)
             (let ((valid true)) (list-do alt (dlm-nth t 1)
               (if (not (s79-program? alt (- fuel 1))) (set valid false))) valid)))
+          ((= (car t) 'certify86)
+            (and (sq-shape? t 2) s86-action? (s86-action? (dlm-nth t 1))))
           ((= (car t) 'ask) (and (sq-shape? t 2) (sq-problem? (dlm-nth t 1))))
           ((or (= (car t) 'assume) (= (car t) 'accept) (= (car t) 'fail) (= (car t) 'suspend)) (sq-shape? t 2))
           ((or (= (car t) 'bind) (= (car t) 'require) (= (car t) 'define-local))
@@ -98,6 +103,13 @@
                     (set continue false) (set s (s79-unit-field s id 4 'failed))
                     (list-do alt arg
                       (set s (car (s79-program-branch s name (dlm-append alt tasks) ctx id)))))))
+              ((= op 'certify86)
+                (let ((ticket (s86-certify arg)))
+                  (set ctx (s79-field ctx 1 (s79-put (s79-put (dlm-nth ctx 1)
+                    'candidate86 (dlm-nth arg 1)) 'trial86 ticket)))
+                  (if (not (= (car (car ticket)) 'learned))
+                    (begin (set continue false)
+                      (set s (s79-program-fail s id (list 'native86 (dlm-nth (car ticket) 1))))))))
               ((= op 'assume) (set ctx (n78-context (dlm-nth ctx 1) (cons arg (dlm-nth ctx 2)) (dlm-nth ctx 3))))
               ((or (= op 'bind) (= op 'define-local))
                 (let* ((index (if (= op 'bind) 1 3)) (old (dlm-assoc arg (dlm-nth ctx index))))

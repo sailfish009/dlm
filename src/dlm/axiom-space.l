@@ -86,6 +86,8 @@
               (if (and (equal (dlm-pred f) (car tail)) (equal (dlm-nth p 1) (car (dlm-args f))))
                   (set next (dlm-add next (list (car p) (dlm-nth (dlm-args f) 1)))))))
             (set pairs next)) (set tail (cdr tail)))) pairs)))
+;;; Optional instrumentation counts inspected closure-proof entries, not time.
+(define a84-work ())
 (define-function a77-certify (s d)
   (let ((next (list 'axiom-space77 1 (a77-episodes s) (dlm-append (a77-defs s) (list d))))
         (hits 0) (ok true))
@@ -94,6 +96,7 @@
         (list-do e (a77-episodes s)
           (let* ((facts (dlm-nth e 2)) (reference (a77-path (dlm-nth d 2) facts))
                  (result (a77-close next facts)) (actual ()))
+            (if a84-work (a84-work (+ 1 (dlm-length (dlm-nth result 2)))))
             (if (not (= (dlm-nth result 1) 'complete)) (set ok false))
             (list-do p (dlm-nth result 2)
               (if (equal (dlm-pred (dlm-conclusion p)) (dlm-nth d 1))
@@ -105,6 +108,14 @@
           (list 'rejected (if ok 'insufficient-reuse 'verification)))))))
 ;;; One admission per step. Pair budget is NOT a primitive or wall-clock bound.
 ;;; Cursor resumes candidate enumeration; reset it after any semantic change.
+;;; Optional ordering callback; it must return a permutation, never new facts.
+(define a83-order ())
+(define-function a77-search-facts (s facts)
+  (if (not a83-order) facts
+    (let ((ordered (a83-order s facts)))
+      (if (and (dlm-proper? ordered 1000) (= (dlm-length ordered) (dlm-length facts))
+               (not (dlm-difference ordered facts)) (not (dlm-difference facts ordered)))
+          ordered facts))))
 (define-function a77-step (s offset budget)
   (if (not (and (a77-valid? s) (is <long> offset) (>= offset 0)
                 (is <long> budget) (> budget 0) (<= budget 1000)))
@@ -114,7 +125,7 @@
         (list-do e (a77-episodes s)
           (if (not answer)
               (let* ((closure (a77-close s (dlm-nth e 2)))
-                     (facts (dlm-conclusions (dlm-nth closure 2))))
+                     (facts (a77-search-facts s (dlm-conclusions (dlm-nth closure 2)))))
                 (if (not (= (dlm-nth closure 1) 'complete)) (set complete false))
                 (list-do left facts (list-do right facts
                   (if (and (not answer) (>= cursor offset))

@@ -11,6 +11,14 @@
 (define *dlm-lock* ())
 (define *dlm-pair-budget* 200)
 (define *dlm-last* '(ready))
+;;; Optional bridge installed after native Ground82 loads.
+(define d83-sync ())
+(define d83-command ())
+(define d83-query ())
+(define d84-sync ())
+(define d84-step ())
+(define d84-command ())
+(define d84-admit ())
 
 (define-function d77-status ()
   (list 'dlm77 (if *dlm-running* 'running 'paused) 'round *dlm-round*
@@ -20,7 +28,7 @@
 (define-function d77-library () (a77-defs *dlm-model*))
 (define-function d77-save ()
   (if (not *dlm-store*) (list 'not-attached)
-    (if (d77-checkpoint *dlm-store* (list 'dlm-session77 1 *dlm-model* *dlm-round* *dlm-events*))
+    (if (d77-checkpoint *dlm-store* (d77-pack *dlm-model* *dlm-round* *dlm-events*))
         (list 'saved *dlm-store*) (list 'rejected 'checkpoint))))
 (define-function d77-pause ()
   (repl-idle-task ()) (set *dlm-running* false) (list 'paused))
@@ -49,16 +57,21 @@
                              (set *dlm-events* (dlm-nth (dlm-nth r 1) 4))))
                   (set *dlm-cursor* 0) (set *dlm-saturated* false)
                   (set *dlm-store* path) (set *dlm-lock* lock)
-                  (set *dlm-last* (list 'restored (car r))) (d77-status))))))))))
+                  (set *dlm-last* (list 'restored (car r)))
+                  (if d83-sync (d83-sync)) (if d84-sync (d84-sync)) (d77-status))))))))))
 (define-function d77-commit (next event)
   (let ((events (if (= (car event) 'reset) ()
-                  (if (equal next *dlm-model*) *dlm-events* (dlm-append *dlm-events* (list event))))))
-    (if (not (and (a77-valid? next) (dlm-proper? events 256))) (list 'rejected 'invalid-transition-or-event-limit)
+                  (if (and (equal next *dlm-model*) (not (dlm-member? (car event) '(routing83 search84 search84-run search85 search86))))
+                      *dlm-events* (dlm-append *dlm-events* (list event))))))
+    (if (not (and (a77-valid? next) (dlm-proper? events 256)
+                  (or (not d84-admit) (d84-admit event *dlm-events*))))
+        (begin (d77-pause) (list 'rejected 'invalid-transition-or-event-limit))
       (if (and *dlm-store*
-               (not (d77-checkpoint *dlm-store* (list 'dlm-session77 1 next *dlm-round* events))))
+               (not (d77-checkpoint *dlm-store* (d77-pack next *dlm-round* events))))
           (begin (d77-pause) (list 'rejected 'checkpoint))
         (begin (set *dlm-model* next) (set *dlm-events* events)
-               (set *dlm-cursor* 0) (set *dlm-saturated* false) (list 'committed))))))
+               (set *dlm-cursor* 0) (set *dlm-saturated* false)
+               (if d83-sync (d83-sync)) (if d84-sync (d84-sync)) (list 'committed))))))
 (define-function d77-observe (id facts)
   (let ((r (a77-observe *dlm-model* id facts)))
     (if (= (car r) 'observed)
@@ -75,7 +88,7 @@
     (set *dlm-round* 0)
     (let ((r (d77-commit (a77-new) '(reset))))
       (if (= (car r) 'committed) (set *dlm-last* '(reset)) (set *dlm-round* old-round)) r)))
-(define-function d77-step ()
+(define-function d77-plain-step ()
   (set *dlm-round* (+ *dlm-round* 1))
   (let ((r (if *dlm-saturated* (list 'waiting *dlm-model* 0 0)
              (a77-step *dlm-model* *dlm-cursor* *dlm-pair-budget*))))
@@ -87,6 +100,8 @@
                               (list 'learned (dlm-nth r 4) 'instances (dlm-nth r 5) 'pair-checks (dlm-nth r 3)) commit)))
       (set *dlm-last* (list (car r) 'pair-checks (dlm-nth r 3))))
     (list 'round *dlm-round* *dlm-last*)))
+(define-function d77-step ()
+  (if d84-step (d84-step) (d77-plain-step)))
 (define-function d77-tick ()
   (let ((r (d77-step)))
     (print "[DLM round " *dlm-round* "] ")
@@ -107,7 +122,8 @@
     (if (not (and (is <long> interval) (>= interval 20) (<= interval 60000)))
         (list 'rejected 'interval)
       (begin (repl-idle-task '(d77-tick) interval) (set *dlm-running* true) (d77-status)))))
-(define-function d77-query (episode goal) (a77-query *dlm-model* episode goal))
+(define-function d77-query (episode goal)
+  (if d83-query (d83-query episode goal) (a77-query *dlm-model* episode goal)))
 (define-function d77-help ()
   (print "DLM77 commands in the existing Maru REPL:\n"
     " (dlm 'open \"path.sexp\")  attach/replay a locked data-only snapshot\n"
@@ -116,6 +132,8 @@
     " (dlm 'pause) (dlm 'step) (dlm 'status) (dlm 'library)\n"
     " (dlm 'query 'id '(atom \"c77-0\" (a c)))\n"
     " (dlm 'retract 'id) (dlm 'save) (dlm 'stop) (dlm 'close)\n"
+    " (dlm 'search 'nd-ucb) / 'nd-cache / 'indexed / 'cache / 'rank / 'ucb / 'off; (dlm 'search) status\n"
+    " (dlm 'ground 'on) (dlm 'ground 'off) (dlm 'ground) spatial routing/status\n"
     " (dlm 'demo) loads explicit source fixtures, not domain axioms.\n")
   (list 'commands-listed))
 (define-function d77-demo ()
@@ -126,6 +144,8 @@
 (define-function dlm args
   (let ((op (car args)) (rest (cdr args)) (n (dlm-length (cdr args))))
     (cond
+      ((and (= op 'search) (<= n 1) d84-command) (d84-command rest))
+      ((and (= op 'ground) (<= n 1) d83-command) (d83-command rest))
       ((and (= op 'status) (= n 0)) (d77-status))
       ((and (= op 'library) (= n 0)) (d77-library))
       ((and (= op 'save) (= n 0)) (d77-save))

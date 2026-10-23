@@ -1,0 +1,1225 @@
+{
+  "protocol": "36 fresh native processes; three varied seeds x three modes x two repeats x two protocols; randomized arm order",
+  "notes": [
+    "ucb performs direct sequential native checks; nd modes execute generated choose programs",
+    "batch proposals <=min(budget,16); batch order frozen until checked branch labels return",
+    "nd modes recheck chosen definitions at admission; extra certification is intentional",
+    "all modes use the same native admission criteria and held-out primitive-path proof oracle",
+    "mixed is fixed-six in memory; distractors target-two with attached store and durable close",
+    "timings are parent-observed markers, not broad statistical speed evidence"
+  ],
+  "results": [
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "nd-ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 42,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1330,
+      "actual_search_certify_calls": 6,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.5331861049999134,
+      "workflow_seconds": 1.3244355209999412,
+      "sampled_process_hwm_kib": 16100
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "nd-ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 17,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 935,
+      "actual_search_certify_calls": 17,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.3923387559998446,
+      "workflow_seconds": 0.5578993700000865,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "nd-ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 17,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 935,
+      "actual_search_certify_calls": 17,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.47138427999925625,
+      "workflow_seconds": 0.6373143849996268,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1021,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.24359082399951149,
+      "workflow_seconds": 0.7421468620004816,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 628,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 2,
+      "stop": "saturated",
+      "search_seconds": 0.2725551389994507,
+      "workflow_seconds": 0.4287293299994417,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 16,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 1014,
+      "actual_search_certify_calls": 16,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.4924113379993287,
+      "workflow_seconds": 0.6501444360001187,
+      "sampled_process_hwm_kib": 16048
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "nd-ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 36,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1038,
+      "actual_search_certify_calls": 5,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.2961250599992127,
+      "workflow_seconds": 0.7881793650003601,
+      "sampled_process_hwm_kib": 16048
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "nd-cache",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 42,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1332,
+      "actual_search_certify_calls": 6,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.5333760809999148,
+      "workflow_seconds": 1.2331783659992652,
+      "sampled_process_hwm_kib": 16104
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "nd-cache",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 42,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1496,
+      "actual_search_certify_calls": 6,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.7952512950005257,
+      "workflow_seconds": 1.6078920749996541,
+      "sampled_process_hwm_kib": 16216
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1177,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.33526510299998336,
+      "workflow_seconds": 0.9481191019995094,
+      "sampled_process_hwm_kib": 16096
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "nd-ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 19,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 949,
+      "actual_search_certify_calls": 19,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.3847392459992989,
+      "workflow_seconds": 0.5813968489992476,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "nd-cache",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 36,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1040,
+      "actual_search_certify_calls": 5,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.2896800850003274,
+      "workflow_seconds": 0.783260502000303,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1177,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.2729252910003197,
+      "workflow_seconds": 0.7436564959998577,
+      "sampled_process_hwm_kib": 16096
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "nd-ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 33,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 1197,
+      "actual_search_certify_calls": 33,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.723468676000266,
+      "workflow_seconds": 0.8736229050000475,
+      "sampled_process_hwm_kib": 16100
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "nd-ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 33,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 1197,
+      "actual_search_certify_calls": 33,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.7497975149999547,
+      "workflow_seconds": 0.913863274000505,
+      "sampled_process_hwm_kib": 16096
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "nd-cache",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 36,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1040,
+      "actual_search_certify_calls": 5,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.3179400200006057,
+      "workflow_seconds": 0.8703981620001287,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "nd-ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 42,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1494,
+      "actual_search_certify_calls": 6,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.7359517579998283,
+      "workflow_seconds": 1.6866756899999018,
+      "sampled_process_hwm_kib": 16216
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "nd-ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 36,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1038,
+      "actual_search_certify_calls": 5,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.2964998839997861,
+      "workflow_seconds": 0.9329182189994754,
+      "sampled_process_hwm_kib": 16052
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "nd-cache",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 42,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1496,
+      "actual_search_certify_calls": 6,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.7379648659998566,
+      "workflow_seconds": 1.5511947049999435,
+      "sampled_process_hwm_kib": 16220
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "nd-cache",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 17,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 937,
+      "actual_search_certify_calls": 17,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.3308499169997958,
+      "workflow_seconds": 0.5001150729995061,
+      "sampled_process_hwm_kib": 16048
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "nd-cache",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 19,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 951,
+      "actual_search_certify_calls": 19,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.42203295800027263,
+      "workflow_seconds": 0.5764734590002263,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "nd-ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 42,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1494,
+      "actual_search_certify_calls": 6,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.8836175779997575,
+      "workflow_seconds": 1.7597517340000195,
+      "sampled_process_hwm_kib": 16216
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 665,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.32779868000034185,
+      "workflow_seconds": 0.5169632580000325,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1021,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.23884011900008772,
+      "workflow_seconds": 0.7035717319995456,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "nd-cache",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 33,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 1199,
+      "actual_search_certify_calls": 33,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.8582811079995736,
+      "workflow_seconds": 1.0335073549995286,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "nd-cache",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 19,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 951,
+      "actual_search_certify_calls": 19,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.4112595010001314,
+      "workflow_seconds": 0.5833958339999299,
+      "sampled_process_hwm_kib": 16048
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 811,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.16820475500026077,
+      "workflow_seconds": 0.5786831929999607,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 665,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.3130736009998145,
+      "workflow_seconds": 0.47671494699989125,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "nd-cache",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 33,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 1199,
+      "actual_search_certify_calls": 33,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.8178774739999426,
+      "workflow_seconds": 0.9993210849997922,
+      "sampled_process_hwm_kib": 16048
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "nd-ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 42,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1330,
+      "actual_search_certify_calls": 6,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.505412213999989,
+      "workflow_seconds": 1.197211470000184,
+      "sampled_process_hwm_kib": 16100
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 16,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 1014,
+      "actual_search_certify_calls": 16,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.4968683949991828,
+      "workflow_seconds": 0.6532095379998282,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "nd-cache",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 42,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1332,
+      "actual_search_certify_calls": 6,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.5386748999999327,
+      "workflow_seconds": 1.2364256130003923,
+      "sampled_process_hwm_kib": 16104
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "nd-cache",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 17,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 937,
+      "actual_search_certify_calls": 17,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.3596116600001551,
+      "workflow_seconds": 0.5279296720000275,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 628,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 2,
+      "stop": "saturated",
+      "search_seconds": 0.26188675699995656,
+      "workflow_seconds": 0.4268554939999376,
+      "sampled_process_hwm_kib": 15948
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "nd-ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 19,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 949,
+      "actual_search_certify_calls": 19,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.45900568700017175,
+      "workflow_seconds": 0.6282735220001996,
+      "sampled_process_hwm_kib": 16044
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 811,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.16812483000012435,
+      "workflow_seconds": 0.581139052999788,
+      "sampled_process_hwm_kib": 16044
+    }
+  ]
+}

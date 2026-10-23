@@ -1,0 +1,238 @@
+PASS: constant match with empty environment
+PASS: repeated variable conflict
+PASS: unsafe rule recognized
+PASS: recursive closure
+PASS: no reversed derivation
+PASS: proof verified
+PASS: absent rule rejected
+PASS: forged conclusion rejected
+PASS: explicit contradiction blocks admission
+closure: ((atom reach (a c)) (atom edge (b c)) (atom edge (a b)))
+proof verified: true
+absent rule rejected: true
+verdict: (verdict 1 0 0 (demo) 6 true)
+learn: (learning-result ((rule (atom reach ((var x) (var z))) ((atom edge ((var x) (var y))) (atom edge ((var y) (var z)))))) (rule (atom reach ((var x) (var z))) ((atom edge ((var x) (var y))) (atom edge ((var y) (var z))))) (verdict 1 0 0 (demo) 6 true) 6)
+DLM tests complete
+PASS: Experience admission
+PASS: evidence fixed
+PASS: Ground unchanged
+PASS: observation retracts before any query
+PASS: counterexample retracts Experience
+PASS: lifecycle history retained
+PASS: Ground conflict abstains
+DLM model tests complete
+PASS: budget exhaustion is incomplete, not false
+PASS: malformed rule rejected
+PASS: malformed argument list rejected
+PASS: malformed proof conclusion rejected
+PASS: truncated proof rejected
+PASS: cross-premise binding conflict rejected
+TRAINING (updates 3 search-calls 480)
+HELD-COLD (result learned 4 26 (calls 26))
+HELD-RANDOM (result random 3 26 (calls 43))
+HELD-TRAINED (result learned 26 26 (calls 100))
+HELD-SCRAMBLED (result scrambled 0 26 (calls 30))
+TRACE (rollout success (((u v w x) tail (running (v w x))) ((v w x) tail (running (w x))) ((w x) head (success w))) 3)
+PASS: execution feedback changes weights
+PASS: beats frozen cold controller
+PASS: beats random controller
+PASS: action intervention changes success
+PASS: new values and longer lists generalize
+PASS: zero action budget is incomplete
+PASS: unreachable goal is not fabricated
+PASS: tail executes Maru primitive
+PASS: forbidden action cannot return goal
+anchored-coloring DFS (csp-result complete (((a (green)) (b (red)) (c (green)) (d (red))) ((a (green)) (b (red)) (c (blue)) (d (red))) ((a (green)) (b (blue)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (blue)) (d (red))) ((a (blue)) (b (green)) (c (blue)) (d (red)))) 40 108 0)
+anchored-coloring PROP (csp-result complete (((a (green)) (b (red)) (c (green)) (d (red))) ((a (green)) (b (red)) (c (blue)) (d (red))) ((a (green)) (b (blue)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (blue)) (d (red))) ((a (blue)) (b (green)) (c (blue)) (d (red)))) 11 284 6)
+anchored-coloring MRV (csp-result complete (((a (green)) (b (red)) (c (green)) (d (red))) ((a (green)) (b (red)) (c (blue)) (d (red))) ((a (green)) (b (blue)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (blue)) (d (red))) ((a (blue)) (b (green)) (c (blue)) (d (red)))) 11 284 6)
+PASS: all arms complete
+PASS: propagation preserves complete solution set
+unsatisfiable-triangle DFS (csp-result complete () 15 24 0)
+unsatisfiable-triangle PROP (csp-result complete () 3 68 8)
+unsatisfiable-triangle MRV (csp-result complete () 3 68 8)
+PASS: all arms complete
+PASS: propagation preserves complete solution set
+role-candidates DFS (csp-result complete (((subject (pump)) (relation (uses)) (object (valve))) ((subject (valve)) (relation (used-by)) (object (pump)))) 15 16 0)
+role-candidates PROP (csp-result complete (((subject (pump)) (relation (uses)) (object (valve))) ((subject (valve)) (relation (used-by)) (object (pump)))) 3 64 4)
+role-candidates MRV (csp-result complete (((subject (pump)) (relation (uses)) (object (valve))) ((subject (valve)) (relation (used-by)) (object (pump)))) 3 64 4)
+PASS: all arms complete
+PASS: propagation preserves complete solution set
+TOTAL-NODES (dfs 70 propagate 17)
+PASS: propagation reduces expanded nodes
+PASS: branching preserves input domains
+PASS: sibling choices isolated
+PASS: backtracking enumerates alternatives
+PASS: budget exhaustion is not unsatisfiable
+PASS: exhausted inconsistent problem has no solution
+PASS: ambiguous role candidates retained, not asserted as unique
+SYMBOLIC cold (coverage 0 14 0)
+SYMBOLIC one-round (coverage 8 14 0)
+SYMBOLIC recursive (coverage 14 14 0)
+SYMBOLIC candidates-per-round 60
+SYMBOLIC experience-events 3
+PASS empty model has no domain axioms
+PASS one round learns first relational composition
+PASS recursive round enables dependent rule on unseen structures
+PASS no heldout explicit counterobservations derived
+PASS two variable-general rules learned without supplied domain axioms
+PASS saturated round does not invent evidence
+PASS experience replay reconstructs graph and theory
+PASS candidate evaluation leaves parent unchanged
+PASS new counterevidence retracts conflicting theory
+PASS retraction is replayable
+PASS self inequality cannot obtain support from a different value
+PASS Maru choice operator exposes isolated alternatives
+SYMBOLIC scrambled (coverage 0 14 0)
+PASS scrambled observations do not reproduce transfer
+PASS argument-role categories are induced from observation signatures
+PASS predicate index retains source observation records
+PASS failed and successful candidate verdicts are retained
+PASS acquired source enters document memory
+PASS cached acquisition does not duplicate observations
+PASS repeated acquisition keeps event history
+PASS web snapshot recomputed from events
+PASS fetch does not authorize Horn facts
+PASS fetch failure adds no guessed documents
+GRAPH query (answer entailed (atom reach (a d)) (proof (atom reach (a d)) rule (rule (atom reach ((var x) (var z))) ((atom reach ((var x) (var y))) (atom edge ((var y) (var z))))) ((proof (atom reach (a b)) rule (rule (atom reach ((var x) (var y))) ((atom edge ((var x) (var y))))) ((proof (atom edge (a b)) fact () ()))) (proof (atom edge (b d)) fact () ()))) () complete)
+GRAPH alternative-supports 2
+GRAPH paths (paths complete ((path (a b d) (3 5)) (path (a c d) (7 8))) 5)
+GRAPH metrics (metrics 3 25 12)
+PASS graph starts without domain axioms
+PASS indexed graph derives multihop claim
+PASS shared claim retains both derivation alternatives
+PASS graph witness accepted by independent Horn verifier
+PASS indexed closure agrees with existing full-scan kernel
+PASS graph path alone does not authorize predicate transitivity
+PASS bounded BFS preserves two directed path candidates
+PASS path depth exhaustion is not no-path proof
+PASS path expansion exhaustion is explicit
+PASS argument index filters unrelated relation rows
+PASS proof dependency edges reference shared premise ids
+PASS identical claim shares a node but retains separate observation records
+PASS withdrawing one source preserves another source of the same claim
+PASS retraction preserves surviving alternative proof
+PASS invalidated alternative removed
+PASS last supporting path removal retracts conclusion
+PASS inactive claim id remains stable after retraction
+PASS immutable sibling graph retains old support
+PASS graph history deterministically rebuilds indexes and inactive ids
+PASS conflicting evidence retained without confidence winner
+PASS contradiction does not cause logical explosion
+PASS explicit negative evidence differs from missing positive proof
+PASS candidate rule blocked by explicit counterevidence
+PASS predicate arity mismatch rejected atomically
+PASS observation identity cannot silently change payload
+PASS acquired status is not accepted as an observed premise
+PASS transition and replay cannot bypass learned-rule counterevidence gate
+PASS unsafe rule variables rejected before graph execution
+PASS incomplete closure never reports unknown as exhaustive
+PASS budget exhaustion preserves valid observed proof
+PASS cyclic support graph yields finite acyclic witness
+PASS unsupported cycle cannot survive seed retraction
+PASS learned rules execute in graph engine on heldout structures
+PASS graph transfer derives no heldout explicit counterobservations
+GRAPH learned-transfer (proved 14 false 0)
+PASS G3c modus ponens
+PASS independent DAG check
+PASS two countermodels establish UNKNOWN
+PASS negative proof not positive countermodel
+PASS classical explosion is scoped and explicit
+PASS init
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS bottom-left
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS top-right
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS top-left
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS bottom-right
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS not-left
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS not-right
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS and-left
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS and-right
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS or-left
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS or-right
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS imp-left
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS imp-right
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS DAG shares one checked premise in two AND slots
+PASS search exhaustion not UNKNOWN
+PASS classical excluded middle
+PASS classical double negation elimination
+PASS quantified input never flattened to an atom
+PASS function terms explicitly unsupported
+PASS free variables never implicitly closed
+PASS logic profile cannot silently change
+PASS cross-profile certificate rejected
+PASS incomplete model refused
+PASS improper AST rejected
+PASS signature identity/arity conflict refused
+PASS axiom space starts without domain axioms
+PASS no invented relation before discovery
+PASS one conservative definition admitted in one step
+PASS defined relation has independently verified witness
+PASS definition does not assert primitive transitivity
+PASS source contexts never leak between episodes
+PASS recursive rounds reuse earlier definitions
+PASS depth-four definition actually references a learned predicate
+PASS recursive abstraction proves a longer path
+PASS directed path order preserved
+PASS stored library reconstructs from primitive path schemas
+PASS admission history replays the current library
+PASS held-out transfer does not update definitions
+PASS learned operators transfer to unseen entity names
+PASS source retraction removes its claims
+PASS independent source survives retraction
+PASS definitions remain valid language extensions after retraction
+PASS retraction replay preserves definitions without stale claims
+PASS observation IDs cannot change payload
+PASS own derived output cannot be admitted as raw evidence
+PASS binary relation type enforced
+PASS free input variables rejected
+PASS cyclic or forward definition references refused
+PASS forged flattened definition refused
+PASS unknown library version refused
+PASS malformed source list refused
+PASS candidate budget exhaustion is not saturation
+PASS bounded candidate enumeration resumes
+PASS reset does not seed domain rules
+PASS saturation stays live without manufacturing updates
+PASS new observations reactivate a saturated learner
+PASS unknown REPL command rejected
+PASS REPL command arity checked
+ND78, proof patterns, Beth/Craig: passed
+SPACE79: event sharing, G3, branches, partial learning, proof interpolation and Beth passed

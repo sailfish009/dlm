@@ -1,0 +1,357 @@
+maru: OK
+maru.ll: OK
+sources.sha256: OK
+record: OK
+PASS: constant match with empty environment
+PASS: repeated variable conflict
+PASS: unsafe rule recognized
+PASS: recursive closure
+PASS: no reversed derivation
+PASS: proof verified
+PASS: absent rule rejected
+PASS: forged conclusion rejected
+PASS: explicit contradiction blocks admission
+closure: ((atom reach (a c)) (atom edge (b c)) (atom edge (a b)))
+proof verified: true
+absent rule rejected: true
+verdict: (verdict 1 0 0 (demo) 6 true)
+learn: (learning-result ((rule (atom reach ((var x) (var z))) ((atom edge ((var x) (var y))) (atom edge ((var y) (var z)))))) (rule (atom reach ((var x) (var z))) ((atom edge ((var x) (var y))) (atom edge ((var y) (var z))))) (verdict 1 0 0 (demo) 6 true) 6)
+DLM tests complete
+PASS: Experience admission
+PASS: evidence fixed
+PASS: Ground unchanged
+PASS: observation retracts before any query
+PASS: counterexample retracts Experience
+PASS: lifecycle history retained
+PASS: Ground conflict abstains
+DLM model tests complete
+PASS: budget exhaustion is incomplete, not false
+PASS: malformed rule rejected
+PASS: malformed argument list rejected
+PASS: malformed proof conclusion rejected
+PASS: truncated proof rejected
+PASS: cross-premise binding conflict rejected
+TRAINING (updates 3 search-calls 480)
+HELD-COLD (result learned 4 26 (calls 26))
+HELD-RANDOM (result random 3 26 (calls 43))
+HELD-TRAINED (result learned 26 26 (calls 100))
+HELD-SCRAMBLED (result scrambled 0 26 (calls 30))
+TRACE (rollout success (((u v w x) tail (running (v w x))) ((v w x) tail (running (w x))) ((w x) head (success w))) 3)
+PASS: execution feedback changes weights
+PASS: beats frozen cold controller
+PASS: beats random controller
+PASS: action intervention changes success
+PASS: new values and longer lists generalize
+PASS: zero action budget is incomplete
+PASS: unreachable goal is not fabricated
+PASS: tail executes Maru primitive
+PASS: forbidden action cannot return goal
+anchored-coloring DFS (csp-result complete (((a (green)) (b (red)) (c (green)) (d (red))) ((a (green)) (b (red)) (c (blue)) (d (red))) ((a (green)) (b (blue)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (blue)) (d (red))) ((a (blue)) (b (green)) (c (blue)) (d (red)))) 40 108 0)
+anchored-coloring PROP (csp-result complete (((a (green)) (b (red)) (c (green)) (d (red))) ((a (green)) (b (red)) (c (blue)) (d (red))) ((a (green)) (b (blue)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (blue)) (d (red))) ((a (blue)) (b (green)) (c (blue)) (d (red)))) 11 284 6)
+anchored-coloring MRV (csp-result complete (((a (green)) (b (red)) (c (green)) (d (red))) ((a (green)) (b (red)) (c (blue)) (d (red))) ((a (green)) (b (blue)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (green)) (d (red))) ((a (blue)) (b (red)) (c (blue)) (d (red))) ((a (blue)) (b (green)) (c (blue)) (d (red)))) 11 284 6)
+PASS: all arms complete
+PASS: propagation preserves complete solution set
+unsatisfiable-triangle DFS (csp-result complete () 15 24 0)
+unsatisfiable-triangle PROP (csp-result complete () 3 68 8)
+unsatisfiable-triangle MRV (csp-result complete () 3 68 8)
+PASS: all arms complete
+PASS: propagation preserves complete solution set
+role-candidates DFS (csp-result complete (((subject (pump)) (relation (uses)) (object (valve))) ((subject (valve)) (relation (used-by)) (object (pump)))) 15 16 0)
+role-candidates PROP (csp-result complete (((subject (pump)) (relation (uses)) (object (valve))) ((subject (valve)) (relation (used-by)) (object (pump)))) 3 64 4)
+role-candidates MRV (csp-result complete (((subject (pump)) (relation (uses)) (object (valve))) ((subject (valve)) (relation (used-by)) (object (pump)))) 3 64 4)
+PASS: all arms complete
+PASS: propagation preserves complete solution set
+TOTAL-NODES (dfs 70 propagate 17)
+PASS: propagation reduces expanded nodes
+PASS: branching preserves input domains
+PASS: sibling choices isolated
+PASS: backtracking enumerates alternatives
+PASS: budget exhaustion is not unsatisfiable
+PASS: exhausted inconsistent problem has no solution
+PASS: ambiguous role candidates retained, not asserted as unique
+SYMBOLIC cold (coverage 0 14 0)
+SYMBOLIC one-round (coverage 8 14 0)
+SYMBOLIC recursive (coverage 14 14 0)
+SYMBOLIC candidates-per-round 60
+SYMBOLIC experience-events 3
+PASS empty model has no domain axioms
+PASS one round learns first relational composition
+PASS recursive round enables dependent rule on unseen structures
+PASS no heldout explicit counterobservations derived
+PASS two variable-general rules learned without supplied domain axioms
+PASS saturated round does not invent evidence
+PASS experience replay reconstructs graph and theory
+PASS candidate evaluation leaves parent unchanged
+PASS new counterevidence retracts conflicting theory
+PASS retraction is replayable
+PASS self inequality cannot obtain support from a different value
+PASS Maru choice operator exposes isolated alternatives
+SYMBOLIC scrambled (coverage 0 14 0)
+PASS scrambled observations do not reproduce transfer
+PASS argument-role categories are induced from observation signatures
+PASS predicate index retains source observation records
+PASS failed and successful candidate verdicts are retained
+PASS acquired source enters document memory
+PASS cached acquisition does not duplicate observations
+PASS repeated acquisition keeps event history
+PASS web snapshot recomputed from events
+PASS fetch does not authorize Horn facts
+PASS fetch failure adds no guessed documents
+GRAPH query (answer entailed (atom reach (a d)) (proof (atom reach (a d)) rule (rule (atom reach ((var x) (var z))) ((atom reach ((var x) (var y))) (atom edge ((var y) (var z))))) ((proof (atom reach (a b)) rule (rule (atom reach ((var x) (var y))) ((atom edge ((var x) (var y))))) ((proof (atom edge (a b)) fact () ()))) (proof (atom edge (b d)) fact () ()))) () complete)
+GRAPH alternative-supports 2
+GRAPH paths (paths complete ((path (a b d) (3 5)) (path (a c d) (7 8))) 5)
+GRAPH metrics (metrics 3 25 12)
+PASS graph starts without domain axioms
+PASS indexed graph derives multihop claim
+PASS shared claim retains both derivation alternatives
+PASS graph witness accepted by independent Horn verifier
+PASS indexed closure agrees with existing full-scan kernel
+PASS graph path alone does not authorize predicate transitivity
+PASS bounded BFS preserves two directed path candidates
+PASS path depth exhaustion is not no-path proof
+PASS path expansion exhaustion is explicit
+PASS argument index filters unrelated relation rows
+PASS proof dependency edges reference shared premise ids
+PASS identical claim shares a node but retains separate observation records
+PASS withdrawing one source preserves another source of the same claim
+PASS retraction preserves surviving alternative proof
+PASS invalidated alternative removed
+PASS last supporting path removal retracts conclusion
+PASS inactive claim id remains stable after retraction
+PASS immutable sibling graph retains old support
+PASS graph history deterministically rebuilds indexes and inactive ids
+PASS conflicting evidence retained without confidence winner
+PASS contradiction does not cause logical explosion
+PASS explicit negative evidence differs from missing positive proof
+PASS candidate rule blocked by explicit counterevidence
+PASS predicate arity mismatch rejected atomically
+PASS observation identity cannot silently change payload
+PASS acquired status is not accepted as an observed premise
+PASS transition and replay cannot bypass learned-rule counterevidence gate
+PASS unsafe rule variables rejected before graph execution
+PASS incomplete closure never reports unknown as exhaustive
+PASS budget exhaustion preserves valid observed proof
+PASS cyclic support graph yields finite acyclic witness
+PASS unsupported cycle cannot survive seed retraction
+PASS learned rules execute in graph engine on heldout structures
+PASS graph transfer derives no heldout explicit counterobservations
+GRAPH learned-transfer (proved 14 false 0)
+PASS G3c modus ponens
+PASS independent DAG check
+PASS two countermodels establish UNKNOWN
+PASS negative proof not positive countermodel
+PASS classical explosion is scoped and explicit
+PASS init
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS bottom-left
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS top-right
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS top-left
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS bottom-right
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS not-left
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS not-right
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS and-left
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS and-right
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS or-left
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS or-right
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS imp-left
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS imp-right
+PASS required G3c rule exercised
+PASS verification budget is incomplete
+PASS duplicate certificate IDs refused
+PASS DAG shares one checked premise in two AND slots
+PASS search exhaustion not UNKNOWN
+PASS classical excluded middle
+PASS classical double negation elimination
+PASS quantified input never flattened to an atom
+PASS function terms explicitly unsupported
+PASS free variables never implicitly closed
+PASS logic profile cannot silently change
+PASS cross-profile certificate rejected
+PASS incomplete model refused
+PASS improper AST rejected
+PASS signature identity/arity conflict refused
+PASS axiom space starts without domain axioms
+PASS no invented relation before discovery
+PASS one conservative definition admitted in one step
+PASS defined relation has independently verified witness
+PASS definition does not assert primitive transitivity
+PASS source contexts never leak between episodes
+PASS recursive rounds reuse earlier definitions
+PASS depth-four definition actually references a learned predicate
+PASS recursive abstraction proves a longer path
+PASS directed path order preserved
+PASS stored library reconstructs from primitive path schemas
+PASS admission history replays the current library
+PASS held-out transfer does not update definitions
+PASS learned operators transfer to unseen entity names
+PASS source retraction removes its claims
+PASS independent source survives retraction
+PASS definitions remain valid language extensions after retraction
+PASS retraction replay preserves definitions without stale claims
+PASS observation IDs cannot change payload
+PASS own derived output cannot be admitted as raw evidence
+PASS binary relation type enforced
+PASS free input variables rejected
+PASS cyclic or forward definition references refused
+PASS forged flattened definition refused
+PASS unknown library version refused
+PASS malformed source list refused
+PASS candidate budget exhaustion is not saturation
+PASS bounded candidate enumeration resumes
+PASS reset does not seed domain rules
+PASS saturation stays live without manufacturing updates
+PASS new observations reactivate a saturated learner
+PASS unknown REPL command rejected
+PASS REPL command arity checked
+ND78, proof patterns, Beth/Craig: passed
+SPACE79: event sharing, G3, branches, partial learning, proof interpolation and Beth passed
+PASS process restart replays experience; corrupt and forged stores rejected without overwrite
+PASS source-free embedded symbolic choice/backtracking/propagation
+PASS graph process restart, retraction replay, string roundtrip and atomic rejection
+test_idle_learning_in_original_repl (test_bridge83.Bridge83Tests.test_idle_learning_in_original_repl) ... ok
+test_invalid_mode_does_not_commit (test_bridge83.Bridge83Tests.test_invalid_mode_does_not_commit) ... ok
+test_next_round_uses_previous_verified_cache (test_bridge83.Bridge83Tests.test_next_round_uses_previous_verified_cache) ... ok
+test_retract_removes_stale_episode_support (test_bridge83.Bridge83Tests.test_retract_removes_stale_episode_support) ... ok
+test_saved_mode_cache_and_next_step_restore_in_new_process (test_bridge83.Bridge83Tests.test_saved_mode_cache_and_next_step_restore_in_new_process) ... ok
+test_unsupported_projection_falls_back_without_changing_learning (test_bridge83.Bridge83Tests.test_unsupported_projection_falls_back_without_changing_learning) ... ok
+test_data_strings (test_fld.ParserTests.test_data_strings) ... ok
+test_empty_and_placeholder (test_fld.ParserTests.test_empty_and_placeholder) ... ok
+test_full_consumption (test_fld.ParserTests.test_full_consumption) ... ok
+test_generator_associativity (test_fld.ParserTests.test_generator_associativity) ... ok
+test_ground_and_arity (test_fld.ParserTests.test_ground_and_arity) ... ok
+test_no_gold_dependency (test_fld.ParserTests.test_no_gold_dependency) ... ok
+test_quantifier_scope (test_fld.ParserTests.test_quantifier_scope) ... ok
+test_alternative_derivations_and_unsupported_cycle (test_ground82.Ground82Tests.test_alternative_derivations_and_unsupported_cycle) ... ok
+test_coordinate_invariance_and_fallback (test_ground82.Ground82Tests.test_coordinate_invariance_and_fallback) ... ok
+test_independent_support_and_retraction (test_ground82.Ground82Tests.test_independent_support_and_retraction) ... ok
+test_invalid_inputs_and_forged_proofs (test_ground82.Ground82Tests.test_invalid_inputs_and_forged_proofs) ... ok
+test_local_relaxation_preserves_graph (test_ground82.Ground82Tests.test_local_relaxation_preserves_graph) ... ok
+test_snapshot_replay_rejects_forged_layout (test_ground82.Ground82Tests.test_snapshot_replay_rejects_forged_layout) ... ok
+test_countermodel_and_budget (test_proof_store.ProofStoreTests.test_countermodel_and_budget) ... ok
+test_lock (test_proof_store.ProofStoreTests.test_lock) ... ok
+test_restart_strings_and_corruption (test_proof_store.ProofStoreTests.test_restart_strings_and_corruption) ... ok
+test_beth_craig_against_model_enumeration (test_reasoning78.Reasoning78Tests.test_beth_craig_against_model_enumeration) ... ok
+test_branch_suspension_restart_and_alternative (test_reasoning78.Reasoning78Tests.test_branch_suspension_restart_and_alternative) ... ok
+test_idle_reasoning_same_repl (test_reasoning78.Reasoning78Tests.test_idle_reasoning_same_repl) ... ok
+test_lock_and_atomic_failed_admission (test_reasoning78.Reasoning78Tests.test_lock_and_atomic_failed_admission) ... ok
+test_native_snapshot_restores_continuation_and_rejects_forgery (test_reasoning78.Reasoning78Tests.test_native_snapshot_restores_continuation_and_rejects_forgery) ... ok
+test_truth_tables_and_tick_slicing (test_reasoning78.Reasoning78Tests.test_truth_tables_and_tick_slicing) ... ok
+test_actual_recursive_learning_and_hindsight_branch_labels (test_recursive86.Recursive86Tests.test_actual_recursive_learning_and_hindsight_branch_labels) ... ok
+test_bare_accept_cannot_bypass_native_gate (test_recursive86.Recursive86Tests.test_bare_accept_cannot_bypass_native_gate) ... ok
+test_cli_validation_and_corrupt_store_are_fail_closed (test_recursive86.Recursive86Tests.test_cli_validation_and_corrupt_store_are_fail_closed) ... ok
+test_finite_shell_demo_and_restart_preserve_evidence_and_log (test_recursive86.Recursive86Tests.test_finite_shell_demo_and_restart_preserve_evidence_and_log) ... ok
+test_fresh_process_replays_machine_feedback_and_next_step (test_recursive86.Recursive86Tests.test_fresh_process_replays_machine_feedback_and_next_step) ... ok
+test_generated_alternatives_fail_and_succeed_without_admitting (test_recursive86.Recursive86Tests.test_generated_alternatives_fail_and_succeed_without_admitting) ... ok
+test_interactive_shell_is_one_original_native_repl_process (test_recursive86.Recursive86Tests.test_interactive_shell_is_one_original_native_repl_process) ... ok
+test_unknown_failure_is_retryable (test_recursive86.Recursive86Tests.test_unknown_failure_is_retryable) ... ok
+test_transfer_frozen_library_and_gold_isolation (test_recursive_fld78.RecursiveFld78Tests.test_transfer_frozen_library_and_gold_isolation) ... ok
+test_file_load_does_not_run_idle_task (test_repl.ReplTests.test_file_load_does_not_run_idle_task) ... ok
+test_native_recursive_learning_pause_and_reactivate (test_repl.ReplTests.test_native_recursive_learning_pause_and_reactivate) ... ok
+test_one_process_selfssl_launcher (test_repl.ReplTests.test_one_process_selfssl_launcher) ... ok
+test_opt_in_parser_and_source_free (test_repl.ReplTests.test_opt_in_parser_and_source_free) ... ok
+test_packaging_keeps_runtime_but_not_generated_data (test_repl.ReplTests.test_packaging_keeps_runtime_but_not_generated_data) ... ok
+test_pty_existing_prompt (test_repl.ReplTests.test_pty_existing_prompt) ... ok
+test_alternative_exhaustion_is_terminal (test_review80.Review80Tests.test_alternative_exhaustion_is_terminal) ... ok
+test_annotation_traversal_is_linear_in_certificate_dag (test_review80.Review80Tests.test_annotation_traversal_is_linear_in_certificate_dag) ... ok
+test_check_failure_finishes_the_purpose_job (test_review80.Review80Tests.test_check_failure_finishes_the_purpose_job) ... ok
+test_child_job_rejection_and_beth_capacity_are_explicit (test_review80.Review80Tests.test_child_job_rejection_and_beth_capacity_are_explicit) ... ok
+test_malformed_signature_is_rejected_not_a_crash (test_review80.Review80Tests.test_malformed_signature_is_rejected_not_a_crash) ... ok
+test_bad_events_and_checkpoint_rollback (test_search84.Search84Tests.test_bad_events_and_checkpoint_rollback) ... ok
+test_fixed_point_ucb_explores_untried_family (test_search84.Search84Tests.test_fixed_point_ucb_explores_untried_family) ... ok
+test_indexed_search_and_native_proof_gate (test_search84.Search84Tests.test_indexed_search_and_native_proof_gate) ... ok
+test_live_budget_guard_matches_replay_bound (test_search84.Search84Tests.test_live_budget_guard_matches_replay_bound) ... ok
+test_negative_transpositions_and_evidence_invalidation (test_search84.Search84Tests.test_negative_transpositions_and_evidence_invalidation) ... ok
+test_original_idle_repl_uses_search_controller (test_search84.Search84Tests.test_original_idle_repl_uses_search_controller) ... ok
+test_persistent_statistics_and_next_step_match_fresh_process (test_search84.Search84Tests.test_persistent_statistics_and_next_step_match_fresh_process) ... ok
+test_saturation_wait_state_restores (test_search84.Search84Tests.test_saturation_wait_state_restores) ... ok
+test_verification_failure_is_not_memoized (test_search84.Search84Tests.test_verification_failure_is_not_memoized) ... ok
+test_cumulative_request_limit_preflight_with_valid_history (test_search85.Search85Tests.test_cumulative_request_limit_preflight_with_valid_history) ... ok
+test_definition_capacity_restores_with_nonempty_pool (test_search85.Search85Tests.test_definition_capacity_restores_with_nonempty_pool) ... ok
+test_event_limit_pauses_real_idle_without_search_work (test_search85.Search85Tests.test_event_limit_pauses_real_idle_without_search_work) ... ok
+test_indexed_only_isolates_negative_cache (test_search85.Search85Tests.test_indexed_only_isolates_negative_cache) ... ok
+test_old84_is_accepted_new_modes_require85_tag (test_search85.Search85Tests.test_old84_is_accepted_new_modes_require85_tag) ... ok
+test_checker_without_search_loaded (test_sequent.OracleTests.test_checker_without_search_loaded) ... ok
+test_exhaustive_small_sequents (test_sequent.OracleTests.test_exhaustive_small_sequents) ... ok
+test_primitive_path_semantics (test_session77.DefinitionOracleTests.test_primitive_path_semantics) ... ok
+test_admission_rolls_back_when_checkpoint_fails (test_session77.NativeStoreTests.test_admission_rolls_back_when_checkpoint_fails) ... ok
+test_attach_in_memory_learning_without_reset (test_session77.NativeStoreTests.test_attach_in_memory_learning_without_reset) ... ok
+test_corrupt_snapshot_is_not_overwritten_or_evaluated (test_session77.NativeStoreTests.test_corrupt_snapshot_is_not_overwritten_or_evaluated) ... ok
+test_native_lock (test_session77.NativeStoreTests.test_native_lock) ... ok
+test_restart_retract_and_strings (test_session77.NativeStoreTests.test_restart_retract_and_strings) ... ok
+test_unreadable_is_not_missing (test_session77.NativeStoreTests.test_unreadable_is_not_missing) ... ok
+test_graph_semantics_and_slices (test_space79.Space79Tests.test_graph_semantics_and_slices) ... ok
+test_native_lock_changed_checkpoint_and_idle (test_space79.Space79Tests.test_native_lock_changed_checkpoint_and_idle) ... ok
+test_proof_annotations_and_beth (test_space79.Space79Tests.test_proof_annotations_and_beth) ... ok
+test_scope_isolation_alternatives_and_layout (test_space79.Space79Tests.test_scope_isolation_alternatives_and_layout) ... ok
+test_snapshot_async_prefix_restart_and_forgery (test_space79.Space79Tests.test_snapshot_async_prefix_restart_and_forgery) ... ok
+test_canonical_text_roundtrip (test_space_dialect.DialectTests.test_canonical_text_roundtrip) ... ok
+test_example_cli_execution (test_space_dialect.DialectTests.test_example_cli_execution) ... ok
+test_full_state_translation (test_space_dialect.DialectTests.test_full_state_translation) ... ok
+test_module_boundaries (test_space_dialect.DialectTests.test_module_boundaries) ... ok
+test_reject_bad_ssa_types_and_operations (test_space_dialect.DialectTests.test_reject_bad_ssa_types_and_operations) ... ok
+test_seeded_event_slices_match_direct_execution (test_space_dialect.DialectTests.test_seeded_event_slices_match_direct_execution) ... ok
+test_strings_are_data_and_old_states_remain_available (test_space_dialect.DialectTests.test_strings_are_data_and_old_states_remain_available) ... ok
+test_bounded_failure_is_not_data (test_web.WebTests.test_bounded_failure_is_not_data) ... ok
+test_bridge_resume_deduplicate_and_failure (test_web.WebTests.test_bridge_resume_deduplicate_and_failure) ... ok
+test_cache_hash_corruption_rejected (test_web.WebTests.test_cache_hash_corruption_rejected) ... ok
+test_external_text_cannot_become_code (test_web.WebTests.test_external_text_cannot_become_code) ... ok
+test_original_bytes_provenance_and_offline (test_web.WebTests.test_original_bytes_provenance_and_offline) ... ok
+test_refresh_and_malformed_discovery (test_web.WebTests.test_refresh_and_malformed_discovery) ... ok
+
+----------------------------------------------------------------------
+Ran 89 tests in 124.199s
+
+OK
+DEFINABILITY-ORACLE 16 Beth theories, 256 Craig pairs, zero mismatches
+ND78-ORACLE 417 sequents, four valuations each, zero mismatches
+ORACLE 3392 sequents, all 4 valuations each, zero mismatches
+DEFINITION-ORACLE 8 graphs, 47 definitions, zero mismatches
+SPACE79-ORACLE 417 sequents, zero mismatches
+SPACE79-INTERPOLATION 100 formula pairs; BETH six theories, zero mismatches
+PASS: 20 seeded graph closures against Python0066; all graph witnesses checked
+PASS: 20 fixed-seed closure comparisons against DLM 0066
+Generated candidate-vm.l from embedded sources using Maru
+warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
+1 warning generated.
+Built compiler-source image: /research/dlm_v0.0086/runtime/releases/20261023T104654Z-20404/next
+Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.
+Generated candidate-vm.l from embedded sources using Maru
+warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
+1 warning generated.
+Built compiler-source image: /research/dlm_v0.0086/runtime/releases/20261023T104654Z-20404/third
+Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.

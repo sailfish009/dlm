@@ -1,0 +1,2859 @@
+{
+  "protocol": "randomized arm order; structurally varied three seeds; five modes; two repeats",
+  "caveats": [
+    "fixed-six budget8 counts different work units for legacy and indexed modes",
+    "search time is measured between parent-observed stdout markers; no hard time guarantee",
+    "workflow time includes startup, open/observe/configure, search and durable close; excludes heldout evaluation",
+    "attached search includes full checkpoint replay; certification counter includes replay",
+    "sampled VmHWM is a whole-process peak-memory proxy, not equal-memory control",
+    "heldout graph is a small formal transfer probe; no broad generalization claim"
+  ],
+  "results": [
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "cache",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 627,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 3,
+      "stop": "saturated",
+      "search_seconds": 0.2549330310002915,
+      "workflow_seconds": 0.41469888600022387,
+      "sampled_process_hwm_kib": 15900
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "legacy",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 3,
+      "heldout_proved_instances": 0,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.19421206400011215,
+      "workflow_seconds": 0.3542386859999169,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "legacy",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 3,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.20344790500030285,
+      "workflow_seconds": 0.36538375999998607,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "rank",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 13,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 1032,
+      "actual_search_certify_calls": 13,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.5532720940000218,
+      "workflow_seconds": 0.7146669939997992,
+      "sampled_process_hwm_kib": 15948
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "indexed",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1022,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.23473635499976808,
+      "workflow_seconds": 0.6669315720000668,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "cache",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1020,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.25602905000005194,
+      "workflow_seconds": 0.7233865789999072,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "rank",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 809,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.15466462399990633,
+      "workflow_seconds": 0.32108442499975354,
+      "sampled_process_hwm_kib": 15796
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "rank",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1175,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.1563117579999016,
+      "workflow_seconds": 0.3537379509998573,
+      "sampled_process_hwm_kib": 15848
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "rank",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1019,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.22560065300012866,
+      "workflow_seconds": 0.7063672929998575,
+      "sampled_process_hwm_kib": 15952
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "rank",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 7,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 607,
+      "actual_search_certify_calls": 7,
+      "negative_cache_hits": 2,
+      "stop": "saturated",
+      "search_seconds": 0.30226153600006,
+      "workflow_seconds": 0.45160797099970296,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "cache",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 664,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.25626743800012264,
+      "workflow_seconds": 0.4324144760003037,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "legacy",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 12,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.2443122829999993,
+      "workflow_seconds": 0.41212103099996966,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1018,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.24228934199982177,
+      "workflow_seconds": 0.7160031999997045,
+      "sampled_process_hwm_kib": 15948
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "cache",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 810,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.1586141959996894,
+      "workflow_seconds": 0.5547023399999489,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 16,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 1011,
+      "actual_search_certify_calls": 16,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.5632544669997515,
+      "workflow_seconds": 0.7276383280000118,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "rank",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 809,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.1617083759997513,
+      "workflow_seconds": 0.5944936180003424,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1174,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.2830713799999103,
+      "workflow_seconds": 0.7689193319997685,
+      "sampled_process_hwm_kib": 16000
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "legacy",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 12,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.20744648599975335,
+      "workflow_seconds": 0.37274007799987885,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1174,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.33826623000004474,
+      "workflow_seconds": 0.8784271190002073,
+      "sampled_process_hwm_kib": 16000
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "legacy",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.17661954300001526,
+      "workflow_seconds": 0.33732337799983725,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 662,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.26643986000044606,
+      "workflow_seconds": 0.4413929779998398,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "rank",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 10,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 666,
+      "actual_search_certify_calls": 10,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.26880134700013514,
+      "workflow_seconds": 0.42743565300042974,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "rank",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1019,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.15251784400015822,
+      "workflow_seconds": 0.3286260919999222,
+      "sampled_process_hwm_kib": 15848
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "rank",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1019,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.1429182659999242,
+      "workflow_seconds": 0.31701258399971266,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "legacy",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.14790718899985222,
+      "workflow_seconds": 0.30629958700001225,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "legacy",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 13,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.2846813840001232,
+      "workflow_seconds": 0.7033563509999112,
+      "sampled_process_hwm_kib": 16004
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "cache",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1176,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.2695198500000515,
+      "workflow_seconds": 0.7229707520000375,
+      "sampled_process_hwm_kib": 16000
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "legacy",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.12429120599972521,
+      "workflow_seconds": 0.46796736300029806,
+      "sampled_process_hwm_kib": 15900
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "indexed",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1022,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.12450891400021646,
+      "workflow_seconds": 0.2838883320000605,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1018,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.1372535309997147,
+      "workflow_seconds": 0.29701696499978425,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "cache",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1020,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.1621163620002335,
+      "workflow_seconds": 0.3540684970002985,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "indexed",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1022,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.17636631499999567,
+      "workflow_seconds": 0.3759859170004347,
+      "sampled_process_hwm_kib": 15848
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "legacy",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 3,
+      "heldout_proved_instances": 0,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.16639695100002427,
+      "workflow_seconds": 0.3255483509997248,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "indexed",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1178,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.2839911999999458,
+      "workflow_seconds": 0.802518346999932,
+      "sampled_process_hwm_kib": 16000
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "indexed",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 553,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.23325530800002525,
+      "workflow_seconds": 0.37968687100010357,
+      "sampled_process_hwm_kib": 15900
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "rank",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1019,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.22166360000028362,
+      "workflow_seconds": 0.675177120999706,
+      "sampled_process_hwm_kib": 15948
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 625,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 2,
+      "stop": "saturated",
+      "search_seconds": 0.3177922549998584,
+      "workflow_seconds": 0.4800964549999662,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "rank",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 809,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.152058358999966,
+      "workflow_seconds": 0.530093945000317,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "indexed",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 812,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.14550017100009427,
+      "workflow_seconds": 0.49574285500011683,
+      "sampled_process_hwm_kib": 15948
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "indexed",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1178,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.1624071289998028,
+      "workflow_seconds": 0.4098155910000969,
+      "sampled_process_hwm_kib": 15848
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "legacy",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 13,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.2905626570000095,
+      "workflow_seconds": 0.7157264709999254,
+      "sampled_process_hwm_kib": 16004
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "indexed",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 11,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 572,
+      "actual_search_certify_calls": 11,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.2652710500001376,
+      "workflow_seconds": 0.42651710000018284,
+      "sampled_process_hwm_kib": 15900
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "cache",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 810,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.1466242510000484,
+      "workflow_seconds": 0.3100402700001723,
+      "sampled_process_hwm_kib": 15796
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "legacy",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 5,
+      "heldout_proved_instances": 3,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.18244351600014852,
+      "workflow_seconds": 0.3590213990000848,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "indexed",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 12,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 756,
+      "actual_search_certify_calls": 12,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.3926776160001282,
+      "workflow_seconds": 0.5521951020000415,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "rank",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 7,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 607,
+      "actual_search_certify_calls": 7,
+      "negative_cache_hits": 2,
+      "stop": "saturated",
+      "search_seconds": 0.21638295000002472,
+      "workflow_seconds": 0.3832700059997478,
+      "sampled_process_hwm_kib": 15848
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "cache",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 664,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.24057262699989224,
+      "workflow_seconds": 0.3997128880000673,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 808,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.15369182299991735,
+      "workflow_seconds": 0.5692333890001464,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "legacy",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.14942860300016036,
+      "workflow_seconds": 0.5295365800002401,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "cache",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 810,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.1755301020002662,
+      "workflow_seconds": 0.5681745379997665,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "legacy",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 12,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.22162908900008915,
+      "workflow_seconds": 0.589500383000086,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "cache",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1020,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.14346722999971462,
+      "workflow_seconds": 0.32418681400031346,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "legacy",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 12,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.224849548000293,
+      "workflow_seconds": 0.6842885809996915,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "indexed",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 12,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 756,
+      "actual_search_certify_calls": 12,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.4468304550000539,
+      "workflow_seconds": 0.6147472400002698,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "indexed",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 553,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.23204817900023045,
+      "workflow_seconds": 0.3887441930000932,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1174,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.14745852199985165,
+      "workflow_seconds": 0.32943650199968033,
+      "sampled_process_hwm_kib": 15848
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "indexed",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1178,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.19002223300003607,
+      "workflow_seconds": 0.3814716120000412,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "indexed",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 812,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.12385330000006434,
+      "workflow_seconds": 0.2734121620001133,
+      "sampled_process_hwm_kib": 15800
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "rank",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 809,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.14175311700000748,
+      "workflow_seconds": 0.2890319210000598,
+      "sampled_process_hwm_kib": 15796
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "indexed",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 812,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.17523527499997726,
+      "workflow_seconds": 0.3366352430002735,
+      "sampled_process_hwm_kib": 15796
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "rank",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1175,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.13696156300011353,
+      "workflow_seconds": 0.30919758700019884,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 808,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.15981679400010762,
+      "workflow_seconds": 0.5805779679999432,
+      "sampled_process_hwm_kib": 15948
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "indexed",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 812,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.13545361800015598,
+      "workflow_seconds": 0.49119324700041034,
+      "sampled_process_hwm_kib": 15948
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "legacy",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 13,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.2410115030002089,
+      "workflow_seconds": 0.41248531400015054,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "cache",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1176,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.13666105699985565,
+      "workflow_seconds": 0.32394000600015715,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "legacy",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 13,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.19076478599981783,
+      "workflow_seconds": 0.33792989099993065,
+      "sampled_process_hwm_kib": 15848
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 662,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.2542610559999048,
+      "workflow_seconds": 0.41278252200027055,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "legacy",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 3,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.21443423800019445,
+      "workflow_seconds": 0.39121560800003863,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "cache",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 11,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 813,
+      "actual_search_certify_calls": 11,
+      "negative_cache_hits": 1,
+      "stop": "learned",
+      "search_seconds": 0.39919787200005885,
+      "workflow_seconds": 0.573810002999835,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "indexed",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 11,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 572,
+      "actual_search_certify_calls": 11,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.26818604199979745,
+      "workflow_seconds": 0.4329614270000093,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "legacy",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 5,
+      "heldout_proved_instances": 3,
+      "controller_serialized_bytes": 42,
+      "actual_search_certify_calls": null,
+      "negative_cache_hits": 0,
+      "stop": "ready",
+      "search_seconds": 0.20653748499989888,
+      "workflow_seconds": 0.3649958709997918,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "cache",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 627,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 3,
+      "stop": "saturated",
+      "search_seconds": 0.26157736499999373,
+      "workflow_seconds": 0.42509611300010874,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1018,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.14732176400002572,
+      "workflow_seconds": 0.330478143000164,
+      "sampled_process_hwm_kib": 15848
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "rank",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1175,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.3604586350002137,
+      "workflow_seconds": 0.8571571480001694,
+      "sampled_process_hwm_kib": 16000
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "cache",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1176,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.18120043699991584,
+      "workflow_seconds": 0.3731499519999488,
+      "sampled_process_hwm_kib": 15848
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "cache",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 1,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 11,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 813,
+      "actual_search_certify_calls": 11,
+      "negative_cache_hits": 1,
+      "stop": "learned",
+      "search_seconds": 0.3914750959997946,
+      "workflow_seconds": 0.5710771589997421,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "rank",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1175,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.300648739999815,
+      "workflow_seconds": 0.8038119810003082,
+      "sampled_process_hwm_kib": 16000
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1174,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.1455601600000591,
+      "workflow_seconds": 0.32770155900016107,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "indexed",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1178,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.31694740199964144,
+      "workflow_seconds": 0.8445455790001688,
+      "sampled_process_hwm_kib": 16000
+    },
+    {
+      "seed": 1,
+      "workload": "mixed",
+      "mode": "rank",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 10,
+      "heldout_proved_instances": 2,
+      "controller_serialized_bytes": 666,
+      "actual_search_certify_calls": 10,
+      "negative_cache_hits": 0,
+      "stop": "saturated",
+      "search_seconds": 0.2858513109999876,
+      "workflow_seconds": 0.4456827640001393,
+      "sampled_process_hwm_kib": 15896
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 16,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 1011,
+      "actual_search_certify_calls": 16,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.6103452110000944,
+      "workflow_seconds": 0.7762354960000266,
+      "sampled_process_hwm_kib": 15948
+    },
+    {
+      "seed": 2,
+      "workload": "distractors",
+      "mode": "cache",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 6,
+      "controller_serialized_bytes": 1176,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.31246304599972063,
+      "workflow_seconds": 0.8138033940003879,
+      "sampled_process_hwm_kib": 16004
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "cache",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1020,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.2194511800003056,
+      "workflow_seconds": 0.6681101650001438,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1018,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.23817389000032563,
+      "workflow_seconds": 0.6784401360000629,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 808,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.14715083500004766,
+      "workflow_seconds": 0.31342510599961315,
+      "sampled_process_hwm_kib": 15796
+    },
+    {
+      "seed": 0,
+      "workload": "mixed",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s",
+          "r"
+        ],
+        [
+          "r",
+          "s"
+        ]
+      ],
+      "certify_calls_including_replay": 8,
+      "heldout_proved_instances": 5,
+      "controller_serialized_bytes": 625,
+      "actual_search_certify_calls": 8,
+      "negative_cache_hits": 2,
+      "stop": "saturated",
+      "search_seconds": 0.22769158999972205,
+      "workflow_seconds": 0.3871237979997204,
+      "sampled_process_hwm_kib": 15844
+    },
+    {
+      "seed": 1,
+      "workload": "distractors",
+      "mode": "indexed",
+      "attached": true,
+      "protocol": "target-two",
+      "repeat": 1,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 15,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 1022,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.2216025789998639,
+      "workflow_seconds": 0.657214759999988,
+      "sampled_process_hwm_kib": 15944
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "cache",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 810,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.13243753599999764,
+      "workflow_seconds": 0.29322813999988284,
+      "sampled_process_hwm_kib": 15796
+    },
+    {
+      "seed": 2,
+      "workload": "mixed",
+      "mode": "rank",
+      "attached": false,
+      "protocol": "fixed-six",
+      "repeat": 0,
+      "steps": 6,
+      "paths": [
+        [
+          "s",
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "s",
+          "r",
+          "r"
+        ],
+        [
+          "r",
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "s"
+        ],
+        [
+          "r",
+          "r"
+        ],
+        [
+          "s",
+          "r"
+        ]
+      ],
+      "certify_calls_including_replay": 13,
+      "heldout_proved_instances": 4,
+      "controller_serialized_bytes": 1032,
+      "actual_search_certify_calls": 13,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.4420461780000551,
+      "workflow_seconds": 0.6011090189999777,
+      "sampled_process_hwm_kib": 15948
+    },
+    {
+      "seed": 0,
+      "workload": "distractors",
+      "mode": "ucb",
+      "attached": false,
+      "protocol": "target-two",
+      "repeat": 0,
+      "steps": 2,
+      "paths": [
+        [
+          "edge",
+          "edge",
+          "edge"
+        ],
+        [
+          "edge",
+          "edge"
+        ]
+      ],
+      "certify_calls_including_replay": 2,
+      "heldout_proved_instances": 7,
+      "controller_serialized_bytes": 808,
+      "actual_search_certify_calls": 2,
+      "negative_cache_hits": 0,
+      "stop": "learned",
+      "search_seconds": 0.12408706599990182,
+      "workflow_seconds": 0.2729503149998891,
+      "sampled_process_hwm_kib": 15796
+    }
+  ]
+}

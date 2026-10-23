@@ -9,7 +9,8 @@ files+=("$ROOT/src/dlm/formula.l" "$ROOT/src/dlm/sequent.l" "$ROOT/src/dlm/seque
 files+=("$ROOT/src/dlm/proof-pattern.l" "$ROOT/src/dlm/nondeterministic.l" "$ROOT/src/dlm/definability.l")
 files+=("$ROOT/src/dlm/axiom-space.l" "$ROOT/src/dlm/session-store.l" "$ROOT/src/dlm/repl.l" "$ROOT/src/dlm/reasoning-session.l")
 files+=("$ROOT/src/dlm/space.l" "$ROOT/src/dlm/space-execution.l" "$ROOT/src/dlm/space-learning.l" "$ROOT/src/dlm/space-definitions.l" "$ROOT/src/dlm/space-session.l")
-files+=("$ROOT/src/dlm/ground-space.l" "$ROOT/src/dlm/ground-session.l")
+files+=("$ROOT/src/dlm/ground-space.l" "$ROOT/src/dlm/ground-session.l" "$ROOT/src/dlm/ground-bridge.l")
+files+=("$ROOT/src/dlm/search-control.l" "$ROOT/src/dlm/search-session.l" "$ROOT/src/dlm/recursive86.l")
 case "${1:-repl}" in
  proof) exec "$MARU" "${files[@]}" "${2:?proof driver required}" ;;
  graph-session) exec "$MARU" "${files[@]}" "$ROOT/experiments/graph/session.l" ;;
@@ -21,6 +22,17 @@ case "${1:-repl}" in
  session) exec "$MARU" "${files[@]}" "$ROOT/experiments/symbolic/data.l" "${2:?session driver required}" ;;
  constraints) exec "$MARU" "${files[@]}" "$ROOT/experiments/constraints/run.l" "$ROOT/tests/constraint-tests.l" ;;
  interaction) exec "$MARU" "${files[@]}" "$ROOT/experiments/interaction/run.l" "$ROOT/tests/interaction-tests.l" ;;
+ recursive86)
+  STORE="${2:?snapshot path required}"
+  DEMO="${3:-false}"; ROUNDS="${4:-0}"; INTERVAL="${5:-1000}"; BUDGET="${6:-8}"
+  [[ "$DEMO" == true || "$DEMO" == false ]] || exit 2
+  [[ "$ROUNDS" =~ ^(0|[1-9][0-9]{0,4})$ && "$INTERVAL" =~ ^(0|[1-9][0-9]{0,4})$ && "$BUDGET" =~ ^(0|[1-9][0-9]{0,4})$ ]] || exit 2
+  (( ROUNDS <= 1000 && INTERVAL >= 20 && INTERVAL <= 60000 && BUDGET >= 1 && BUDGET <= 16 )) || exit 2
+  mkdir -p "$(dirname "$STORE")"
+  tail=(); if (( ROUNDS == 0 )); then tail=(-); fi
+  exec "$MARU" "${files[@]}" --define '*dlm-session-path*' "$STORE" --define '*r86-demo*' "$DEMO" \
+    --define '*r86-rounds*' "$ROUNDS" --define '*r86-interval*' "$INTERVAL" --define '*r86-budget*' "$BUDGET" \
+    "$ROOT/experiments/repl/recursive86.l" "${tail[@]}" ;;
  repl) exec "$MARU" "${files[@]}" - ;;
  space)
   STORE="${2:-$ROOT/experiments/repl/store/space79.sexp}"
@@ -37,5 +49,5 @@ case "${1:-repl}" in
   mkdir -p "$(dirname "$STORE")"
   exec "$MARU" "${files[@]}" --define '*dlm-session-path*' "$STORE" --define '*dlm-demo-mode*' "$DEMO" "$ROOT/experiments/repl/start.l" - ;;
  test) exec "$MARU" "${files[@]}" "$ROOT/tests/demo.l" "$ROOT/tests/kernel-tests.l" "$ROOT/tests/model-tests.l" "$ROOT/tests/safety-tests.l" "$ROOT/experiments/interaction/run.l" "$ROOT/tests/interaction-tests.l" "$ROOT/experiments/constraints/run.l" "$ROOT/tests/constraint-tests.l" "$ROOT/experiments/symbolic/run.l" "$ROOT/tests/symbolic-tests.l" "$ROOT/experiments/symbolic/controls.l" "$ROOT/tests/web-tests.l" "$ROOT/experiments/graph/run.l" "$ROOT/tests/graph-tests.l" "$ROOT/experiments/graph/transfer.l" "$ROOT/tests/sequent-tests.l" "$ROOT/tests/axiom-space-tests.l" "$ROOT/tests/reasoning-tests.l" "$ROOT/tests/space-tests.l" ;;
- *) echo 'usage: run.sh [proof DRIVER|repl|learn|reason|space|test|interaction|constraints|symbolic|session|web-ingest|web-report|graph|graph-session|graph-report]' >&2; exit 2 ;;
+ *) echo 'usage: run.sh [proof DRIVER|repl|learn|reason|space|recursive86 STORE DEMO ROUNDS INTERVAL BUDGET|test|interaction|constraints|symbolic|session|web-ingest|web-report|graph|graph-session|graph-report]' >&2; exit 2 ;;
 esac

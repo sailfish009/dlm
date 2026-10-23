@@ -1,0 +1,17 @@
+DLM 0.0086: generated choose programs -> native proof gate -> recursive learning.
+(dlm77 paused round 0 episodes 0 definitions 0 cursor 0 last (restored missing) store "/tmp/tmp.Z714tandlC/state.sexp")
+Explicit demo observations added.
+[DLM round 1] Defined c77-0 by composing edge then edge; primitive path (edge edge); checked 6 source instances.
+(search84 nd-ucb certify-calls 2 negative-cache-hits 0 joined-pairs 6 proof-entries 32 pending-candidates 1 family-stats (((2 1 1) (1 6 33))) stop-reason learned generated-program (nd86 branches 1 events 3 admitted true records (((edge edge) (compose edge edge) learned 6 16))))
+[DLM round 2] Defined c77-1 by composing c77-0 then edge; primitive path (edge edge edge); checked 4 source instances.
+(search84 nd-ucb certify-calls 6 negative-cache-hits 0 joined-pairs 22 proof-entries 110 pending-candidates 3 family-stats (((2 1 1) (1 6 33)) ((3 2 1) (1 4 41)) ((4 2 2) (1 2 19)) ((3 1 2) (1 4 21))) stop-reason learned generated-program (nd86 branches 3 events 7 admitted true records (((edge edge edge) (compose "c77-0" edge) learned 4 20) ((edge edge edge edge) (compose "c77-0" "c77-0") learned 2 18) ((edge edge edge) (compose edge "c77-0") learned 4 20))))
+[DLM round 3] Defined c77-2 by composing c77-1 then edge; primitive path (edge edge edge edge); checked 2 source instances.
+(search84 nd-ucb certify-calls 10 negative-cache-hits 0 joined-pairs 42 proof-entries 198 pending-candidates 3 family-stats (((2 1 1) (1 6 33)) ((3 2 1) (1 4 41)) ((4 2 2) (2 4 42)) ((3 1 2) (1 4 21)) ((4 3 1) (1 2 45)) ((4 1 3) (1 2 23))) stop-reason learned generated-program (nd86 branches 3 events 7 admitted true records (((edge edge edge edge) (compose "c77-1" edge) learned 2 22) ((edge edge edge edge) (compose edge "c77-1") learned 2 22) ((edge edge edge edge) (compose "c77-0" "c77-0") learned 2 22))))
+[DLM round 4] No new reusable definition in the current bounded grammar; waiting for evidence.
+(search84 nd-ucb certify-calls 10 negative-cache-hits 0 joined-pairs 62 proof-entries 198 pending-candidates 0 family-stats (((2 1 1) (1 6 33)) ((3 2 1) (1 4 41)) ((4 2 2) (2 4 42)) ((3 1 2) (1 4 21)) ((4 3 1) (1 2 45)) ((4 1 3) (1 2 23))) stop-reason saturated generated-program (nd86 branches 3 events 7 admitted true records (((edge edge edge edge) (compose "c77-1" edge) learned 2 22) ((edge edge edge edge) (compose edge "c77-1") learned 2 22) ((edge edge edge edge) (compose "c77-0" "c77-0") learned 2 22))))
+(closed)
+DLM 0.0086: generated choose programs -> native proof gate -> recursive learning.
+(dlm77 paused round 4 episodes 2 definitions 3 cursor 0 last (restored loaded) store "/tmp/tmp.Z714tandlC/state.sexp")
+[DLM round 5] Still waiting for new evidence; no learning update.
+(search84 nd-ucb certify-calls 10 negative-cache-hits 0 joined-pairs 62 proof-entries 198 pending-candidates 0 family-stats (((2 1 1) (1 6 33)) ((3 2 1) (1 4 41)) ((4 2 2) (2 4 42)) ((3 1 2) (1 4 21)) ((4 3 1) (1 2 45)) ((4 1 3) (1 2 23))) stop-reason saturated generated-program (nd86 branches 3 events 7 admitted true records (((edge edge edge edge) (compose "c77-1" edge) learned 2 22) ((edge edge edge edge) (compose edge "c77-1") learned 2 22) ((edge edge edge edge) (compose "c77-0" "c77-0") learned 2 22))))
+(closed)
