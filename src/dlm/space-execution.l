@@ -49,6 +49,8 @@
 ;;; Optional data-only native definition gate, installed by recursive86.l.
 (define s86-action? ())
 (define s86-certify ())
+(define s87-action? ())
+(define s87-verify ())
 (define-function s79-program? (tasks fuel)
   (and (> fuel 0) (dlm-proper? tasks 256)
     (let ((ok true)) (list-do t tasks
@@ -57,6 +59,8 @@
           ((= (car t) 'choose) (and (sq-shape? t 2) (dlm-nth t 1) (dlm-proper? (dlm-nth t 1) 16)
             (let ((valid true)) (list-do alt (dlm-nth t 1)
               (if (not (s79-program? alt (- fuel 1))) (set valid false))) valid)))
+          ((= (car t) 'verify87)
+            (and (sq-shape? t 2) s87-action? (s87-action? (dlm-nth t 1))))
           ((= (car t) 'certify86)
             (and (sq-shape? t 2) s86-action? (s86-action? (dlm-nth t 1))))
           ((= (car t) 'ask) (and (sq-shape? t 2) (sq-problem? (dlm-nth t 1))))
@@ -103,6 +107,13 @@
                     (set continue false) (set s (s79-unit-field s id 4 'failed))
                     (list-do alt arg
                       (set s (car (s79-program-branch s name (dlm-append alt tasks) ctx id)))))))
+              ((= op 'verify87)
+                (let ((result (s87-verify arg)))
+                  (set ctx (s79-field ctx 1 (s79-put (s79-put (dlm-nth ctx 1)
+                    'candidate87 (car arg)) 'checked87 result)))
+                  (if (not (= (car result) 'verified87))
+                    (begin (set continue false)
+                      (set s (s79-program-fail s id (list 'contract87 (car result))))))))
               ((= op 'certify86)
                 (let ((ticket (s86-certify arg)))
                   (set ctx (s79-field ctx 1 (s79-put (s79-put (dlm-nth ctx 1)

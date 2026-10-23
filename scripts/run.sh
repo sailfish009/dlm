@@ -11,6 +11,8 @@ files+=("$ROOT/src/dlm/axiom-space.l" "$ROOT/src/dlm/session-store.l" "$ROOT/src
 files+=("$ROOT/src/dlm/space.l" "$ROOT/src/dlm/space-execution.l" "$ROOT/src/dlm/space-learning.l" "$ROOT/src/dlm/space-definitions.l" "$ROOT/src/dlm/space-session.l")
 files+=("$ROOT/src/dlm/ground-space.l" "$ROOT/src/dlm/ground-session.l" "$ROOT/src/dlm/ground-bridge.l")
 files+=("$ROOT/src/dlm/search-control.l" "$ROOT/src/dlm/search-session.l" "$ROOT/src/dlm/recursive86.l")
+files+=("$ROOT/src/dlm/contracts87-ir.l" "$ROOT/src/dlm/contracts87-check.l" "$ROOT/src/dlm/contracts87-runtime.l")
+files+=("$ROOT/src/dlm/contracts88-curriculum.l" "$ROOT/src/dlm/contracts88-session.l")
 case "${1:-repl}" in
  proof) exec "$MARU" "${files[@]}" "${2:?proof driver required}" ;;
  graph-session) exec "$MARU" "${files[@]}" "$ROOT/experiments/graph/session.l" ;;
@@ -28,10 +30,17 @@ case "${1:-repl}" in
   [[ "$DEMO" == true || "$DEMO" == false ]] || exit 2
   [[ "$ROUNDS" =~ ^(0|[1-9][0-9]{0,4})$ && "$INTERVAL" =~ ^(0|[1-9][0-9]{0,4})$ && "$BUDGET" =~ ^(0|[1-9][0-9]{0,4})$ ]] || exit 2
   (( ROUNDS <= 1000 && INTERVAL >= 20 && INTERVAL <= 60000 && BUDGET >= 1 && BUDGET <= 16 )) || exit 2
+  CONTRACTS_DEMO="${7:-false}"; CONTRACT_BATCH="${8:-0}"; CONTRACT_FUEL="${9:-0}"; BUDGET_SET="${10:-false}"; CURRICULUM="${11:-0}"
+  [[ "$CONTRACTS_DEMO" == true || "$CONTRACTS_DEMO" == false ]] || exit 2
+  [[ "$BUDGET_SET" == true || "$BUDGET_SET" == false ]] || exit 2
+  [[ "$CONTRACT_BATCH" =~ ^(0|[1-9][0-9]{0,1})$ && "$CONTRACT_FUEL" =~ ^(0|[1-9][0-9]{0,5})$ && "$CURRICULUM" =~ ^[0-3]$ ]] || exit 2
+  (( CONTRACT_BATCH <= 16 && CONTRACT_FUEL <= 200000 )) || exit 2
   mkdir -p "$(dirname "$STORE")"
   tail=(); if (( ROUNDS == 0 )); then tail=(-); fi
   exec "$MARU" "${files[@]}" --define '*dlm-session-path*' "$STORE" --define '*r86-demo*' "$DEMO" \
     --define '*r86-rounds*' "$ROUNDS" --define '*r86-interval*' "$INTERVAL" --define '*r86-budget*' "$BUDGET" \
+    --define '*r88-contracts-demo*' "$CONTRACTS_DEMO" --define '*r88-contract-batch*' "$CONTRACT_BATCH" \
+    --define '*r88-contract-fuel*' "$CONTRACT_FUEL" --define '*r88-budget-set*' "$BUDGET_SET" --define '*r88-mode*' "$CURRICULUM" \
     "$ROOT/experiments/repl/recursive86.l" "${tail[@]}" ;;
  repl) exec "$MARU" "${files[@]}" - ;;
  space)

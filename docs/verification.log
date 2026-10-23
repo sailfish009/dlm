@@ -249,6 +249,32 @@ test_next_round_uses_previous_verified_cache (test_bridge83.Bridge83Tests.test_n
 test_retract_removes_stale_episode_support (test_bridge83.Bridge83Tests.test_retract_removes_stale_episode_support) ... ok
 test_saved_mode_cache_and_next_step_restore_in_new_process (test_bridge83.Bridge83Tests.test_saved_mode_cache_and_next_step_restore_in_new_process) ... ok
 test_unsupported_projection_falls_back_without_changing_learning (test_bridge83.Bridge83Tests.test_unsupported_projection_falls_back_without_changing_learning) ... ok
+test_checked_summary_calls_preconditions_and_dependency_versions (test_contracts87.Contracts87Tests.test_checked_summary_calls_preconditions_and_dependency_versions) ... ok
+test_every_feasible_runtime_path_and_frame_old (test_contracts87.Contracts87Tests.test_every_feasible_runtime_path_and_frame_old) ... ok
+test_forged_provisional_ticket_cannot_admit (test_contracts87.Contracts87Tests.test_forged_provisional_ticket_cannot_admit) ... ok
+test_native_storage_rechecks_proofs_and_rejects_corruption (test_contracts87.Contracts87Tests.test_native_storage_rechecks_proofs_and_rejects_corruption) ... ok
+test_original_repl_exposes_contract_learning (test_contracts87.Contracts87Tests.test_original_repl_exposes_contract_learning) ... ok
+test_real_generation_learning_and_verified_call_reuse (test_contracts87.Contracts87Tests.test_real_generation_learning_and_verified_call_reuse) ... ok
+test_seeded_python_semantic_oracle (test_contracts87.Contracts87Tests.test_seeded_python_semantic_oracle) ... ok
+test_tampered_coverage_and_trace_rejected_by_independent_checker (test_contracts87.Contracts87Tests.test_tampered_coverage_and_trace_rejected_by_independent_checker) ... ok
+test_unsupported_or_ill_typed_programs_fail_closed (test_contracts87.Contracts87Tests.test_unsupported_or_ill_typed_programs_fail_closed) ... ok
+test_vacuity_and_budget_are_not_success (test_contracts87.Contracts87Tests.test_vacuity_and_budget_are_not_success) ... ok
+test_verified_modules_compose_for_a_stronger_goal (test_contracts87.Contracts87Tests.test_verified_modules_compose_for_a_stronger_goal) ... ok
+test_checkpoint_failure_rolls_back_round_library_goal_and_policy (test_contracts88.Contracts88Tests.test_checkpoint_failure_rolls_back_round_library_goal_and_policy) ... ok
+test_empty_precondition_is_terminal_inapplicable_not_a_learned_solution (test_contracts88.Contracts88Tests.test_empty_precondition_is_terminal_inapplicable_not_a_learned_solution) ... ok
+test_finite_shell_joint_store_restart_and_config_preservation (test_contracts88.Contracts88Tests.test_finite_shell_joint_store_restart_and_config_preservation) ... ok
+test_first_joint_transaction_lazily_reconstructs_legacy_controller (test_contracts88.Contracts88Tests.test_first_joint_transaction_lazily_reconstructs_legacy_controller) ... ok
+test_fresh_process_restores_partial_frontier_control_budget_and_next_step (test_contracts88.Contracts88Tests.test_fresh_process_restores_partial_frontier_control_budget_and_next_step) ... ok
+test_legacy_open_cannot_silently_discard_live_contract_state (test_contracts88.Contracts88Tests.test_legacy_open_cannot_silently_discard_live_contract_state) ... ok
+test_manual_contract_learning_is_persisted_by_dlm_save_and_reset_is_joint (test_contracts88.Contracts88Tests.test_manual_contract_learning_is_persisted_by_dlm_save_and_reset_is_joint) ... ok
+test_new_checked_library_reopens_generation_bound_goal (test_contracts88.Contracts88Tests.test_new_checked_library_reopens_generation_bound_goal) ... ok
+test_one_step_curriculum_learns_both_domains_and_reuses_modules (test_contracts88.Contracts88Tests.test_one_step_curriculum_learns_both_domains_and_reuses_modules) ... ok
+test_original_repl_idle_performs_contract_learning_in_one_process (test_contracts88.Contracts88Tests.test_original_repl_idle_performs_contract_learning_in_one_process) ... ok
+test_plain_relation_cursor_is_also_checkpointed_in_joint_sessions (test_contracts88.Contracts88Tests.test_plain_relation_cursor_is_also_checkpointed_in_joint_sessions) ... ok
+test_request_limit_is_preflighted_and_pauses_without_an_event_or_round (test_contracts88.Contracts88Tests.test_request_limit_is_preflighted_and_pauses_without_an_event_or_round) ... ok
+test_search_tickets_and_theorems_for_another_goal_cannot_admit (test_contracts88.Contracts88Tests.test_search_tickets_and_theorems_for_another_goal_cannot_admit) ... ok
+test_tampered_goals_libraries_events_and_version_downgrade_are_rejected (test_contracts88.Contracts88Tests.test_tampered_goals_libraries_events_and_version_downgrade_are_rejected) ... ok
+test_unknown_budget_is_blocked_not_refutation_and_retries_after_budget_change (test_contracts88.Contracts88Tests.test_unknown_budget_is_blocked_not_refutation_and_retries_after_budget_change) ... ok
 test_data_strings (test_fld.ParserTests.test_data_strings) ... ok
 test_empty_and_placeholder (test_fld.ParserTests.test_empty_and_placeholder) ... ok
 test_full_consumption (test_fld.ParserTests.test_full_consumption) ... ok
@@ -334,9 +360,10 @@ test_original_bytes_provenance_and_offline (test_web.WebTests.test_original_byte
 test_refresh_and_malformed_discovery (test_web.WebTests.test_refresh_and_malformed_discovery) ... ok
 
 ----------------------------------------------------------------------
-Ran 89 tests in 124.199s
+Ran 115 tests in 167.877s
 
 OK
+CONTRACT87-ORACLE 200 finite programs, four input valuations each, zero mismatches
 DEFINABILITY-ORACLE 16 Beth theories, 256 Craig pairs, zero mismatches
 ND78-ORACLE 417 sequents, four valuations each, zero mismatches
 ORACLE 3392 sequents, all 4 valuations each, zero mismatches
@@ -348,10 +375,10 @@ PASS: 20 fixed-seed closure comparisons against DLM 0066
 Generated candidate-vm.l from embedded sources using Maru
 warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
 1 warning generated.
-Built compiler-source image: /research/dlm_v0.0086/runtime/releases/20261023T104654Z-20404/next
+Built compiler-source image: /research/dlm_v0.0088/runtime/releases/20261023T121713Z-27384/next
 Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.
 Generated candidate-vm.l from embedded sources using Maru
 warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
 1 warning generated.
-Built compiler-source image: /research/dlm_v0.0086/runtime/releases/20261023T104654Z-20404/third
+Built compiler-source image: /research/dlm_v0.0088/runtime/releases/20261023T121713Z-27384/third
 Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.

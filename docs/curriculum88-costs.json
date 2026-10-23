@@ -1,0 +1,14 @@
+{
+  "release": "20261023T121713Z-27384",
+  "protocol": "Exploratory six randomized fresh processes, order seed88. Identical ten-step test_contracts88.SETUP, three native definitions and three checked procedures. Includes subprocess startup, all admissions, full-library check and final close. Memory arm has no attached store; attached arm checkpoints every event. Not a speedup or statistical superiority test.",
+  "runs": [
+    {"arm":"attached","seconds":6.848223,"native_definitions":3,"procedures":3,"steps":10,"snapshot_bytes":5523},
+    {"arm":"attached","seconds":6.824608,"native_definitions":3,"procedures":3,"steps":10,"snapshot_bytes":5523},
+    {"arm":"memory","seconds":0.617014,"native_definitions":3,"procedures":3,"steps":10,"snapshot_bytes":0},
+    {"arm":"memory","seconds":0.606649,"native_definitions":3,"procedures":3,"steps":10,"snapshot_bytes":0},
+    {"arm":"memory","seconds":0.625401,"native_definitions":3,"procedures":3,"steps":10,"snapshot_bytes":0},
+    {"arm":"attached","seconds":6.854055,"native_definitions":3,"procedures":3,"steps":10,"snapshot_bytes":5523}
+  ],
+  "median_seconds": {"memory":0.617014,"attached":6.848223},
+  "interpretation": "Both achieve the same finite goals. End-to-end durable execution is substantially slower: repeated proof validation and journal replay dominate. Reuse is demonstrated semantically, not as a speed benefit. Three runs per arm are a small local diagnostic, not a general performance estimate."
+}

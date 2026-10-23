@@ -1,113 +1,113 @@
-# DLM 0.0086 — generated nondeterministic programs and recursive self-supervision
+# DLM 0.0088 — one native recursive relation/contract curriculum
 
-Rule-based candidate generation, Screamer-inspired branch execution, native
-proof checking and recursive relation learning now share ONE execution loop in
-the original Maru REPL. No LLM, neural network or external Screamer runtime.
+The v0.0087 finite Boolean verifier is now connected to the **original
+`(dlm 'step/start)` loop and the same native session checkpoint**. No second
+learner process, Python runtime scheduler, LLM, Scala, Viper or SMT dependency.
+Previous version directories remain unchanged.
 
-## One experimental shell entry point
-
-Watch learning in the original native REPL:
-
-```sh
-./scripts/recursive-selfssl.sh --demo /tmp/recursive86.sexp
-```
-
-Run a finite, durably closed experiment:
+## Run the integrated experiment
 
 ```sh
-./scripts/recursive-selfssl.sh --demo --rounds 4 --budget 4 /tmp/recursive86.sexp
-# Reopen the same store without reinjecting observations:
-./scripts/recursive-selfssl.sh --rounds 1 /tmp/recursive86.sexp
+# One original interactive Maru REPL; learning runs at reader idle points.
+./scripts/recursive-selfssl.sh --demo --contracts-demo /tmp/recursive88.sexp
+
+# Finite, checkpointed demonstration of both domains.
+./scripts/recursive-selfssl.sh --demo --contracts-demo --rounds 12 --budget 4 /tmp/recursive88.sexp
+
+# A fresh process restores the agenda, libraries, budgets and next scheduler turn.
+./scripts/recursive-selfssl.sh --rounds 1 /tmp/recursive88.sexp
 ```
 
-`--demo` is an explicit two-episode observation fixture, not hidden axioms or
-human proof labels. Without it, new stores contain no observations. The loop is
-bounded: saturation waits for new evidence and never invents learning progress.
-Ctrl-C ends the process; only completed checkpoints are durable.
+Use a fresh path for the first demo. `--demo` adds explicit relation observations;
+`--contracts-demo` queues three explicit Boolean goals, not preverified solutions.
+Neither overwrites an existing corresponding domain. The mixed demo learns three
+relation definitions and setx88/sety88/both88; the last procedure is
+`((call setx88) (call sety88))`. Exhausted domains wait without synthetic updates.
+Ctrl-C preserves already completed checkpoints, not an interrupted transaction.
 
-Interactive commands:
+The shell keeps its single original reader driver at
+`experiments/repl/recursive86.l` for CLI compatibility; that driver is extended,
+not a separate old learning process. Relation-only invocations still work.
+
+## Use the same REPL manually
+
+```sh
+./scripts/run.sh repl
+```
 
 ```lisp
+(dlm 'open "/tmp/my88.sexp")
+(dlm 'goal '(contract87 setx (x y) (bool 1) () (var x) (x)))
+(dlm 'goal '(contract87 sety (x y) (bool 1) () (var y) (y)))
+(dlm 'goal '(contract87 both (x y) (bool 1) () (and (var x) (var y)) (x y)))
+(dlm 'contract-budget 4 2000) ; candidate batch, verification fuel per candidate
+(dlm 'curriculum 'contracts) ; or 'mixed / 'relations
+(dlm 'step)                 ; same entry point as relation learning
+(dlm 'start 1000)           ; same cooperative idle scheduler
 (dlm 'pause)
-(dlm 'observe 'my-source '((atom edge (a b)) (atom edge (b c)) (atom edge (c d))))
-(dlm 'step)
-(dlm 'search)                 ; branch records and policy statistics
-(dlm 'query 'demo-a '(atom "c77-0" (a c)))
-(dlm 'start 1000)
-(dlm 'stop)
-(dlm 'close)
+(dlm 'goals)                ; pending/solved/blocked/inapplicable, frontier, diagnostics
+(dlm 'curriculum)           ; scheduler/configuration/request counters
+(contracts 'library)
+(contracts 'check-library)
+(dlm 'close)                ; BOTH domains saved; no second save required
 ```
 
-Use `./scripts/recursive-selfssl.sh --help` for interval/budget/round bounds.
-The script execs one Maru process, not a Python-driven product loop. Relative
-snapshot paths resolve from the caller's working directory.
+In a fresh REPL, `(dlm 'open "/tmp/my88.sexp")` restores both domains.
+Manual `(contracts 'learn/admit/restore/load/reset ...)` publications also cross
+the same transaction boundary. `contracts save/load` remain optional standalone
+library export/import, not the main session workflow. `dlm reset` resets both
+domains. `contracts reset` clears only procedures and reopens affected goals.
 
-## What is integrated
+Scheduling mode is explicit: the default remains `relations` for compatibility.
+Registering a goal alone does not change it; use `contracts` or `mixed` once.
+Mixed mode alternates runnable domains and skips a domain that has no work.
+Blocked finite searches are retried on a changed library/fuel context or an
+explicit `(dlm 'retry-goal 'NAME)`, not endlessly on every idle poll.
+`(dlm 'relation-budget 4)` persists the relation decision budget too.
 
-```
-current observations + learned operators
- -> rule-based candidate pool and symbolic priority
- -> generated (choose ...) program with candidate branches
- -> branch-local certify86 actions and failure/accept results
- -> outcome/work statistics from checked branches, including nonchosen ones
- -> independent recheck of the chosen definition
- -> checkpointed library update
- -> next round generates using earlier learned definitions
-```
+## What approval means
 
-`accept` alone is provisional and cannot authorize admission. Derived results
-are never converted into external observations. Unknown verification remains
-retryable; only complete insufficient-reuse results enter the negative cache.
-New sessions use explicit `dlm-session86`; old77/83/84/85 stores remain readable.
-History replay reconstructs branch execution, policy statistics and stop state.
-Previous version directories and user stores are preserved.
+The existing independently implemented Maru Boolean `assign/assert/if/call`
+verifier still checks **all inputs satisfying Pre**, complete trace coverage,
+Post, old-state references and the write frame. Calls use checked dependency-bound
+procedure tables. Candidate OR search is not universal program verification.
 
-Manual mode selection in any normal DLM REPL:
+A curriculum admission additionally checks exact requested-goal identity and
+independently checks the proposed certificate. A provisional success ticket or a
+proof of a weaker goal cannot admit a procedure. Empty Pre is inapplicable, not
+success; unknown/bounded generation is not logical refutation. Learned procedures
+never become native source observations or external world axioms.
 
-```lisp
-(dlm 'search 'nd-cache)       ; generated branches, FIFO proposal order
-(dlm 'search 'nd-ucb)         ; generated branches, family UCB proposal order
-(dlm 'search 'ucb)            ; prior direct sequential checking control
-(dlm 'search 'off)            ; original enumeration
-```
+`dlm-session88` includes the native model, event history, contract goals and
+frontiers, checked library, scheduler turn and configuration. Untrusted load
+replays both domains, rebuilds the search controller, rechecks proofs and compares
+the reconstructed state. Existing77/83/84/85/86 codecs remain readable. A failed
+checkpoint does not publish the staged goal, library, policy or step round.
 
-The new launcher opts into nd-ucb unless an nd mode is already restored. The
-ordinary legacy launcher still defaults to the earlier behavior.
+## Scope and verification
 
-## Evidence and limits
-
-The explicit chain demo learns paths of lengths2,3,4 recursively; later definitions
-reference earlier ones. It executes batches of1/3/3 actual branches, collects7
-branch labels, and performs10 certification calls including3 admission rechecks.
-A fourth step saturates; reopening preserves the next waiting result.
-
-A36-run comparison found the same learned definitions and held-out formal probe
-coverage, but generated batches performed more checks and were slower than direct
-sequential checking. This is integration evidence, NOT an efficiency promotion.
-See [recursive86-design.md](docs/recursive86-design.md) and
-[recursive86-experiment.json](docs/recursive86-experiment.json).
-
-Generation remains a bounded binary-relation composition grammar, not arbitrary
-program synthesis, natural-language answer generation or web-axiom extraction.
-There is no full MCTS, learned neural latent space, registered MLIR dialect,
-physical parallel execution or hard per-event time guarantee.
-
-## Verification and self-host
+The model remains limited to6 Boolean variables,128 statements,8 acyclic modules,
+16 generated candidates per goal context and16 queued goals. Generation can miss
+solutions. Logical fuel and cumulative request limits are not hard wall-time
+limits. Mixed scheduling is cooperative, not parallel or preemptive. Proof rows
+establish only the stated finite model. There is no integer/loop/heap verification,
+arbitrary Maru-program verification, autonomous web axiom extraction or automatic
+natural-language question grounding. Goal templates are explicitly supplied;
+useful goal invention and cross-domain fact grounding are not claimed.
 
 ```sh
-python3 -m unittest discover -s tests -p 'test_*.py' -v
+./scripts/run.sh proof experiments/space/curriculum88.l
+python3 -m unittest discover -s tests -p 'test_contracts88.py' -v
 ./scripts/run.sh test
-./scripts/compiler.sh reproduce
-./scripts/compiler.sh verify RELEASE_ID
-./scripts/compiler.sh promote RELEASE_ID
+python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-Eight new integration/launcher tests bring the Python suite to89. Kernel,
-store/replay, source retraction, capacity/resource boundaries and independent
-logic oracles remain enabled. Final release evidence:
-[release-0086.md](docs/release-0086.md).
+Fifteen new tests cover joint learning/reuse, fresh-process next-step equality,
+both native/plain and contract partial frontiers, migration, budget retry,
+forged tickets/specs/caches, rollback, reset/import and real interactive idle use.
+The independent200-program finite semantic oracle remains in the suite.
 
-Maru compiler/platform sources are unchanged and retain three-generation
-self-reproduction via external clang/linker. Existing Ground82/83 and optional
-MLIR-shaped front-end remain available but are not substitutes for this proof
-loop. No GitHub commit/push is performed. Older retained documents are historical.
+Design and boundaries: [contracts88-design.md](docs/contracts88-design.md).
+Final verification and matching manifests: [release-0088.md](docs/release-0088.md).
+Maru compiler sources are unchanged; earlier release documents are historical.
+No speedup, full Silicon compatibility or GitHub publication is claimed.

@@ -19,12 +19,20 @@
 (define d84-step ())
 (define d84-command ())
 (define d84-admit ())
+(define d88-sync ())
+(define d88-admit ())
+(define d88-restored ())
+(define d88-control ())
+(define d88-step ())
+(define d88-command ())
+(define d88-can-open ())
+(define d88-summary ())
 
 (define-function d77-status ()
-  (list 'dlm77 (if *dlm-running* 'running 'paused) 'round *dlm-round*
+  (dlm-append (list 'dlm77 (if *dlm-running* 'running 'paused) 'round *dlm-round*
         'episodes (dlm-length (a77-episodes *dlm-model*))
         'definitions (dlm-length (a77-defs *dlm-model*)) 'cursor *dlm-cursor*
-        'last *dlm-last* 'store *dlm-store*))
+        'last *dlm-last* 'store *dlm-store*) (if d88-summary (d88-summary) ())))
 (define-function d77-library () (a77-defs *dlm-model*))
 (define-function d77-save ()
   (if (not *dlm-store*) (list 'not-attached)
@@ -47,8 +55,10 @@
         (if (not lock) (list 'rejected 'locked-or-path-unavailable)
           (let ((r (d77-read path)))
             (if (= (car r) 'rejected) (begin (file-close lock) r)
-              (if (and (= (car r) 'loaded) (not (equal *dlm-model* (a77-new)))
-                       (not (equal *dlm-model* (dlm-nth (dlm-nth r 1) 2))))
+              (if (and (= (car r) 'loaded)
+                       (or (and (not (equal *dlm-model* (a77-new)))
+                                (not (equal *dlm-model* (dlm-nth (dlm-nth r 1) 2))))
+                           (and d88-can-open (not (d88-can-open (dlm-nth r 1))))))
                   (begin (file-close lock) (list 'rejected 'reset-before-restore))
                 (begin (d77-pause)
                   (if (= (car r) 'loaded)
@@ -58,20 +68,22 @@
                   (set *dlm-cursor* 0) (set *dlm-saturated* false)
                   (set *dlm-store* path) (set *dlm-lock* lock)
                   (set *dlm-last* (list 'restored (car r)))
-                  (if d83-sync (d83-sync)) (if d84-sync (d84-sync)) (d77-status))))))))))
+                  (if d88-sync (d88-sync)) (if d83-sync (d83-sync)) (if d84-sync (d84-sync))
+                  (if d88-restored (d88-restored)) (d77-status))))))))))
 (define-function d77-commit (next event)
   (let ((events (if (= (car event) 'reset) ()
-                  (if (and (equal next *dlm-model*) (not (dlm-member? (car event) '(routing83 search84 search84-run search85 search86))))
+                  (if (and (equal next *dlm-model*) (not (dlm-member? (car event) '(routing83 search84 search84-run search85 search86 curriculum88 goal88 retry-goal88 library88 contract-config88 contract-run88 relation-run88 relation-config88))))
                       *dlm-events* (dlm-append *dlm-events* (list event))))))
     (if (not (and (a77-valid? next) (dlm-proper? events 256)
-                  (or (not d84-admit) (d84-admit event *dlm-events*))))
+                  (or (not d84-admit) (d84-admit event *dlm-events*))
+                  (or (not d88-admit) (d88-admit next events))))
         (begin (d77-pause) (list 'rejected 'invalid-transition-or-event-limit))
       (if (and *dlm-store*
                (not (d77-checkpoint *dlm-store* (d77-pack next *dlm-round* events))))
           (begin (d77-pause) (list 'rejected 'checkpoint))
         (begin (set *dlm-model* next) (set *dlm-events* events)
                (set *dlm-cursor* 0) (set *dlm-saturated* false)
-               (if d83-sync (d83-sync)) (if d84-sync (d84-sync)) (list 'committed))))))
+               (if d88-sync (d88-sync)) (if d83-sync (d83-sync)) (if d84-sync (d84-sync)) (list 'committed))))))
 (define-function d77-observe (id facts)
   (let ((r (a77-observe *dlm-model* id facts)))
     (if (= (car r) 'observed)
@@ -101,11 +113,18 @@
       (set *dlm-last* (list (car r) 'pair-checks (dlm-nth r 3))))
     (list 'round *dlm-round* *dlm-last*)))
 (define-function d77-step ()
-  (if d84-step (d84-step) (d77-plain-step)))
+  (if d88-step (d88-step) (if d84-step (d84-step) (d77-plain-step))))
 (define-function d77-tick ()
   (let ((r (d77-step)))
     (print "[DLM round " *dlm-round* "] ")
-    (if (= (car *dlm-last*) 'learned)
+    (cond
+      ((= (car *dlm-last*) 'contract-learned)
+        (print "Verified procedure " (dlm-nth *dlm-last* 1) ": " (dlm-nth *dlm-last* 2)
+               "; all applicable Boolean states checked, available to subsequent goals.\n"))
+      ((dlm-member? (car *dlm-last*) '(contract-pending contract-blocked contract-inapplicable))
+        (print "Contract " (dlm-nth *dlm-last* 1) ": " (dlm-nth *dlm-last* 2)
+               "; candidate cursor " (dlm-nth *dlm-last* 3) ". No procedure admitted.\n"))
+      (else (if (= (car *dlm-last*) 'learned)
         (let* ((d (dlm-nth *dlm-last* 1)) (op (dlm-nth d 3)))
           (print "Defined " (dlm-nth d 1) " by composing " (dlm-nth op 1) " then " (dlm-nth op 2)
                  "; primitive path " (dlm-nth d 2) "; checked " (dlm-nth *dlm-last* 3)
@@ -116,7 +135,7 @@
             (print "Search budget exhausted; continuing from cursor " *dlm-cursor* ".\n")
           (if (= (car *dlm-last*) 'waiting)
               (print "Still waiting for new evidence; no learning update.\n")
-            (print "No admission: " *dlm-last* ".\n"))))) r))
+            (print "No admission: " *dlm-last* ".\n"))))))) r))
 (define-function d77-start milliseconds
   (let ((interval (if milliseconds (car milliseconds) 1000)))
     (if (not (and (is <long> interval) (>= interval 20) (<= interval 60000)))
@@ -132,6 +151,8 @@
     " (dlm 'pause) (dlm 'step) (dlm 'status) (dlm 'library)\n"
     " (dlm 'query 'id '(atom \"c77-0\" (a c)))\n"
     " (dlm 'retract 'id) (dlm 'save) (dlm 'stop) (dlm 'close)\n"
+    " (dlm 'goal TEMPLATE) (dlm 'goals) (dlm 'curriculum 'mixed)\n"
+    " (dlm 'contract-budget 4 2000) (dlm 'relation-budget 4) (dlm 'retry-goal 'name)\n"
     " (dlm 'search 'nd-ucb) / 'nd-cache / 'indexed / 'cache / 'rank / 'ucb / 'off; (dlm 'search) status\n"
     " (dlm 'ground 'on) (dlm 'ground 'off) (dlm 'ground) spatial routing/status\n"
     " (dlm 'demo) loads explicit source fixtures, not domain axioms.\n")
@@ -144,6 +165,8 @@
 (define-function dlm args
   (let ((op (car args)) (rest (cdr args)) (n (dlm-length (cdr args))))
     (cond
+      ((and d88-command (dlm-member? op '(curriculum goal goals retry-goal contract-budget relation-budget)))
+        (d88-command op rest))
       ((and (= op 'search) (<= n 1) d84-command) (d84-command rest))
       ((and (= op 'ground) (<= n 1) d83-command) (d83-command rest))
       ((and (= op 'status) (= n 0)) (d77-status))
