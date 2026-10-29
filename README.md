@@ -1,113 +1,162 @@
-# DLM 0.0088 — one native recursive relation/contract curriculum
+# DLM 0.0090 — execution-basis experiment
 
-The v0.0087 finite Boolean verifier is now connected to the **original
-`(dlm 'step/start)` loop and the same native session checkpoint**. No second
-learner process, Python runtime scheduler, LLM, Scala, Viper or SMT dependency.
-Previous version directories remain unchanged.
+Copied from the 0.0089 review workspace; previous directories are unchanged.
+This is an **early experiment**, not a complete theory of latent axioms.
 
-## Run the integrated experiment
+The new path discovers repeated factors in explicit relational workloads, checks
+new basis definitions, **replaces active execution expressions**, and uses the
+new basis in later tasks and the next discovery round. It does not merely append
+proofs to a cache. No GPU, neural embedding, backpropagation, LLM service, HTTP or
+MLIR/compiler change is required.
 
-```sh
-# One original interactive Maru REPL; learning runs at reader idle points.
-./scripts/recursive-selfssl.sh --demo --contracts-demo /tmp/recursive88.sexp
-
-# Finite, checkpointed demonstration of both domains.
-./scripts/recursive-selfssl.sh --demo --contracts-demo --rounds 12 --budget 4 /tmp/recursive88.sexp
-
-# A fresh process restores the agenda, libraries, budgets and next scheduler turn.
-./scripts/recursive-selfssl.sh --rounds 1 /tmp/recursive88.sexp
-```
-
-Use a fresh path for the first demo. `--demo` adds explicit relation observations;
-`--contracts-demo` queues three explicit Boolean goals, not preverified solutions.
-Neither overwrites an existing corresponding domain. The mixed demo learns three
-relation definitions and setx88/sety88/both88; the last procedure is
-`((call setx88) (call sety88))`. Exhausted domains wait without synthetic updates.
-Ctrl-C preserves already completed checkpoints, not an interrupted transaction.
-
-The shell keeps its single original reader driver at
-`experiments/repl/recursive86.l` for CLI compatibility; that driver is extended,
-not a separate old learning process. Relation-only invocations still work.
-
-## Use the same REPL manually
+## Run
 
 ```sh
+# Explicit synthetic two-round experiment; no network or persistent side effects.
+./scripts/run.sh basis90
+
+# File-based structured experiment, read as data rather than evaluated code.
+./scripts/run.sh basis90-input < experiments/basis90/input-example.sexp
+
+# Independent finite oracle plus exploratory four-arm CPU measurements.
+python3 -B adapters/basis90_experiment.py --output /tmp/basis90.json
+
+# Original native REPL with a separate (basis90 ...) API.
 ./scripts/run.sh repl
 ```
 
+The two-round demo discovers `B1 = r∘s`, rewrites three execution plans, then
+finds `B2 = B1∘t` after later tasks arrive. The public `rst` task becomes
+`(use90 2)`, and later plans use the same basis. These bodies are discovered from
+the task workload, not supplied as preverified solutions.
+
+## Manual native API
+
+In a fresh REPL:
+
 ```lisp
-(dlm 'open "/tmp/my88.sexp")
-(dlm 'goal '(contract87 setx (x y) (bool 1) () (var x) (x)))
-(dlm 'goal '(contract87 sety (x y) (bool 1) () (var y) (y)))
-(dlm 'goal '(contract87 both (x y) (bool 1) () (and (var x) (var y)) (x y)))
-(dlm 'contract-budget 4 2000) ; candidate batch, verification fuel per candidate
-(dlm 'curriculum 'contracts) ; or 'mixed / 'relations
-(dlm 'step)                 ; same entry point as relation learning
-(dlm 'start 1000)           ; same cooperative idle scheduler
-(dlm 'pause)
-(dlm 'goals)                ; pending/solved/blocked/inapplicable, frontier, diagnostics
-(dlm 'curriculum)           ; scheduler/configuration/request counters
-(contracts 'library)
-(contracts 'check-library)
-(dlm 'close)                ; BOTH domains saved; no second save required
+(require "experiments/basis90/setup.l") ; explicit source/task fixture, resets basis90
+(basis90 'candidates)
+(basis90 'learn)
+(basis90 'status)
+(basis90 'run 'train () 200000)         ; all registered tasks, active basis plans
+(basis90 'run 'train () 200000 'raw)    ; original expression control
+(basis90 'query 'train '(join90 (rel90 r) (rel90 s)) 200000)
+
+; Attach the current experiment to a fresh path; commits checkpoint before publish.
+(basis90 'open "/tmp/fresh-basis90.sexp")
+(basis90 'save)
+(basis90 'close)
 ```
 
-In a fresh REPL, `(dlm 'open "/tmp/my88.sexp")` restores both domains.
-Manual `(contracts 'learn/admit/restore/load/reset ...)` publications also cross
-the same transaction boundary. `contracts save/load` remain optional standalone
-library export/import, not the main session workflow. `dlm reset` resets both
-domains. `contracts reset` clears only procedures and reopens affected goals.
+In a fresh process, `(basis90 'open "/tmp/fresh-basis90.sexp")` restores the core,
+checked definitions, transformed plans, task interface and audit. A different live
+experiment is not silently replaced. Init is refused while a store is attached.
 
-Scheduling mode is explicit: the default remains `relations` for compatibility.
-Registering a goal alone does not change it; use `contracts` or `mixed` once.
-Mixed mode alternates runnable domains and skips a domain that has no work.
-Blocked finite searches are retried on a changed library/fuel context or an
-explicit `(dlm 'retry-goal 'NAME)`, not endlessly on every idle poll.
-`(dlm 'relation-budget 4)` persists the relation decision budget too.
+Additional commands:
 
-## What approval means
+```lisp
+(basis90 'init '(r s t))
+(basis90 'observe 'source-id '((atom r (a b)) (atom s (b c))))
+(basis90 'task 'task-id '(join90 (rel90 r) (rel90 s)))
+(basis90 'retract 'source-id)
+(basis90 'proposal)
+(basis90 'state)
+(basis90 'snapshot)
+```
 
-The existing independently implemented Maru Boolean `assign/assert/if/call`
-verifier still checks **all inputs satisfying Pre**, complete trace coverage,
-Post, old-state references and the write frame. Calls use checked dependency-bound
-procedure tables. Candidate OR search is not universal program verification.
+Task IDs are immutable. Re-importing an existing ID is rejected without adding
+feedback. `query` does not register a training task or mutate the model. Runtime
+answer tables are local to one execution batch and one immutable episode.
 
-A curriculum admission additionally checks exact requested-goal identity and
-independently checks the proposed certificate. A provisional success ticket or a
-proof of a weaker goal cannot admit a procedure. Empty Pre is inapplicable, not
-success; unknown/bounded generation is not logical refutation. Learned procedures
-never become native source observations or external world axioms.
+## What is being learned?
 
-`dlm-session88` includes the native model, event history, contract goals and
-frontiers, checked library, scheduler turn and configuration. Untrusted load
-replays both domains, rebuilds the search controller, rechecks proofs and compares
-the reconstructed state. Existing77/83/84/85/86 codecs remain readable. A failed
-checkpoint does not publish the staged goal, library, policy or step round.
+Expressions are `(rel90 NAME)`, `(join90 LEFT RIGHT)` and checked `(use90 ID)`.
+Meaning is Boolean binary relation composition, not empirical implication.
+Discovery counts repeated adjacent factors in **current execution tokens**;
+an existing `use90` is atomic, enabling a later basis to depend on it.
 
-## Scope and verification
+A separate gate checks acyclic prefix dependencies, exact primitive expansion,
+all task rewrites, at least two uses of the new basis, and an actual reduction in
+active work-expression nodes. The gate does not call the proposer, router or
+executor. Equal primitive words establish the restricted relational identity by
+associativity; finite graph tests are additional evidence, not its definition.
 
-The model remains limited to6 Boolean variables,128 statements,8 acyclic modules,
-16 generated candidates per goal context and16 queued goals. Generation can miss
-solutions. Logical fuel and cumulative request limits are not hard wall-time
-limits. Mixed scheduling is cooperative, not parallel or preemptive. Proof rows
-establish only the stated finite model. There is no integer/loop/heap verification,
-arbitrary Maru-program verification, autonomous web axiom extraction or automatic
-natural-language question grounding. Goal templates are explicitly supplied;
-useful goal invention and cross-domain fact grounding are not claimed.
+There is no automatic useful-goal invention, general natural-language extraction,
+new world-axiom induction or trained multi-head attention. Symbolic eligibility,
+competition and routing are the first attention-inspired decomposition. Candidate
+scores are heuristics, never logical truth values. Learned bases retain prior
+checked dependencies; global basis minimization/retirement is not implemented.
+
+The executable core and justification audit occupy separate snapshot fields,
+not yet separate content-addressed blob files. Original task expressions remain
+as the public-to-internal mapping; their storage cost is not hidden.
+
+## Controls and measurements
+
+`raw`: original programs, no basis needed in the execution core.
+`append`: basis is available, but programs are not rewritten.
+`basis`: checked basis with rewritten execution plans.
+`memo`: primitive programs with canonical structural memoization.
+
+`append` is a deliberately limited experimental control, **not** a benchmark of
+the entire legacy A77 learner. All measurement processes pay the same discovery
+phases. CPU/wall/RSS includes startup, training/checking, queries and output;
+checkpoint costs are not included in that particular measurement.
+
+The demo's active work nodes change from 29 to 13 after two rounds, plus 6 basis-body
+nodes. Pair comparisons in its final batch change from 48 (`raw`) to 24 (`basis`),
+while the memo control performs 34. This is not proof of wall-time speedup.
+Small workloads can have a larger core after basis introduction. Costs, no-repeat
+cases and overlapping candidates are retained in `docs/basis90-experiment.json`.
+
+## Retained legacy entry point
+
+The earlier integrated relation/Boolean-contract learner is still available:
 
 ```sh
-./scripts/run.sh proof experiments/space/curriculum88.l
-python3 -m unittest discover -s tests -p 'test_contracts88.py' -v
-./scripts/run.sh test
-python3 -m unittest discover -s tests -p 'test_*.py' -v
+./scripts/recursive-selfssl.sh --demo --contracts-demo --rounds 12 --budget 4 /tmp/legacy90.sexp
 ```
 
-Fifteen new tests cover joint learning/reuse, fresh-process next-step equality,
-both native/plain and contract partial frontiers, migration, budget retry,
-forged tickets/specs/caches, rollback, reset/import and real interactive idle use.
-The independent200-program finite semantic oracle remains in the suite.
+Its `(dlm 'step/start)` curriculum is **not** silently switched to basis90.
+See [the preserved legacy usage guide](README-legacy88.md) and
+[Contracts88 design](docs/contracts88-design.md). The joint plain replay ordering
+fix described below is the intentional compatibility change.
 
-Design and boundaries: [contracts88-design.md](docs/contracts88-design.md).
-Final verification and matching manifests: [release-0088.md](docs/release-0088.md).
-Maru compiler sources are unchanged; earlier release documents are historical.
-No speedup, full Silicon compatibility or GitHub publication is claimed.
+## Verification
+
+```sh
+./scripts/run.sh test
+python3 -B tests/run_offline.py
+python3 -B -m unittest discover -s tests -p 'test_basis90.py' -v
+python3 -B -m unittest discover -s tests -p 'test_review90.py' -v
+```
+
+The offline runner excludes the six legacy local-HTTP tests and guards Python
+socket calls. It is not an OS network sandbox. New transport regression uses a
+seeded `--offline` cache without a server.
+
+Basis tests include two-round formation/replacement, actual dispatch, independent
+checking, forged rewrites/definitions/certificates, malformed input, saturation,
+limits, source retraction, checkpoint rollback, external file changes, fresh
+process next-step equality, and all 256 two-node/two-relation graphs against an
+independent Python join oracle.
+
+Separate inherited fixes: web input list-shape validation no longer segfaults;
+joint plain relation replay uses canonical ordering rather than a live spatial
+cache. Legacy plain routing remains available. `.gitignore` packaging rules are
+restored. These fixes are not evidence for a new learning algorithm.
+
+## Scope
+
+Limits: 8 primitive relation names, 4 episodes, 24 facts/episode, 12 nodes/episode,
+16 tasks, 8 bases, primitive word length 4, 64 audit events, and 200000 logical
+execution units per batch. Unknown is not an empty relation or a refutation.
+Logical fuel is not a hard wall-time bound.
+
+Existing `(dlm ...)`, `(space ...)`, and `(contracts ...)` remain separate APIs.
+`dlm save` does not save basis90. This experiment neither changes the Maru compiler
+nor claims a new promoted compiler image. Historical release documents/manifests
+are retained as historical evidence, not manifests for this working version.
+
+Details, trust boundary and discovery limitations: [basis90-design.md](docs/basis90-design.md).

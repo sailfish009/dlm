@@ -13,8 +13,12 @@ files+=("$ROOT/src/dlm/ground-space.l" "$ROOT/src/dlm/ground-session.l" "$ROOT/s
 files+=("$ROOT/src/dlm/search-control.l" "$ROOT/src/dlm/search-session.l" "$ROOT/src/dlm/recursive86.l")
 files+=("$ROOT/src/dlm/contracts87-ir.l" "$ROOT/src/dlm/contracts87-check.l" "$ROOT/src/dlm/contracts87-runtime.l")
 files+=("$ROOT/src/dlm/contracts88-curriculum.l" "$ROOT/src/dlm/contracts88-session.l")
+files+=("$ROOT/src/dlm/basis90-ir.l" "$ROOT/src/dlm/basis90-rewrite.l" "$ROOT/src/dlm/basis90-discover.l")
+files+=("$ROOT/src/dlm/basis90-check.l" "$ROOT/src/dlm/basis90-execution.l" "$ROOT/src/dlm/basis90-session.l")
 case "${1:-repl}" in
  proof) exec "$MARU" "${files[@]}" "${2:?proof driver required}" ;;
+ basis90) exec "$MARU" "${files[@]}" "$ROOT/experiments/basis90/run.l" ;;
+ basis90-input) exec "$MARU" "${files[@]}" "$ROOT/experiments/basis90/input.l" ;;
  graph-session) exec "$MARU" "${files[@]}" "$ROOT/experiments/graph/session.l" ;;
  graph-report) exec "$MARU" "${files[@]}" "$ROOT/experiments/graph/report.l" ;;
  graph) exec "$MARU" "${files[@]}" "$ROOT/experiments/graph/run.l" "$ROOT/tests/graph-tests.l" "$ROOT/experiments/graph/transfer.l" ;;
@@ -58,5 +62,5 @@ case "${1:-repl}" in
   mkdir -p "$(dirname "$STORE")"
   exec "$MARU" "${files[@]}" --define '*dlm-session-path*' "$STORE" --define '*dlm-demo-mode*' "$DEMO" "$ROOT/experiments/repl/start.l" - ;;
  test) exec "$MARU" "${files[@]}" "$ROOT/tests/demo.l" "$ROOT/tests/kernel-tests.l" "$ROOT/tests/model-tests.l" "$ROOT/tests/safety-tests.l" "$ROOT/experiments/interaction/run.l" "$ROOT/tests/interaction-tests.l" "$ROOT/experiments/constraints/run.l" "$ROOT/tests/constraint-tests.l" "$ROOT/experiments/symbolic/run.l" "$ROOT/tests/symbolic-tests.l" "$ROOT/experiments/symbolic/controls.l" "$ROOT/tests/web-tests.l" "$ROOT/experiments/graph/run.l" "$ROOT/tests/graph-tests.l" "$ROOT/experiments/graph/transfer.l" "$ROOT/tests/sequent-tests.l" "$ROOT/tests/axiom-space-tests.l" "$ROOT/tests/reasoning-tests.l" "$ROOT/tests/space-tests.l" ;;
- *) echo 'usage: run.sh [proof DRIVER|repl|learn|reason|space|recursive86 STORE DEMO ROUNDS INTERVAL BUDGET|test|interaction|constraints|symbolic|session|web-ingest|web-report|graph|graph-session|graph-report]' >&2; exit 2 ;;
+ *) echo 'usage: run.sh [basis90|basis90-input|proof DRIVER|repl|learn|reason|space|recursive86 STORE DEMO ROUNDS INTERVAL BUDGET|test|interaction|constraints|symbolic|session|web-ingest|web-report|graph|graph-session|graph-report]' >&2; exit 2 ;;
 esac

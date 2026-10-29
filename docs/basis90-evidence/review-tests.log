@@ -1,0 +1,10 @@
+test_joint_plain_replay_is_independent_of_live_ground_cache (test_review90.Review90Tests.test_joint_plain_replay_is_independent_of_live_ground_cache) ... ok
+test_legacy_plain_route_still_uses_its_order_callback (test_review90.Review90Tests.test_legacy_plain_route_still_uses_its_order_callback) ... ok
+test_malformed_web_import_errors_without_sigsegv (test_review90.Review90Tests.test_malformed_web_import_errors_without_sigsegv) ... ok
+test_web_document_shape_validation_is_total (test_review90.Review90Tests.test_web_document_shape_validation_is_total) ... ok
+test_web_shell_with_seeded_offline_cache_and_no_executable_text (test_review90.Review90Tests.test_web_shell_with_seeded_offline_cache_and_no_executable_text) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 5.267s
+
+OK

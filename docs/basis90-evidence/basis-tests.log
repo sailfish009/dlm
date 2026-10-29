@@ -1,0 +1,25 @@
+test_active_executor_is_not_a_replay_or_raw_fallback (test_basis90.Basis90Tests.test_active_executor_is_not_a_replay_or_raw_fallback) ... ok
+test_arbitrary_regrouping_is_checked_without_assuming_commutativity (test_basis90.Basis90Tests.test_arbitrary_regrouping_is_checked_without_assuming_commutativity) ... ok
+test_cache_is_scoped_to_current_episode_and_retraction (test_basis90.Basis90Tests.test_cache_is_scoped_to_current_episode_and_retraction) ... ok
+test_checker_does_not_call_proposer_planner_or_executor (test_basis90.Basis90Tests.test_checker_does_not_call_proposer_planner_or_executor) ... ok
+test_checkpoint_failure_and_external_change_do_not_publish (test_basis90.Basis90Tests.test_checkpoint_failure_and_external_change_do_not_publish) ... ok
+test_discover_replace_and_second_round_uses_first_basis (test_basis90.Basis90Tests.test_discover_replace_and_second_round_uses_first_basis) ... ok
+test_exhaustive_two_relation_graph_oracle (test_basis90.Basis90Tests.test_exhaustive_two_relation_graph_oracle) ... ok
+test_existing_learners_are_not_mutated (test_basis90.Basis90Tests.test_existing_learners_are_not_mutated) ... ok
+test_forged_definition_rewrite_certificate_and_cyclic_dependencies (test_basis90.Basis90Tests.test_forged_definition_rewrite_certificate_and_cyclic_dependencies) ... ok
+test_forged_initial_router_cannot_publish_false_task_plans (test_basis90.Basis90Tests.test_forged_initial_router_cannot_publish_false_task_plans) ... ok
+test_four_controls_agree_but_account_for_different_work (test_basis90.Basis90Tests.test_four_controls_agree_but_account_for_different_work) ... ok
+test_fresh_process_restores_pending_discovery_and_same_next_step (test_basis90.Basis90Tests.test_fresh_process_restores_pending_discovery_and_same_next_step) ... ok
+test_malformed_input_and_snapshot_fail_closed (test_basis90.Basis90Tests.test_malformed_input_and_snapshot_fail_closed) ... ok
+test_measurement_driver_uses_independent_oracle_and_all_controls (test_basis90.Basis90Tests.test_measurement_driver_uses_independent_oracle_and_all_controls) ... ok
+test_no_repetition_is_waiting_and_limits_preserve_state (test_basis90.Basis90Tests.test_no_repetition_is_waiting_and_limits_preserve_state) ... ok
+test_offline_input_driver_and_trailing_data_rejection (test_basis90.Basis90Tests.test_offline_input_driver_and_trailing_data_rejection) ... ok
+test_seeded_malformed_tree_fuzz_at_native_boundaries (test_basis90.Basis90Tests.test_seeded_malformed_tree_fuzz_at_native_boundaries) ... ok
+test_serialized_core_or_audit_cannot_forge_approval (test_basis90.Basis90Tests.test_serialized_core_or_audit_cannot_forge_approval) ... ok
+test_unknown_not_empty_and_heldout_query_does_not_train (test_basis90.Basis90Tests.test_unknown_not_empty_and_heldout_query_does_not_train) ... ok
+
+----------------------------------------------------------------------
+Ran 19 tests in 45.227s
+
+OK
+BASIS90-ORACLE 256 exhaustive graphs, 5 queries, 3 execution arms, zero mismatches

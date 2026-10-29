@@ -1,0 +1,33 @@
+test_actual_recursive_learning_and_hindsight_branch_labels (test_recursive86.Recursive86Tests.test_actual_recursive_learning_and_hindsight_branch_labels) ... ok
+test_bare_accept_cannot_bypass_native_gate (test_recursive86.Recursive86Tests.test_bare_accept_cannot_bypass_native_gate) ... ok
+test_cli_validation_and_corrupt_store_are_fail_closed (test_recursive86.Recursive86Tests.test_cli_validation_and_corrupt_store_are_fail_closed) ... ok
+test_finite_shell_demo_and_restart_preserve_evidence_and_log (test_recursive86.Recursive86Tests.test_finite_shell_demo_and_restart_preserve_evidence_and_log) ... ok
+test_fresh_process_replays_machine_feedback_and_next_step (test_recursive86.Recursive86Tests.test_fresh_process_replays_machine_feedback_and_next_step) ... ok
+test_generated_alternatives_fail_and_succeed_without_admitting (test_recursive86.Recursive86Tests.test_generated_alternatives_fail_and_succeed_without_admitting) ... ok
+test_interactive_shell_is_one_original_native_repl_process (test_recursive86.Recursive86Tests.test_interactive_shell_is_one_original_native_repl_process) ... ok
+test_unknown_failure_is_retryable (test_recursive86.Recursive86Tests.test_unknown_failure_is_retryable) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 12.213s
+
+OK
+test_checkpoint_failure_rolls_back_round_library_goal_and_policy (test_contracts88.Contracts88Tests.test_checkpoint_failure_rolls_back_round_library_goal_and_policy) ... ok
+test_empty_precondition_is_terminal_inapplicable_not_a_learned_solution (test_contracts88.Contracts88Tests.test_empty_precondition_is_terminal_inapplicable_not_a_learned_solution) ... ok
+test_finite_shell_joint_store_restart_and_config_preservation (test_contracts88.Contracts88Tests.test_finite_shell_joint_store_restart_and_config_preservation) ... ok
+test_first_joint_transaction_lazily_reconstructs_legacy_controller (test_contracts88.Contracts88Tests.test_first_joint_transaction_lazily_reconstructs_legacy_controller) ... ok
+test_fresh_process_restores_partial_frontier_control_budget_and_next_step (test_contracts88.Contracts88Tests.test_fresh_process_restores_partial_frontier_control_budget_and_next_step) ... ok
+test_legacy_open_cannot_silently_discard_live_contract_state (test_contracts88.Contracts88Tests.test_legacy_open_cannot_silently_discard_live_contract_state) ... ok
+test_manual_contract_learning_is_persisted_by_dlm_save_and_reset_is_joint (test_contracts88.Contracts88Tests.test_manual_contract_learning_is_persisted_by_dlm_save_and_reset_is_joint) ... ok
+test_new_checked_library_reopens_generation_bound_goal (test_contracts88.Contracts88Tests.test_new_checked_library_reopens_generation_bound_goal) ... ok
+test_one_step_curriculum_learns_both_domains_and_reuses_modules (test_contracts88.Contracts88Tests.test_one_step_curriculum_learns_both_domains_and_reuses_modules) ... ok
+test_original_repl_idle_performs_contract_learning_in_one_process (test_contracts88.Contracts88Tests.test_original_repl_idle_performs_contract_learning_in_one_process) ... ok
+test_plain_relation_cursor_is_also_checkpointed_in_joint_sessions (test_contracts88.Contracts88Tests.test_plain_relation_cursor_is_also_checkpointed_in_joint_sessions) ... ok
+test_request_limit_is_preflighted_and_pauses_without_an_event_or_round (test_contracts88.Contracts88Tests.test_request_limit_is_preflighted_and_pauses_without_an_event_or_round) ... ok
+test_search_tickets_and_theorems_for_another_goal_cannot_admit (test_contracts88.Contracts88Tests.test_search_tickets_and_theorems_for_another_goal_cannot_admit) ... ok
+test_tampered_goals_libraries_events_and_version_downgrade_are_rejected (test_contracts88.Contracts88Tests.test_tampered_goals_libraries_events_and_version_downgrade_are_rejected) ... ok
+test_unknown_budget_is_blocked_not_refutation_and_retries_after_budget_change (test_contracts88.Contracts88Tests.test_unknown_budget_is_blocked_not_refutation_and_retries_after_budget_change) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 25.218s
+
+OK

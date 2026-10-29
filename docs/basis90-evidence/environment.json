@@ -1,0 +1,36 @@
+{
+  "version": "0.0090",
+  "python": "3.12.10",
+  "os": "Linux",
+  "kernel": "7.3.0-4-cachyos",
+  "cpu": [
+    {
+      "field": "Architecture:",
+      "data": "x86_64"
+    },
+    {
+      "field": "CPU(s):",
+      "data": "16"
+    },
+    {
+      "field": "Model name:",
+      "data": "AMD Ryzen 7 5700U with Radeon Graphics"
+    },
+    {
+      "field": "Thread(s) per core:",
+      "data": "2"
+    },
+    {
+      "field": "Core(s) per socket:",
+      "data": "8"
+    },
+    {
+      "field": "Socket(s):",
+      "data": "1"
+    }
+  ],
+  "available_cpus": "16",
+  "compiler_sha256": "2cbe804829509f5386933d832cbba2fef1bad367b7510a543b5d3f5818136fc9",
+  "compiler_target": "runtime/releases/20261022T043320Z-15600/maru",
+  "notes": "Local CPU-only run; no network. Timing diagnostics, not a controlled hardware performance study."
+}

@@ -6,6 +6,12 @@ experiments/*/cache/
 reports/
 output.json
 
+# Generated compiler intermediates and local experimental checkpoints.
+/runtime/releases/**/*.ll
+/experiments/repl/store/
+/experiments/web/store/
+/experiments/basis90/store/
+
 # Rebuildable FLDx2 exports; keep compact reports in docs/ instead.
 /experiments/fld/audit/
 /experiments/fld/validation-smoke/

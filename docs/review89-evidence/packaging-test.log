@@ -1,0 +1,14 @@
+test_packaging_keeps_runtime_but_not_generated_data (test_repl.ReplTests.test_packaging_keeps_runtime_but_not_generated_data) ... FAIL
+
+======================================================================
+FAIL: test_packaging_keeps_runtime_but_not_generated_data (test_repl.ReplTests.test_packaging_keeps_runtime_but_not_generated_data)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/research/dlm_v0.0089/tests/test_repl.py", line 129, in test_packaging_keeps_runtime_but_not_generated_data
+    self.assertEqual(rc==0,ignored,path)
+AssertionError: False != True : runtime/releases/example/maru.ll
+
+----------------------------------------------------------------------
+Ran 1 test in 0.007s
+
+FAILED (failures=1)

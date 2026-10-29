@@ -116,7 +116,7 @@
       (if (and (dlm-proper? ordered 1000) (= (dlm-length ordered) (dlm-length facts))
                (not (dlm-difference ordered facts)) (not (dlm-difference facts ordered)))
           ordered facts))))
-(define-function a77-step (s offset budget)
+(define-function a77-step-ordered (s offset budget routed)
   (if (not (and (a77-valid? s) (is <long> offset) (>= offset 0)
                 (is <long> budget) (> budget 0) (<= budget 1000)))
       (list 'invalid-input s 0 0)
@@ -125,7 +125,8 @@
         (list-do e (a77-episodes s)
           (if (not answer)
               (let* ((closure (a77-close s (dlm-nth e 2)))
-                     (facts (a77-search-facts s (dlm-conclusions (dlm-nth closure 2)))))
+                     (facts (if routed (a77-search-facts s (dlm-conclusions (dlm-nth closure 2)))
+                                (dlm-conclusions (dlm-nth closure 2)))))
                 (if (not (= (dlm-nth closure 1) 'complete)) (set complete false))
                 (list-do left facts (list-do right facts
                   (if (and (not answer) (>= cursor offset))
@@ -144,6 +145,9 @@
                                                              (dlm-nth trial 2) (dlm-nth trial 3))))))))))))
                   (set cursor (+ cursor 1)))))))
         (or answer (list (if complete 'saturated 'incomplete) s 0 checks))))))
+;;; Joint replay must not consult the live Ground83 ordering cache.
+(define-function a77-step (s offset budget) (a77-step-ordered s offset budget true))
+(define-function a77-step-canonical (s offset budget) (a77-step-ordered s offset budget false))
 (define-function a77-query (s episode goal)
   (if (not (and (a77-valid? s) (a77-fact? goal))) (list 'invalid-input)
     (let ((found ()))

@@ -101,7 +101,7 @@
       (begin
         (set j (s79-field (s79-field j 11 (+ (dlm-nth j 11) budget)) 12 budget))
         (if plain
-          (begin (set r (a77-step m (dlm-nth j 9) budget))
+          (begin (set r (a77-step-canonical m (dlm-nth j 9) budget))
                  (set j (s79-field j 9 (dlm-nth r 2)))
                  (set last (if (= (car r) 'learned)
                    (list 'learned (dlm-nth r 4) 'instances (dlm-nth r 5) 'pair-checks (dlm-nth r 3))

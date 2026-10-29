@@ -1,0 +1,7 @@
+(basis-input90 1 (r s t u v)
+ ((example ((atom r (a b)) (atom s (b c)) (atom t (c d))
+            (atom u (c e)) (atom v (h a)))))
+ ((rst (join90 (join90 (rel90 r) (rel90 s)) (rel90 t)))
+  (rsu (join90 (join90 (rel90 r) (rel90 s)) (rel90 u)))
+  (vrs (join90 (rel90 v) (join90 (rel90 r) (rel90 s)))))
+ 2 200000)

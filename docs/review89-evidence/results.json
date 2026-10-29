@@ -1,0 +1,89 @@
+{
+  "scope": "copied 0088 implementation in 0089 review workspace",
+  "network": "none: seeded cache / fake responses / local files only",
+  "product_changes": false,
+  "probes": {
+    "offline_acquisition_and_repeat": [
+      {
+        "returncode": 0,
+        "stdout": "{\"fetched\": 1, \"failures\": 0, \"interpretation\": \"unresolved\"}\n(web-report (documents 1) (content-groups 1) (acquisitions 1) (admitted-facts 0) (interpretation unresolved))",
+        "stderr": ""
+      },
+      {
+        "returncode": 0,
+        "stdout": "{\"fetched\": 1, \"failures\": 0, \"interpretation\": \"unresolved\"}\n(web-report (documents 1) (content-groups 1) (acquisitions 2) (admitted-facts 0) (interpretation unresolved))",
+        "stderr": ""
+      }
+    ],
+    "offline_cache_miss": "offline-miss",
+    "python_cache_hash_corruption": "invalid-cache",
+    "web_ingest_does_not_feed_native_learning": {
+      "returncode": 0,
+      "stdout": "(documents 1 native-episodes 0 native-definitions 0 contract-goals 0)",
+      "stderr": ""
+    },
+    "native_replay_accepts_consistently_forged_integrity_fields": {
+      "returncode": 0,
+      "stdout": "(raw-hash-mismatch true)\n(source-group-mismatch true)\n(document-id-mismatch true)",
+      "stderr": ""
+    },
+    "malformed_document": {
+      "returncode": -11,
+      "stdout": "",
+      "stderr": ""
+    },
+    "malformed_incoming_collection": {
+      "returncode": -11,
+      "stdout": "",
+      "stderr": ""
+    },
+    "unchanged_document_reacquisition_growth": [
+      {
+        "acquisitions": 1,
+        "returncode": 0,
+        "snapshot_bytes": 1596,
+        "raw_payload_occurrences": 2
+      },
+      {
+        "acquisitions": 8,
+        "returncode": 0,
+        "snapshot_bytes": 7245,
+        "raw_payload_occurrences": 9
+      },
+      {
+        "acquisitions": 16,
+        "returncode": 0,
+        "snapshot_bytes": 13701,
+        "raw_payload_occurrences": 17
+      }
+    ],
+    "ninth_native_episode": {
+      "returncode": 0,
+      "stdout": "(episodes 8 ninth (rejected schema-or-limit))",
+      "stderr": ""
+    },
+    "recursive_definition_is_not_a_new_primitive_fact": {
+      "returncode": 0,
+      "stdout": "(definitions 3 primitive-edge not-derived composed-path proved)",
+      "stderr": ""
+    },
+    "inherited_routing_checkpoint_process_a": {
+      "returncode": 0,
+      "stdout": "(round 1 (incomplete 1))\n(round 2 (learned (definition77 \"c77-0\" (edge edge) (compose edge edge)) instances 6 pair-checks 1))\n(rejected checkpoint)",
+      "stderr": ""
+    },
+    "inherited_routing_checkpoint_process_b": {
+      "returncode": 0,
+      "stdout": "(rejected snapshot)",
+      "stderr": ""
+    },
+    "truncated_http_response": {
+      "uncaught_exception": "IncompleteRead"
+    },
+    "url_policy_accepts_private_targets_without_network": {
+      "http://127.0.0.1/private": true,
+      "http://169.254.169.254/latest/meta-data/": true,
+      "http://[::1]/private": true
+    }
+  }
+}
