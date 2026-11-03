@@ -11,6 +11,8 @@ output.json
 /experiments/repl/store/
 /experiments/web/store/
 /experiments/basis90/store/
+/experiments/basis91/store/
+/experiments/attention92/store/
 
 # Rebuildable FLDx2 exports; keep compact reports in docs/ instead.
 /experiments/fld/audit/

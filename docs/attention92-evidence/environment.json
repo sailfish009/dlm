@@ -1,0 +1,16 @@
+{
+  "python": "3.12.10 | packaged by conda-forge | (main, Apr 10 2025, 22:21:13) [GCC 13.3.0]",
+  "platform": "Linux-7.3.1-1-cachyos-x86_64-with-glibc2.44",
+  "machine": "x86_64",
+  "cpu": "AMD Ryzen 7 5700U with Radeon Graphics",
+  "logical_cpus": 16,
+  "compiler_path": "/research/dlm_v0.0092/runtime/releases/20261022T043320Z-15600/maru",
+  "compiler_sha256": "2cbe804829509f5386933d832cbba2fef1bad367b7510a543b5d3f5818136fc9",
+  "execution": "Maru CPU-only; no neural or GPU library imported by the implementation",
+  "network": "No acquisition/services; Python socket guard in offline suite, not OS sandbox",
+  "measurement": "210 sequential fresh native children; no concurrent benchmark/test jobs",
+  "offline_tests": 186,
+  "new_attention_tests": 26,
+  "offline_seconds": 588.77,
+  "excluded_legacy_http_tests": 6
+}

@@ -1,0 +1,11 @@
+{
+  "local_links": 32,
+  "broken_links": [],
+  "python_ast": "passed",
+  "shell_syntax": "passed",
+  "git_diff_check": "passed",
+  "new_file_trailing_whitespace": [],
+  "product_hashes": 248,
+  "predecessor_unchanged": true,
+  "compiler_sha256": "2cbe804829509f5386933d832cbba2fef1bad367b7510a543b5d3f5818136fc9"
+}

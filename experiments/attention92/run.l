@@ -1,0 +1,11 @@
+(require "experiments/attention92/setup.l")
+(dump (list 'frozen-bases92 (dlm-nth (basis91 'model) 3))) (print "\n")
+(list-do ep '(train dense)
+  (list-do policy '(ordered92 indexed92 adaptive92 narrow92)
+    (dump (list ep policy (attention92 'query (basis91 'model) ep
+      '((r 0 1) (s 1 2) (t 2 3)) policy 200000))) (print "\n")))
+(attention92 'start (basis91 'model) 'dense '((r 0 1) (s 1 2) (t 2 3)) 'adaptive92 200000)
+(attention92 'run 2)
+(assert (a92-snapshot? (attention92 'snapshot)) "paused state replay")
+(dump (attention92 'status)) (print "\n")
+(dump (attention92 'run 64)) (print "\n")
