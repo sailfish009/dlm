@@ -1,0 +1,5 @@
+(require "experiments/web96/driver.l")
+(define input96 (read *standard-input*))
+(assert (= (read *standard-input*) +end+) "trailing web96 input")
+(i96-run (if (and (pair? input96) (= (car input96) 'web-document96))
+  (list 'web-run96 input96 'logical96 244 '(adaptive92 raw96)) input96))

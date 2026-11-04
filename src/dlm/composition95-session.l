@@ -32,7 +32,7 @@
       ((and (sq-shape? s 9) (= op 'compose95) (sq-shape? event 2) (c95-check-proposal s (dlm-nth event 1)))
         (set next (s79-field s 4 (dlm-append (dlm-nth s 4) (dlm-nth (dlm-nth event 1) 2))))
         (set next (s79-field next 7 (dlm-length (dlm-nth next 4))))))
-    (if next next '(rejected95 transition))))
+    (if next next (if *c95-source-step* (*c95-source-step* s event) '(rejected95 transition)))))
 (define-function c95-profile (s)
   (let ((rel 0) (num 0) (comp 0)) (list-do m (dlm-nth s 4)
     (cond ((b91-relational? m) (set rel (+ rel 1))) ((c95-numeric? m) (set num (+ num 1)))
@@ -41,6 +41,7 @@
 (define-function c95-command (args)
   (let ((op (car args)) (xs (cdr args)) (n (dlm-length (cdr args))) (s *b91-state*))
     (cond
+      ((and *c95-source-command* (dlm-member? op '(web-import web-retract web-source web-token web-query web-infer))) (*c95-source-command* args))
       ((and (= op 'typed-infer) (= n 4)) (c95-infer (car xs) (dlm-nth xs 1) (dlm-nth xs 2) (dlm-nth xs 3)))
       ((and s (= op 'types) (= n 1)) (b91-commit (list 'types-init95 (car xs))))
       ((and s (sq-shape? s 9))

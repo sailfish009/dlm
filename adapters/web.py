@@ -10,6 +10,7 @@ import argparse
 import base64
 from datetime import datetime, timezone
 import hashlib
+import http.client
 import json
 import os
 from pathlib import Path
@@ -91,7 +92,16 @@ class CachedWeb:
         try:
             request = urllib.request.Request(url, headers=UA)
             with self.opener.open(request, timeout=self.timeout) as response:
+                length = response.headers.get("Content-Length")
+                if length is not None:
+                    length = int(length)
+                    if length < 0:
+                        return None, "invalid-content-length"
+                    if length > self.max_bytes:
+                        return None, "oversize-response"
                 raw = response.read(self.max_bytes + 1)
+                if length is not None and len(raw) != length:
+                    return None, "truncated-response"
                 final_url = response.geturl()
                 media = response.headers.get("Content-Type", "application/octet-stream")
             if len(raw) > self.max_bytes:
@@ -106,7 +116,7 @@ class CachedWeb:
         except urllib.error.HTTPError as exc:
             exc.close()
             return None, "http-status:" + str(exc.code)
-        except (urllib.error.URLError, OSError, ValueError) as exc:
+        except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException) as exc:
             return None, "http-error:" + type(exc).__name__
 
     def get_bytes(self, url):

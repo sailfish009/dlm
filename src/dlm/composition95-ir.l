@@ -3,6 +3,12 @@
 ;;; numeric95 ID ARITY BODY EXPANSION BRANCH ORIGIN
 ;;; composite95 ID REL-ID NUM-ID INPUT-PORTS ORIGIN-CHANNEL
 ;;; Ports: (measure95 OBJECT-ROLE), (output95 PREFIX-COMPOSITE-ID).
+;;; Optional source provenance belongs to this same state/core, not another owner.
+(define *c95-source-state-check* ())
+(define *c95-source-core-check* ())
+(define *c95-source-project* ())
+(define *c95-source-step* ())
+(define *c95-source-command* ())
 (define-function c95-numeric? (m) (and (pair? m) (= (car m) 'numeric95)))
 (define-function c95-composite? (m) (and (pair? m) (= (car m) 'composite95)))
 (define-function c95-number-lib (lib)
@@ -81,7 +87,8 @@
             (c95-scope scopes 'numeric95 (dlm-nth m 3)) (c95-live-ports? (dlm-nth m 4) scopes)))
         (else false)))))
 (define-function c95-core? (facet lib)
-  (and (sq-shape? facet 3) (= (car facet) 'typed-core95) (e93-branch? (dlm-nth facet 1))
+  (and (or (sq-shape? facet 3) (and (sq-shape? facet 4) *c95-source-core-check* (*c95-source-core-check* (dlm-nth facet 3))))
+    (= (car facet) 'typed-core95) (e93-branch? (dlm-nth facet 1))
     (dlm-proper? (dlm-nth facet 2) 8)
     (let ((seen ()) (ok true))
       (list-do m lib (if (and (c95-numeric? m) (not (= (dlm-nth m 5) (dlm-nth facet 1)))) (set ok false)))
@@ -90,7 +97,8 @@
           (set seen (cons (dlm-nth v 4) seen)) (set ok false))) ok)))
 (define-function c95-state? (s)
   (let ((f (dlm-nth s 8)))
-    (and (sq-shape? f 5) (= (car f) 'typed95) (e93-branch? (dlm-nth f 1))
+    (and (or (sq-shape? f 5) (and (sq-shape? f 6) *c95-source-state-check* (*c95-source-state-check* s)))
+      (= (car f) 'typed95) (e93-branch? (dlm-nth f 1))
       (dlm-proper? (dlm-nth f 2) 4) (dlm-proper? (dlm-nth f 3) 3)
       (let ((ok true) (ids ()))
         (list-do x (dlm-nth f 2) (if (and (c95-calibration? x) (not (dlm-member? (dlm-nth x 1) ids)))
@@ -99,7 +107,9 @@
           (set ids (cons (dlm-nth x 1) ids)) (set ok false))) ok))))
 (define-function c95-project (s)
   (let ((f (dlm-nth s 8)))
-    (if (= (car f) 'typed-core95) f (list 'typed-core95 (dlm-nth f 1) (dlm-nth f 4)))))
+    (if (= (car f) 'typed-core95) f
+      (let ((out (list 'typed-core95 (dlm-nth f 1) (dlm-nth f 4))))
+        (if (and (sq-shape? f 6) *c95-source-project*) (dlm-append out (list (*c95-source-project* s))) out)))))
 (define-function c95-context? (x sig)
   (and (sq-shape? x 5) (= (car x) 'context95) (b91-name? (dlm-nth x 1)) (e93-int? (dlm-nth x 2) 1 32)
     (b91-facts? (dlm-nth x 3) sig) (c95-measures? (dlm-nth x 4))))

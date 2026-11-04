@@ -2,7 +2,8 @@
 ;;; Immutable source versions scope readings/witnesses. Atomic publish after save.
 (define-function b91-apply (s event)
   (if (not (and (b91-state? s) (pair? event) (dlm-proper? event 5)
-                (< (dlm-length (dlm-nth s 6)) 32))) '(rejected91 state-event-or-capacity)
+                (< (dlm-length (dlm-nth s 6)) 32)
+                (or (not *b91-source-event-guard*) (*b91-source-event-guard* s event)))) '(rejected91 state-event-or-capacity)
     (let ((op (car event)) (next s) (valid false) (sig (dlm-nth s 2)))
       (cond
         ((and (= op 'observe91) (sq-shape? event 3) (b91-name? (dlm-nth event 1))

@@ -18,6 +18,7 @@
 (define *b91-typed-refresh* ())
 (define *b91-typed-step* ())
 (define *b91-typed-command* ())
+(define *b91-source-event-guard* ())
 (define-function b91-relational? (m) (and (pair? m) (= (car m) 'basis91)))
 (define-function b91-relations (lib)
   (let ((out ())) (list-do m lib (if (b91-relational? m) (set out (dlm-append out (list m))))) out))

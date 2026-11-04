@@ -1,0 +1,10 @@
+{"arm": "logical96", "repeat": 0, "complete": 976, "unknown": 0, "mismatches": 0, "native_wall_seconds": 93.66460123300203}
+{"arm": "eml96", "repeat": 0, "complete": 976, "unknown": 0, "mismatches": 0, "native_wall_seconds": 127.22416228599468}
+{"arm": "no-prefix96", "repeat": 0, "complete": 976, "unknown": 0, "mismatches": 0, "native_wall_seconds": 90.99716980799712}
+{"arm": "no-formation96", "repeat": 0, "complete": 976, "unknown": 0, "mismatches": 0, "native_wall_seconds": 88.94396670300193}
+{"arm": "no-extraction96", "repeat": 0, "complete": 0, "unknown": 976, "mismatches": 0, "native_wall_seconds": 10.829133393999655}
+{"arm": "logical96", "repeat": 1, "complete": 976, "unknown": 0, "mismatches": 0, "native_wall_seconds": 92.48509557200305}
+{"arm": "eml96", "repeat": 1, "complete": 976, "unknown": 0, "mismatches": 0, "native_wall_seconds": 125.47491662899847}
+{"arm": "no-prefix96", "repeat": 1, "complete": 976, "unknown": 0, "mismatches": 0, "native_wall_seconds": 91.35340790000191}
+{"arm": "no-formation96", "repeat": 1, "complete": 976, "unknown": 0, "mismatches": 0, "native_wall_seconds": 90.53801528099575}
+{"arm": "no-extraction96", "repeat": 1, "complete": 0, "unknown": 976, "mismatches": 0, "native_wall_seconds": 10.70355695499893}

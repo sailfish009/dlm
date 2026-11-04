@@ -1,0 +1,37 @@
+{
+  "version": "0.0096",
+  "predecessor_files": 598,
+  "inherited_changed": [
+    "README.md",
+    "VERSION",
+    "adapters/web.py",
+    "scripts/run.sh",
+    "src/dlm/basis91-ir.l",
+    "src/dlm/basis91-session.l",
+    "src/dlm/composition95-ir.l",
+    "src/dlm/composition95-session.l"
+  ],
+  "targeted_tests": 26,
+  "offline_tests": 290,
+  "legacy_http_excluded": 6,
+  "suite_status": {
+    "offline": 0,
+    "native": 0,
+    "store": 0,
+    "runtime": 0,
+    "graph_store": 0
+  },
+  "sequential_runs": 10,
+  "experiment_totals": {
+    "attempts": 9760,
+    "complete": 7808,
+    "unknown": 1952,
+    "complete_rows": 7808,
+    "mismatches": 0
+  },
+  "standalone_complete": 976,
+  "product_hashes": 619,
+  "artifact_hashes": 23,
+  "local_links": 19,
+  "checks_passed": true
+}

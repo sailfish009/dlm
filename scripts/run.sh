@@ -24,7 +24,9 @@ files+=("$ROOT/src/dlm/eml93-formation.l" "$ROOT/src/dlm/eml93-session.l")
 files+=("$ROOT/src/dlm/basis-eml94.l" "$ROOT/src/dlm/basis-eml94-execution.l")
 files+=("$ROOT/src/dlm/composition95-ir.l" "$ROOT/src/dlm/composition95-execution.l")
 files+=("$ROOT/src/dlm/composition95-evidence.l" "$ROOT/src/dlm/composition95-formation.l" "$ROOT/src/dlm/composition95-session.l")
+files+=("$ROOT/src/dlm/web96-bytes.l" "$ROOT/src/dlm/web96-extract.l" "$ROOT/src/dlm/web96-session.l")
 case "${1:-repl}" in
+ web96-input) exec "$MARU" "${files[@]}" "$ROOT/experiments/web96/input.l" ;;
  compose95) exec "$MARU" "${files[@]}" "$ROOT/experiments/composition95/run.l" ;;
  compose95-input) exec "$MARU" "${files[@]}" "$ROOT/experiments/composition95/input.l" ;;
  integrate94) exec "$MARU" "${files[@]}" "$ROOT/experiments/integration94/run.l" ;;
@@ -81,5 +83,5 @@ case "${1:-repl}" in
   mkdir -p "$(dirname "$STORE")"
   exec "$MARU" "${files[@]}" --define '*dlm-session-path*' "$STORE" --define '*dlm-demo-mode*' "$DEMO" "$ROOT/experiments/repl/start.l" - ;;
  test) exec "$MARU" "${files[@]}" "$ROOT/tests/demo.l" "$ROOT/tests/kernel-tests.l" "$ROOT/tests/model-tests.l" "$ROOT/tests/safety-tests.l" "$ROOT/experiments/interaction/run.l" "$ROOT/tests/interaction-tests.l" "$ROOT/experiments/constraints/run.l" "$ROOT/tests/constraint-tests.l" "$ROOT/experiments/symbolic/run.l" "$ROOT/tests/symbolic-tests.l" "$ROOT/experiments/symbolic/controls.l" "$ROOT/tests/web-tests.l" "$ROOT/experiments/graph/run.l" "$ROOT/tests/graph-tests.l" "$ROOT/experiments/graph/transfer.l" "$ROOT/tests/sequent-tests.l" "$ROOT/tests/axiom-space-tests.l" "$ROOT/tests/reasoning-tests.l" "$ROOT/tests/space-tests.l" ;;
- *) echo 'usage: run.sh [compose95|compose95-input|integrate94|integrate94-input|eml93|eml93-input|attention92|attention92-input|basis91|basis91-input|basis90|basis90-input|proof DRIVER|repl|learn|reason|space|recursive86 STORE DEMO ROUNDS INTERVAL BUDGET|test|interaction|constraints|symbolic|session|web-ingest|web-report|graph|graph-session|graph-report]' >&2; exit 2 ;;
+ *) echo 'usage: run.sh [web96-input|compose95|compose95-input|integrate94|integrate94-input|eml93|eml93-input|attention92|attention92-input|basis91|basis91-input|basis90|basis90-input|proof DRIVER|repl|learn|reason|space|recursive86 STORE DEMO ROUNDS INTERVAL BUDGET|test|interaction|constraints|symbolic|session|web-ingest|web-report|graph|graph-session|graph-report]' >&2; exit 2 ;;
 esac
