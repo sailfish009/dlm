@@ -19,7 +19,7 @@
 (define-function b91-cover (p lib)
   (if (not p) ()
     (let ((best (cons (list 'fact91 (car (car p)) (cdr (car p))) (b91-cover (cdr p) lib))))
-      (list-do m lib
+      (list-do m (b91-relations lib)
         (list-do e (b91-embeds (dlm-nth m 2) p ())
           (let ((candidate (cons (list 'call91 (dlm-nth m 1)
               (b91-args (dlm-nth e 1) (b91-arity (dlm-nth m 2))))

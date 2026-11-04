@@ -1,0 +1,5 @@
+{
+  "elapsed_seconds": 5.103293350999593,
+  "peak_child_rss_kib": 19536,
+  "note": "Python perf_counter around one fresh native CLI subprocess; excludes Python startup and subsequent artifact write."
+}

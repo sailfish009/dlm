@@ -2,7 +2,7 @@
 ;;; index counts. No answer labels, heldout results, Python or neural scoring.
 (define-function a92-options (remaining lib)
   (let ((out (b91-primitive remaining)))
-    (list-do m lib (list-do e (b91-embeds (dlm-nth m 2) remaining ())
+    (list-do m (b91-relations lib) (list-do e (b91-embeds (dlm-nth m 2) remaining ())
       (set out (dlm-add out (list 'call91 (dlm-nth m 1)
         (b91-args (dlm-nth e 1) (b91-arity (dlm-nth m 2)))))))) out))
 ;;; Estimate = (sum marginal sizes + product marginal sizes) / atoms^2.

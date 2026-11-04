@@ -15,11 +15,13 @@
         (if (b91-connected? group)
           (let ((p (b91-canonical group sig)))
             (if (b91-pattern? p sig) (set out (dlm-add out p))))))) out))
+(define-function b91-interpret-pool (s ep)
+  (let ((pool ()))
+    ;; Existing knowledge guides BOTH ordinary and controlled interpretation.
+    (list-do m (b91-relations (dlm-nth s 4)) (set pool (dlm-add pool (dlm-nth m 2))))
+    (dlm-union pool (b91-data-patterns (dlm-nth ep 3) (dlm-nth s 2)))))
 (define-function b91-interpret (s ep fuel)
-  (let ((readings ()) (attempts ()) (pool ()) (status 'complete) (r (b91-runtime fuel)))
-    ;; Try existing internal logic first, even when it fails on this source.
-    (list-do m (dlm-nth s 4) (set pool (dlm-add pool (dlm-nth m 2))))
-    (set pool (dlm-union pool (b91-data-patterns (dlm-nth ep 3) (dlm-nth s 2))))
+  (let ((readings ()) (attempts ()) (pool (b91-interpret-pool s ep)) (status 'complete) (r (b91-runtime fuel)))
     (list-do p pool
       (if (= status 'complete)
         (let ((plan (b91-plan p (dlm-nth s 2) (dlm-nth s 4))))
@@ -36,7 +38,7 @@
   (let ((out ()) (seen ()) (lib (dlm-nth s 4)))
     (list-do v (dlm-nth s 5)
       (let ((p (dlm-nth v 3)) (plan (dlm-nth v 4)) (known false))
-        (list-do m lib (if (equal p (dlm-nth m 2)) (set known true)))
+        (list-do m (b91-relations lib) (if (equal p (dlm-nth m 2)) (set known true)))
         (if (and (not known) (not (dlm-member? p seen)) (= (dlm-length plan) 2))
           (let ((support (b91-support p (dlm-nth s 5))))
             (set seen (cons p seen))
@@ -52,3 +54,12 @@
         (let* ((m (list 'basis91 (+ 1 (dlm-length (dlm-nth s 4))) (dlm-nth best 1) (dlm-nth best 2)))
                (lib (dlm-append (dlm-nth s 4) (list m))))
           (list 'learn91 m (b91-rewrites (dlm-nth s 5) (dlm-nth s 2) lib)))))))
+;;; Same proposal/support/rewrite/admission path, different checked body encoding.
+;;; Encoding does not discover a new world law or constitute extra support.
+(define-function b91-propose-encoded (s format branch)
+  (if (not *b91-codec-encode*) '(rejected91 codec-unavailable)
+    (let ((p (b91-propose s)))
+      (if (not (= (car p) 'learn91)) p
+        (let* ((m (dlm-nth p 1)) (body (*b91-codec-encode* (dlm-nth m 3) format branch)))
+          (if (not body) '(rejected91 encoding)
+            (list 'learn91 (s79-field m 3 body) (dlm-nth p 2))))))))

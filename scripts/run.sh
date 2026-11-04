@@ -19,7 +19,18 @@ files+=("$ROOT/src/dlm/basis91-ir.l" "$ROOT/src/dlm/basis91-plan.l" "$ROOT/src/d
 files+=("$ROOT/src/dlm/basis91-execution.l" "$ROOT/src/dlm/basis91-formation.l" "$ROOT/src/dlm/basis91-session.l")
 files+=("$ROOT/src/dlm/attention92-ir.l" "$ROOT/src/dlm/attention92-control.l" "$ROOT/src/dlm/attention92-execution.l")
 files+=("$ROOT/src/dlm/attention92-step.l" "$ROOT/src/dlm/attention92-session.l")
+files+=("$ROOT/src/dlm/eml93-numeric.l" "$ROOT/src/dlm/eml93-ir.l" "$ROOT/src/dlm/eml93-execution.l")
+files+=("$ROOT/src/dlm/eml93-formation.l" "$ROOT/src/dlm/eml93-session.l")
+files+=("$ROOT/src/dlm/basis-eml94.l" "$ROOT/src/dlm/basis-eml94-execution.l")
+files+=("$ROOT/src/dlm/composition95-ir.l" "$ROOT/src/dlm/composition95-execution.l")
+files+=("$ROOT/src/dlm/composition95-evidence.l" "$ROOT/src/dlm/composition95-formation.l" "$ROOT/src/dlm/composition95-session.l")
 case "${1:-repl}" in
+ compose95) exec "$MARU" "${files[@]}" "$ROOT/experiments/composition95/run.l" ;;
+ compose95-input) exec "$MARU" "${files[@]}" "$ROOT/experiments/composition95/input.l" ;;
+ integrate94) exec "$MARU" "${files[@]}" "$ROOT/experiments/integration94/run.l" ;;
+ integrate94-input) exec "$MARU" "${files[@]}" "$ROOT/experiments/integration94/input.l" ;;
+ eml93) exec "$MARU" "${files[@]}" "$ROOT/experiments/eml93/run.l" ;;
+ eml93-input) exec "$MARU" "${files[@]}" "$ROOT/experiments/eml93/input.l" ;;
  proof) exec "$MARU" "${files[@]}" "${2:?proof driver required}" ;;
  attention92) exec "$MARU" "${files[@]}" "$ROOT/experiments/attention92/run.l" ;;
  attention92-input) exec "$MARU" "${files[@]}" "$ROOT/experiments/attention92/input.l" ;;
@@ -70,5 +81,5 @@ case "${1:-repl}" in
   mkdir -p "$(dirname "$STORE")"
   exec "$MARU" "${files[@]}" --define '*dlm-session-path*' "$STORE" --define '*dlm-demo-mode*' "$DEMO" "$ROOT/experiments/repl/start.l" - ;;
  test) exec "$MARU" "${files[@]}" "$ROOT/tests/demo.l" "$ROOT/tests/kernel-tests.l" "$ROOT/tests/model-tests.l" "$ROOT/tests/safety-tests.l" "$ROOT/experiments/interaction/run.l" "$ROOT/tests/interaction-tests.l" "$ROOT/experiments/constraints/run.l" "$ROOT/tests/constraint-tests.l" "$ROOT/experiments/symbolic/run.l" "$ROOT/tests/symbolic-tests.l" "$ROOT/experiments/symbolic/controls.l" "$ROOT/tests/web-tests.l" "$ROOT/experiments/graph/run.l" "$ROOT/tests/graph-tests.l" "$ROOT/experiments/graph/transfer.l" "$ROOT/tests/sequent-tests.l" "$ROOT/tests/axiom-space-tests.l" "$ROOT/tests/reasoning-tests.l" "$ROOT/tests/space-tests.l" ;;
- *) echo 'usage: run.sh [attention92|attention92-input|basis91|basis91-input|basis90|basis90-input|proof DRIVER|repl|learn|reason|space|recursive86 STORE DEMO ROUNDS INTERVAL BUDGET|test|interaction|constraints|symbolic|session|web-ingest|web-report|graph|graph-session|graph-report]' >&2; exit 2 ;;
+ *) echo 'usage: run.sh [compose95|compose95-input|integrate94|integrate94-input|eml93|eml93-input|attention92|attention92-input|basis91|basis91-input|basis90|basis90-input|proof DRIVER|repl|learn|reason|space|recursive86 STORE DEMO ROUNDS INTERVAL BUDGET|test|interaction|constraints|symbolic|session|web-ingest|web-report|graph|graph-session|graph-report]' >&2; exit 2 ;;
 esac

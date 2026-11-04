@@ -1,0 +1,16 @@
+{
+  "platform": "Linux-7.3.1-1-cachyos-x86_64-with-glibc2.44",
+  "python": "3.12.10 | packaged by conda-forge | (main, Apr 10 2025, 22:21:13) [GCC 13.3.0]",
+  "cpu_logical": 16,
+  "compiler_sha256": "2cbe804829509f5386933d832cbba2fef1bad367b7510a543b5d3f5818136fc9",
+  "one_fresh_demo": {
+    "seconds": 1.8819197319990053,
+    "peak_child_rss_kib_linux": 20176,
+    "includes": "Native startup, inherited/new module loading, all four formation stages and heldout fixture output; stdout discarded. Whole child peak, not learned parameter bytes."
+  },
+  "core_compact_json_bytes": 1125,
+  "core_contains_training_rows": false,
+  "numeric_oracle": "Python stdlib cmath",
+  "cpu_only": true,
+  "network_used_in_dlm": false
+}

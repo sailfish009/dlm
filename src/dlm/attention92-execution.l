@@ -21,10 +21,16 @@
         (begin
           (set r (a92-worker-inc r 5)) (set r (s79-field r 6 (dlm-add (dlm-nth r 6) (dlm-nth op 1))))
           (set out envs)
-          (list-do child (dlm-nth (b91-module lib (dlm-nth op 1)) 3)
-            (if (= status 'complete)
-              (let ((v (a92-execute (a92-map-op child (dlm-nth op 2)) ep lib scope out r)))
-                (set status (dlm-nth v 1)) (set out (dlm-nth v 2)) (set r (dlm-nth v 3))))))
+          (let ((body (dlm-nth (b91-module lib (dlm-nth op 1)) 3)))
+            (if (b91-encoded? body)
+              (if *b91-codec-controlled*
+                (let ((v (*b91-codec-controlled* body (dlm-nth op 2) ep lib scope envs r)))
+                  (set status (dlm-nth v 1)) (set out (dlm-nth v 2)) (set r (dlm-nth v 3)))
+                (set status 'unknown))
+              (list-do child body
+                (if (= status 'complete)
+                  (let ((v (a92-execute (a92-map-op child (dlm-nth op 2)) ep lib scope out r)))
+                    (set status (dlm-nth v 1)) (set out (dlm-nth v 2)) (set r (dlm-nth v 3))))))))
         (list-do env envs (list-do id (dlm-nth scope 1)
           (if (= status 'complete)
             (if (= (dlm-nth r 1) 0) (set status 'unknown)

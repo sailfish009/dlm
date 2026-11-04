@@ -1,0 +1,44 @@
+{
+  "predecessors": {
+    "0092": {
+      "files": 498,
+      "status_preserved": true,
+      "files_preserved": true,
+      "compiler_preserved": true
+    },
+    "0093": {
+      "files": 532,
+      "status_preserved": true,
+      "files_preserved": true,
+      "compiler_preserved": true
+    }
+  },
+  "inherited_changed_files": [
+    "README.md",
+    "VERSION",
+    "scripts/run.sh",
+    "src/dlm/attention92-execution.l",
+    "src/dlm/attention92-ir.l",
+    "src/dlm/basis91-check.l",
+    "src/dlm/basis91-execution.l",
+    "src/dlm/basis91-formation.l",
+    "src/dlm/basis91-ir.l",
+    "src/dlm/basis91-session.l"
+  ],
+  "product_hashes": 308,
+  "local_links": 19,
+  "python_ast": true,
+  "shell_syntax": true,
+  "whitespace": true,
+  "offline_tests": 238,
+  "new_tests": 25,
+  "graph_oracle_complete_checks": 6144,
+  "finite_circuit_checks": 28,
+  "experiment_processes": 56,
+  "experiment_complete_checks": 1186,
+  "experiment_unknown": 158,
+  "experiment_pending": 0,
+  "mismatches": 0,
+  "compiler_preserved": true,
+  "manifest_scope": "Actual copy-time/current nonignored products (root/source/adapter/script/test/experiment/root docs markdown); evidence artifacts separately."
+}

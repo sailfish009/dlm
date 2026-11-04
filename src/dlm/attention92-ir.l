@@ -13,7 +13,7 @@
        (b91-pattern? (dlm-nth ctx 3) (dlm-nth (dlm-nth ctx 1) 1))
        (a92-policy? (dlm-nth ctx 4)) (b91-fuel? (dlm-nth ctx 5))))
 (define-function a92-basis-ids (lib)
-  (let ((ids ())) (list-do m lib (set ids (dlm-append ids (list (dlm-nth m 1))))) ids))
+  (let ((ids ())) (list-do m (b91-relations lib) (set ids (dlm-append ids (list (dlm-nth m 1))))) ids))
 (define-function a92-ids? (ids allowed limit)
   (and (dlm-proper? ids limit)
     (let ((ok true) (seen ())) (list-do i ids
@@ -22,7 +22,7 @@
 (define-function a92-dependencies (ids lib)
   (let ((out ids) (changed true))
     (while changed (set changed false)
-      (list-do id out (list-do op (dlm-nth (b91-module lib id) 3)
+      (list-do id out (list-do op (b91-body-ops (dlm-nth (b91-module lib id) 3))
         (if (and (= (car op) 'call91) (not (dlm-member? (dlm-nth op 1) out)))
           (begin (set out (dlm-append out (list (dlm-nth op 1)))) (set changed true))))))
     (b91-fact-key out)))

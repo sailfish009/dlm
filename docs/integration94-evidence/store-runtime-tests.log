@@ -1,0 +1,6 @@
+PASS process restart replays experience; corrupt and forged stores rejected without overwrite
+STORE_EXIT=0
+PASS source-free embedded symbolic choice/backtracking/propagation
+RUNTIME_EXIT=0
+PASS graph process restart, retraction replay, string roundtrip and atomic rejection
+GRAPH_STORE_EXIT=0

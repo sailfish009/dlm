@@ -1,0 +1,76 @@
+chain seed=0 principal93 logical94: 24/24 complete
+chain seed=0 principal93 eml94: 24/24 complete
+chain seed=0 lower93 logical94: 24/24 complete
+chain seed=0 lower93 eml94: 24/24 complete
+chain seed=1 principal93 logical94: 24/24 complete
+chain seed=1 principal93 eml94: 24/24 complete
+chain seed=1 lower93 logical94: 24/24 complete
+chain seed=1 lower93 eml94: 24/24 complete
+fork seed=0 principal93 logical94: 24/24 complete
+fork seed=0 principal93 eml94: 24/24 complete
+fork seed=0 lower93 logical94: 24/24 complete
+fork seed=0 lower93 eml94: 24/24 complete
+fork seed=1 principal93 logical94: 24/24 complete
+fork seed=1 principal93 eml94: 24/24 complete
+fork seed=1 lower93 logical94: 24/24 complete
+fork seed=1 lower93 eml94: 24/24 complete
+target seed=0 principal93 logical94: 24/24 complete
+target seed=0 principal93 eml94: 24/24 complete
+target seed=0 lower93 logical94: 24/24 complete
+target seed=0 lower93 eml94: 24/24 complete
+target seed=1 principal93 logical94: 24/24 complete
+target seed=1 principal93 eml94: 24/24 complete
+target seed=1 lower93 logical94: 24/24 complete
+target seed=1 lower93 eml94: 24/24 complete
+cycle seed=0 principal93 logical94: 24/24 complete
+cycle seed=0 principal93 eml94: 24/24 complete
+cycle seed=0 lower93 logical94: 24/24 complete
+cycle seed=0 lower93 eml94: 24/24 complete
+cycle seed=1 principal93 logical94: 24/24 complete
+cycle seed=1 principal93 eml94: 24/24 complete
+cycle seed=1 lower93 logical94: 24/24 complete
+cycle seed=1 lower93 eml94: 24/24 complete
+chain principal93 no-prefix94: bases=1, complete=24, unknown=0
+chain principal93 no-feedback94: bases=1, complete=24, unknown=0
+chain principal93 no-execution94: bases=1, complete=4, unknown=20
+chain lower93 no-prefix94: bases=1, complete=24, unknown=0
+chain lower93 no-feedback94: bases=1, complete=24, unknown=0
+chain lower93 no-execution94: bases=1, complete=4, unknown=20
+fork principal93 no-prefix94: bases=1, complete=24, unknown=0
+fork principal93 no-feedback94: bases=1, complete=24, unknown=0
+fork principal93 no-execution94: bases=1, complete=4, unknown=20
+fork lower93 no-prefix94: bases=1, complete=24, unknown=0
+fork lower93 no-feedback94: bases=1, complete=24, unknown=0
+fork lower93 no-execution94: bases=1, complete=4, unknown=20
+target principal93 no-prefix94: bases=1, complete=24, unknown=0
+target principal93 no-feedback94: bases=1, complete=24, unknown=0
+target principal93 no-execution94: bases=1, complete=3, unknown=21
+target lower93 no-prefix94: bases=1, complete=24, unknown=0
+target lower93 no-feedback94: bases=1, complete=24, unknown=0
+target lower93 no-execution94: bases=1, complete=3, unknown=21
+cycle principal93 no-prefix94: bases=1, complete=24, unknown=0
+cycle principal93 no-feedback94: bases=1, complete=24, unknown=0
+cycle principal93 no-execution94: bases=1, complete=6, unknown=18
+cycle lower93 no-prefix94: bases=1, complete=24, unknown=0
+cycle lower93 no-feedback94: bases=1, complete=24, unknown=0
+cycle lower93 no-execution94: bases=1, complete=6, unknown=18
+{
+  "version": "0.0094",
+  "fresh_native_processes": 56,
+  "separate_finite_probe_processes": 1,
+  "total_queries": 1344,
+  "complete_checks": 1186,
+  "unknown": 158,
+  "pending": 0,
+  "mismatches": 0,
+  "counter_fields": [
+    "evaluations",
+    "EML_nodes",
+    "accepted",
+    "rejected",
+    "ground_calls",
+    "candidates"
+  ],
+  "scope": "4 fixed structural families; 2 order/rename/query seeds; 2 explicit branch conventions. 24 new finite-source queries/run, two main arms plus 3 causal controls. Native observation interpretation and basis learning; Python only generates/checks. Timing includes startup/formation/validation/replay/query/output, not OS sandboxing or checkpoint I/O. Unknowns are not scored as correct answers. Seeds are not independent task families."
+}
+EXPERIMENT_EXIT=0

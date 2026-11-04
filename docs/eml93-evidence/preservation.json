@@ -1,0 +1,13 @@
+{
+  "predecessor_preserved": true,
+  "recorded_files_checked": 499,
+  "git_status_preserved": true,
+  "predecessor_git_status": "",
+  "compiler_unchanged": true,
+  "inherited_changed_files": [
+    "README.md",
+    "VERSION",
+    "scripts/run.sh"
+  ],
+  "readme_archived": true
+}

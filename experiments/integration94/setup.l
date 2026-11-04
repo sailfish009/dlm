@@ -1,0 +1,10 @@
+;;; Plain observations only; no desired basis program or numeric target labels.
+(basis91 'init '(r s t))
+(basis91 'observe 'initial94 '((atom r (a b)) (atom s (b c)) (atom r (p q)) (atom s (q z))))
+(basis91 'interpret-controlled 'initial94 200000 'adaptive92)
+(basis91 'learn)
+(basis91 'encode 1 'eml94 'principal93)
+(basis91 'observe 'subsequent94 '((atom r (u v)) (atom s (v w)) (atom t (w k))
+                                (atom r (j l)) (atom s (l m)) (atom t (m n))))
+(basis91 'interpret-controlled 'subsequent94 200000 'adaptive92)
+(basis91 'learn 'eml94 'principal93)

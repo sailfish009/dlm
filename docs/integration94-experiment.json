@@ -1,0 +1,7713 @@
+{
+  "version": "0.0094",
+  "runs": [
+    {
+      "family": "chain",
+      "seed": 0,
+      "arm": "logical94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.5278656629998295,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 32,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 1417,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "fc1a7340d0a5ede8329dd0c6898a82d55a1432a2396baedd7a47efaedba6b3c1",
+      "input_sha256": "6f6e940c299613927155a1a938005be17eae239aae98eab210760648dc7e65c7"
+    },
+    {
+      "family": "chain",
+      "seed": 0,
+      "arm": "eml94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 3.4642002069995215,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 32,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 2815,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        24,
+        480,
+        4,
+        20,
+        0,
+        24
+      ],
+      "query_worker_counters": [
+        281,
+        5620,
+        76,
+        205,
+        40,
+        241
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "fc1a7340d0a5ede8329dd0c6898a82d55a1432a2396baedd7a47efaedba6b3c1",
+      "input_sha256": "cd9b628b871c56799740add9cef42b39423cd80a3aad93143d8fa9529699f01c"
+    },
+    {
+      "family": "chain",
+      "seed": 0,
+      "arm": "logical94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.5314893489994574,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 32,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 1417,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "fc1a7340d0a5ede8329dd0c6898a82d55a1432a2396baedd7a47efaedba6b3c1",
+      "input_sha256": "b69db3db0d6298a828d4543d262e750186025be189a465467eb1817829a63bd5"
+    },
+    {
+      "family": "chain",
+      "seed": 0,
+      "arm": "eml94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 3.4655068649990426,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 32,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 2807,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        24,
+        480,
+        4,
+        20,
+        0,
+        24
+      ],
+      "query_worker_counters": [
+        281,
+        5620,
+        76,
+        205,
+        40,
+        241
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "fc1a7340d0a5ede8329dd0c6898a82d55a1432a2396baedd7a47efaedba6b3c1",
+      "input_sha256": "e17809bf857b5b9e6e64796379abbcaacc2bb965376c4fb302486ae8c14372a2"
+    },
+    {
+      "family": "chain",
+      "seed": 1,
+      "arm": "logical94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.6003500809983962,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 40,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              1,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 1417,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "0cbb48bce0fb2754334610560bf8435dddb4654c85b82c9c77ae78fa3522cea1",
+      "input_sha256": "3fd46ab4a4c5d4aabc9832e1f84ae1d406d2ec8fd2fa6567aa45c216fe288baa"
+    },
+    {
+      "family": "chain",
+      "seed": 1,
+      "arm": "eml94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 3.0386033129998395,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 40,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              1,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 2815,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        24,
+        480,
+        4,
+        20,
+        0,
+        24
+      ],
+      "query_worker_counters": [
+        200,
+        4000,
+        61,
+        139,
+        24,
+        176
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "0cbb48bce0fb2754334610560bf8435dddb4654c85b82c9c77ae78fa3522cea1",
+      "input_sha256": "5cce26ffb39eb700b6bbab9f5ad9acdc0c91c7356b2d003625c3e283e0c5ee1e"
+    },
+    {
+      "family": "chain",
+      "seed": 1,
+      "arm": "logical94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.5478299699989293,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 40,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              1,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 1417,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "0cbb48bce0fb2754334610560bf8435dddb4654c85b82c9c77ae78fa3522cea1",
+      "input_sha256": "2b814777fd2b44535e15ebad58bf777a253e7e915f1aa308f98cf0547ef6bcf2"
+    },
+    {
+      "family": "chain",
+      "seed": 1,
+      "arm": "eml94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 3.048438340998473,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 40,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              1,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 2807,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        24,
+        480,
+        4,
+        20,
+        0,
+        24
+      ],
+      "query_worker_counters": [
+        200,
+        4000,
+        61,
+        139,
+        24,
+        176
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "0cbb48bce0fb2754334610560bf8435dddb4654c85b82c9c77ae78fa3522cea1",
+      "input_sha256": "f11a844444ba0e77d341d4a4295285192ce393549672738f3892ed90c68210ef"
+    },
+    {
+      "family": "fork",
+      "seed": 0,
+      "arm": "logical94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.538368993999029,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 42,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 1417,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "03e2b94c6f528c0cf31b50efc1d2408a406529f9adb1ae2b03f179e8e6e473fa",
+      "input_sha256": "1d66f9bd58ad791c815e43e3313e7905a6d6973d2f2f4f1a970ab33ebe378426"
+    },
+    {
+      "family": "fork",
+      "seed": 0,
+      "arm": "eml94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 3.3999894240005233,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 42,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 2815,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        24,
+        480,
+        4,
+        20,
+        0,
+        24
+      ],
+      "query_worker_counters": [
+        265,
+        5300,
+        73,
+        192,
+        32,
+        233
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "03e2b94c6f528c0cf31b50efc1d2408a406529f9adb1ae2b03f179e8e6e473fa",
+      "input_sha256": "68e568deea6cf263c89bbe19a6a7b133c20b20402876a7334d0e9fe3f564f601"
+    },
+    {
+      "family": "fork",
+      "seed": 0,
+      "arm": "logical94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.550415765001162,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 42,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 1417,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "03e2b94c6f528c0cf31b50efc1d2408a406529f9adb1ae2b03f179e8e6e473fa",
+      "input_sha256": "14724f2046304bdc82c94c26483e515cdf58d21c967bb592e625d1b6cde490a4"
+    },
+    {
+      "family": "fork",
+      "seed": 0,
+      "arm": "eml94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 3.433575369001119,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 42,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 2807,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        24,
+        480,
+        4,
+        20,
+        0,
+        24
+      ],
+      "query_worker_counters": [
+        265,
+        5300,
+        73,
+        192,
+        32,
+        233
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ],
+          [
+            "t_opaque_0",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "03e2b94c6f528c0cf31b50efc1d2408a406529f9adb1ae2b03f179e8e6e473fa",
+      "input_sha256": "f4f28906d0bbfc2b2cb2a825f632b79eaf12110773d895cc2d7b55b5b881ebc9"
+    },
+    {
+      "family": "fork",
+      "seed": 1,
+      "arm": "logical94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.543915324999034,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 41,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            0,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              0,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 1417,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            0,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "900a073892a1124f9a9877a86f07eb47624874f1440e6288ce316d188acb2868",
+      "input_sha256": "f3bdbfbee1d404e06d293394276194c7abc36d610afbcbd3331b9762a83dd570"
+    },
+    {
+      "family": "fork",
+      "seed": 1,
+      "arm": "eml94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 3.112609476000216,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 41,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            0,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              0,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 2815,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        24,
+        480,
+        4,
+        20,
+        0,
+        24
+      ],
+      "query_worker_counters": [
+        216,
+        4320,
+        70,
+        146,
+        32,
+        184
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            0,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "900a073892a1124f9a9877a86f07eb47624874f1440e6288ce316d188acb2868",
+      "input_sha256": "338a6feacb0be30c35aae9c249a09c252ff31a5832bb53a76e6944005a6893d7"
+    },
+    {
+      "family": "fork",
+      "seed": 1,
+      "arm": "logical94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.5414001810004265,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 41,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            0,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              0,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 1417,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            0,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "900a073892a1124f9a9877a86f07eb47624874f1440e6288ce316d188acb2868",
+      "input_sha256": "064bb0e246d6c3451421a1af6f21d2ebe8d9868034a60dba8e72054f1b03b77a"
+    },
+    {
+      "family": "fork",
+      "seed": 1,
+      "arm": "eml94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 3.1280630249984824,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 41,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            0,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              0,
+              2
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              2,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 5,
+      "core_json_bytes": 2807,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        24,
+        480,
+        4,
+        20,
+        0,
+        24
+      ],
+      "query_worker_counters": [
+        216,
+        4320,
+        70,
+        146,
+        32,
+        184
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            0,
+            2
+          ],
+          [
+            "t_opaque_1",
+            2,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "900a073892a1124f9a9877a86f07eb47624874f1440e6288ce316d188acb2868",
+      "input_sha256": "a53e5d984e1902a5067449fa0ddb7615ec1f95325bfa0d942b4a7d285d47f628"
+    },
+    {
+      "family": "target",
+      "seed": 0,
+      "arm": "logical94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.5895665070001996,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 36,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              2,
+              1
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              1,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 1550,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "7b9325e0fd33b475a6a290392c26124c894f3b6decfe5182bda4e9294ab37c60",
+      "input_sha256": "d48b7e0e85dfa87429a47fe6480589bc6e16755d655f672287ee55793a7b7be7"
+    },
+    {
+      "family": "target",
+      "seed": 0,
+      "arm": "eml94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 3.5627072999996017,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 36,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              2,
+              1
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              1,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 2948,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        24,
+        480,
+        4,
+        20,
+        0,
+        24
+      ],
+      "query_worker_counters": [
+        296,
+        5920,
+        88,
+        208,
+        44,
+        252
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "7b9325e0fd33b475a6a290392c26124c894f3b6decfe5182bda4e9294ab37c60",
+      "input_sha256": "8086021e1eae4d4c9d5bbcc93a2896d1eef5aa3d1bb6d9b788ec062465d2db80"
+    },
+    {
+      "family": "target",
+      "seed": 0,
+      "arm": "logical94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.5596065760000783,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 36,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              2,
+              1
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              1,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 1550,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "7b9325e0fd33b475a6a290392c26124c894f3b6decfe5182bda4e9294ab37c60",
+      "input_sha256": "6d04adf8a0a98aea5096fd37e7c0aef629b38aa430d1969ef450d3f09dcfdc97"
+    },
+    {
+      "family": "target",
+      "seed": 0,
+      "arm": "eml94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 3.5458923739988677,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 36,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              2,
+              1
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              1,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 2940,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        24,
+        480,
+        4,
+        20,
+        0,
+        24
+      ],
+      "query_worker_counters": [
+        296,
+        5920,
+        88,
+        208,
+        44,
+        252
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "7b9325e0fd33b475a6a290392c26124c894f3b6decfe5182bda4e9294ab37c60",
+      "input_sha256": "a58f50305bf898930c0882fa9f120cabeec1aa5696780c76d3036034da8a27b9"
+    },
+    {
+      "family": "target",
+      "seed": 1,
+      "arm": "logical94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.5925390550000884,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 43,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            2,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              2,
+              1
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              1,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 1550,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            2,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "9589951e19ad1900114f1a7fc60da65031deaba47605696170d9979ad967523e",
+      "input_sha256": "7277603ec8457e6c7b6c88169adc2c78521af3e5627d8d5df5defd7a9f24ab89"
+    },
+    {
+      "family": "target",
+      "seed": 1,
+      "arm": "eml94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 3.0147383809999155,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 43,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            2,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              2,
+              1
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              1,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 2948,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        24,
+        480,
+        4,
+        20,
+        0,
+        24
+      ],
+      "query_worker_counters": [
+        196,
+        3920,
+        64,
+        132,
+        24,
+        172
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            2,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "9589951e19ad1900114f1a7fc60da65031deaba47605696170d9979ad967523e",
+      "input_sha256": "1323c7ec8c847447ad1949e4724be9be7b600953fa1ea2a84c2cd9b88879a6b6"
+    },
+    {
+      "family": "target",
+      "seed": 1,
+      "arm": "logical94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.58339541299938,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 43,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            2,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              2,
+              1
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              1,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 1550,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            2,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "9589951e19ad1900114f1a7fc60da65031deaba47605696170d9979ad967523e",
+      "input_sha256": "ecaa59fa266cfb30185c5563227db2e48836046cfc69463e7a96283f7bef7255"
+    },
+    {
+      "family": "target",
+      "seed": 1,
+      "arm": "eml94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 3.0196486329987238,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 43,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            2,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            3
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              2,
+              1
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1,
+              2
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              1,
+              3
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 2940,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        24,
+        480,
+        4,
+        20,
+        0,
+        24
+      ],
+      "query_worker_counters": [
+        196,
+        3920,
+        64,
+        132,
+        24,
+        172
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            2,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            3
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "9589951e19ad1900114f1a7fc60da65031deaba47605696170d9979ad967523e",
+      "input_sha256": "f7c14c54376766a4b33b905bdde255922da64c80f60f716d35baaf32033fa371"
+    },
+    {
+      "family": "cycle",
+      "seed": 0,
+      "arm": "logical94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.4962158800008183,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 18,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              0
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 1542,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "ffda1d61c663fb7c4d201cf32e0c661163b1b916c44c44c217fcf85ddd170db9",
+      "input_sha256": "51abdb812738c6355e5b4dbb6048598bbe43181ce44e3fd2d5ee62abf14420e6"
+    },
+    {
+      "family": "cycle",
+      "seed": 0,
+      "arm": "eml94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 2.4008770380005444,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 18,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              0
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 2940,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        4,
+        80,
+        4,
+        0,
+        0,
+        4
+      ],
+      "query_worker_counters": [
+        135,
+        2700,
+        60,
+        75,
+        36,
+        99
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "ffda1d61c663fb7c4d201cf32e0c661163b1b916c44c44c217fcf85ddd170db9",
+      "input_sha256": "9c7bf0058e573ada9948e6dc70ae65b509f7ff4e7301880f180f6a04d945f3a9"
+    },
+    {
+      "family": "cycle",
+      "seed": 0,
+      "arm": "logical94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.4978094620000775,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 18,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              0
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 1542,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "ffda1d61c663fb7c4d201cf32e0c661163b1b916c44c44c217fcf85ddd170db9",
+      "input_sha256": "1ca57626cadb898146a380ac5b255dc4f120009a90e5673b8ff40c4fd6d3c652"
+    },
+    {
+      "family": "cycle",
+      "seed": 0,
+      "arm": "eml94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 2.382328834999498,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 18,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              0
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 2932,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        4,
+        80,
+        4,
+        0,
+        0,
+        4
+      ],
+      "query_worker_counters": [
+        135,
+        2700,
+        60,
+        75,
+        36,
+        99
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "ffda1d61c663fb7c4d201cf32e0c661163b1b916c44c44c217fcf85ddd170db9",
+      "input_sha256": "c6c4ad56888927899de7cc085156d09719e287df1c64826e9ad1e4e1bece7cee"
+    },
+    {
+      "family": "cycle",
+      "seed": 1,
+      "arm": "logical94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.4947747470014292,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 21,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            0
+          ],
+          [
+            "t_opaque_1",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              1,
+              0
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 1542,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            0
+          ],
+          [
+            "t_opaque_1",
+            0,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "343618e6367aff0e1be89c8f2531b06e6f0f87859a8111fa179689359294a56b",
+      "input_sha256": "541703240cad8dba65fb94f2c266298c870d24f2f44d38ae40e13ce5516f5880"
+    },
+    {
+      "family": "cycle",
+      "seed": 1,
+      "arm": "eml94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 2.0841254989991285,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 21,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            0
+          ],
+          [
+            "t_opaque_1",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              1,
+              0
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 2940,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        4,
+        80,
+        4,
+        0,
+        0,
+        4
+      ],
+      "query_worker_counters": [
+        80,
+        1600,
+        36,
+        44,
+        16,
+        64
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            0
+          ],
+          [
+            "t_opaque_1",
+            0,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "343618e6367aff0e1be89c8f2531b06e6f0f87859a8111fa179689359294a56b",
+      "input_sha256": "e83895a4beb17ff295cdc934806a676ee969312227c236da27ed69cdb6608f2d"
+    },
+    {
+      "family": "cycle",
+      "seed": 1,
+      "arm": "logical94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.4936422480004694,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 21,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            0
+          ],
+          [
+            "t_opaque_1",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "logical91",
+        "logical91"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              1,
+              0
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 1542,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            0
+          ],
+          [
+            "t_opaque_1",
+            0,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "343618e6367aff0e1be89c8f2531b06e6f0f87859a8111fa179689359294a56b",
+      "input_sha256": "5fe72f0979703ac1b4d229de5c6e35987596e316bfb42a981dd776e1c21ffb76"
+    },
+    {
+      "family": "cycle",
+      "seed": 1,
+      "arm": "eml94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 2.0962603240004682,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 21,
+      "basis_count": 2,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            0
+          ],
+          [
+            "t_opaque_1",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94",
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_1",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_1",
+            [
+              1,
+              0
+            ]
+          ]
+        ],
+        [
+          [
+            "call91",
+            1,
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "t_opaque_1",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1,
+        2
+      ],
+      "active_operations": 7,
+      "core_json_bytes": 2932,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        4,
+        80,
+        4,
+        0,
+        0,
+        4
+      ],
+      "query_worker_counters": [
+        80,
+        1600,
+        36,
+        44,
+        16,
+        64
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_1",
+            0,
+            1
+          ],
+          [
+            "t_opaque_1",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_1",
+            0,
+            1
+          ],
+          [
+            "s_opaque_1",
+            1,
+            0
+          ],
+          [
+            "t_opaque_1",
+            0,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        2
+      ],
+      "data_sha256": "343618e6367aff0e1be89c8f2531b06e6f0f87859a8111fa179689359294a56b",
+      "input_sha256": "3d216b41630e5a41cfd6ea7b55bf8be0a1228c067c76fb3273861586dd6e9989"
+    },
+    {
+      "family": "chain",
+      "seed": 0,
+      "arm": "no-prefix94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 2.5933732120010973,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 32,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 6,
+      "core_json_bytes": 2018,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        195,
+        3900,
+        27,
+        168,
+        0,
+        195
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        1
+      ],
+      "data_sha256": "fc1a7340d0a5ede8329dd0c6898a82d55a1432a2396baedd7a47efaedba6b3c1",
+      "input_sha256": "cac4331780982370f957efb8e3120f15f55769775e9359755ed09bfee381abfd"
+    },
+    {
+      "family": "chain",
+      "seed": 0,
+      "arm": "no-feedback94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 2.4092982250003843,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 32,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1644,
+      "feedback_status": "withheld94",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        195,
+        3900,
+        27,
+        168,
+        0,
+        195
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "fc1a7340d0a5ede8329dd0c6898a82d55a1432a2396baedd7a47efaedba6b3c1",
+      "input_sha256": "6e9efd125f895dc2e09375827435e5e1766ef8b0b4a9af9ea371018564e3e064"
+    },
+    {
+      "family": "chain",
+      "seed": 0,
+      "arm": "no-execution94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.190397115999076,
+      "complete": 4,
+      "unknown": 20,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 5,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1644,
+      "feedback_status": "rejected91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "fc1a7340d0a5ede8329dd0c6898a82d55a1432a2396baedd7a47efaedba6b3c1",
+      "input_sha256": "325b75d99c9db978c3683fb56609ab27728e9cf9bbe6dde3a41a344079d51416"
+    },
+    {
+      "family": "chain",
+      "seed": 0,
+      "arm": "no-prefix94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 2.5799349779990735,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 32,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 6,
+      "core_json_bytes": 2014,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        195,
+        3900,
+        27,
+        168,
+        0,
+        195
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        1
+      ],
+      "data_sha256": "fc1a7340d0a5ede8329dd0c6898a82d55a1432a2396baedd7a47efaedba6b3c1",
+      "input_sha256": "8983df1eb413a88a6043e4762ad052d66902e5e3b35fbb883f2c288ce084c191"
+    },
+    {
+      "family": "chain",
+      "seed": 0,
+      "arm": "no-feedback94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 2.4132859080000344,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 32,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1640,
+      "feedback_status": "withheld94",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        195,
+        3900,
+        27,
+        168,
+        0,
+        195
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "fc1a7340d0a5ede8329dd0c6898a82d55a1432a2396baedd7a47efaedba6b3c1",
+      "input_sha256": "108007ed4fc0fe7ce9f80bb0b67d9b144cee13896ebd77042d852e9cd64396b8"
+    },
+    {
+      "family": "chain",
+      "seed": 0,
+      "arm": "no-execution94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.1838468670011935,
+      "complete": 4,
+      "unknown": 20,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 5,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1640,
+      "feedback_status": "rejected91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "fc1a7340d0a5ede8329dd0c6898a82d55a1432a2396baedd7a47efaedba6b3c1",
+      "input_sha256": "95832a012bdd63a2e7b01974c48f77004a7362f2dd2f5b6ffc114604dabc2eb6"
+    },
+    {
+      "family": "fork",
+      "seed": 0,
+      "arm": "no-prefix94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 2.6052212760005204,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 42,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 6,
+      "core_json_bytes": 2018,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        195,
+        3900,
+        36,
+        159,
+        0,
+        195
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        1
+      ],
+      "data_sha256": "03e2b94c6f528c0cf31b50efc1d2408a406529f9adb1ae2b03f179e8e6e473fa",
+      "input_sha256": "9b6f1d2099a7923dc415a51370d87ae66557f7bf8f197588cbdf0a0b0103facd"
+    },
+    {
+      "family": "fork",
+      "seed": 0,
+      "arm": "no-feedback94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 2.4457019189994753,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 42,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1644,
+      "feedback_status": "withheld94",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        195,
+        3900,
+        36,
+        159,
+        0,
+        195
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "03e2b94c6f528c0cf31b50efc1d2408a406529f9adb1ae2b03f179e8e6e473fa",
+      "input_sha256": "cd1a306d14eb63009f2d6ceb0ec2f72bc667bcfbd1f8d16a213e6fb2c3fe5338"
+    },
+    {
+      "family": "fork",
+      "seed": 0,
+      "arm": "no-execution94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.1955259139995178,
+      "complete": 4,
+      "unknown": 20,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 4,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1644,
+      "feedback_status": "rejected91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "03e2b94c6f528c0cf31b50efc1d2408a406529f9adb1ae2b03f179e8e6e473fa",
+      "input_sha256": "5f1a01b70e44dd489163c24a537def0ef75d4b8e316146e6c7d4ca8bdc49bea0"
+    },
+    {
+      "family": "fork",
+      "seed": 0,
+      "arm": "no-prefix94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 2.6065535559991986,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 42,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 6,
+      "core_json_bytes": 2014,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        195,
+        3900,
+        36,
+        159,
+        0,
+        195
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        1
+      ],
+      "data_sha256": "03e2b94c6f528c0cf31b50efc1d2408a406529f9adb1ae2b03f179e8e6e473fa",
+      "input_sha256": "f3ca3718d728c877e55b99e3c98820c97ca181324e813c37dca7661e3be24dd1"
+    },
+    {
+      "family": "fork",
+      "seed": 0,
+      "arm": "no-feedback94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 2.4383402570001635,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 42,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1640,
+      "feedback_status": "withheld94",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        195,
+        3900,
+        36,
+        159,
+        0,
+        195
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "03e2b94c6f528c0cf31b50efc1d2408a406529f9adb1ae2b03f179e8e6e473fa",
+      "input_sha256": "27bf7705c2f763917de2fe697cb6c47a5e95d20cf081976b93059708364d4167"
+    },
+    {
+      "family": "fork",
+      "seed": 0,
+      "arm": "no-execution94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.1859648449990345,
+      "complete": 4,
+      "unknown": 20,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 4,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              0,
+              2
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1640,
+      "feedback_status": "rejected91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "03e2b94c6f528c0cf31b50efc1d2408a406529f9adb1ae2b03f179e8e6e473fa",
+      "input_sha256": "2ff54d5094aec0e45d1a06c6680041fccb03c758a592530b3dbb5f4759291e3c"
+    },
+    {
+      "family": "target",
+      "seed": 0,
+      "arm": "no-prefix94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 2.6689697970014095,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 36,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              2,
+              1
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 8,
+      "core_json_bytes": 2151,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        202,
+        4040,
+        36,
+        166,
+        0,
+        202
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        1
+      ],
+      "data_sha256": "7b9325e0fd33b475a6a290392c26124c894f3b6decfe5182bda4e9294ab37c60",
+      "input_sha256": "eed04d3b48b01d5682bf4532a8d80a4dcd13408cff761dd1bf971d1eddd0c040"
+    },
+    {
+      "family": "target",
+      "seed": 0,
+      "arm": "no-feedback94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 2.458230808000735,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 36,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              2,
+              1
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1644,
+      "feedback_status": "withheld94",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        202,
+        4040,
+        36,
+        166,
+        0,
+        202
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "7b9325e0fd33b475a6a290392c26124c894f3b6decfe5182bda4e9294ab37c60",
+      "input_sha256": "96eeba344efe0d5ca888af6f91a60e4c19bf2745a23704882af3fabad1f45635"
+    },
+    {
+      "family": "target",
+      "seed": 0,
+      "arm": "no-execution94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.1706013139992137,
+      "complete": 3,
+      "unknown": 21,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 3,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              2,
+              1
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1644,
+      "feedback_status": "rejected91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "7b9325e0fd33b475a6a290392c26124c894f3b6decfe5182bda4e9294ab37c60",
+      "input_sha256": "2323f6b8741b62fb5d77ba2862710c547b43a4f21a3f837baf64b8f2215b2d45"
+    },
+    {
+      "family": "target",
+      "seed": 0,
+      "arm": "no-prefix94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 2.677859707000607,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 36,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              2,
+              1
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 8,
+      "core_json_bytes": 2147,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        202,
+        4040,
+        36,
+        166,
+        0,
+        202
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        1
+      ],
+      "data_sha256": "7b9325e0fd33b475a6a290392c26124c894f3b6decfe5182bda4e9294ab37c60",
+      "input_sha256": "eefc66896418ba0aa0e5ce7b67f077f7565cf9d9e25b3ecda43cbc996dfda92a"
+    },
+    {
+      "family": "target",
+      "seed": 0,
+      "arm": "no-feedback94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 2.4397477809998236,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 36,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              2,
+              1
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1640,
+      "feedback_status": "withheld94",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        202,
+        4040,
+        36,
+        166,
+        0,
+        202
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "7b9325e0fd33b475a6a290392c26124c894f3b6decfe5182bda4e9294ab37c60",
+      "input_sha256": "bb98f466020961867bb1fba25ec8e602603b8cbaa39f7e5403374535e68ba3af"
+    },
+    {
+      "family": "target",
+      "seed": 0,
+      "arm": "no-execution94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.1694232129993907,
+      "complete": 3,
+      "unknown": 21,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 3,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            2,
+            1
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              2,
+              1
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1640,
+      "feedback_status": "rejected91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "7b9325e0fd33b475a6a290392c26124c894f3b6decfe5182bda4e9294ab37c60",
+      "input_sha256": "beaabc64e294470361049a761c1f7e880314d4adbe8b8756f3052096d14cdc1b"
+    },
+    {
+      "family": "cycle",
+      "seed": 0,
+      "arm": "no-prefix94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.8216159099993092,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 18,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              0
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 8,
+      "core_json_bytes": 2145,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        53,
+        1060,
+        14,
+        39,
+        0,
+        53
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        1
+      ],
+      "data_sha256": "ffda1d61c663fb7c4d201cf32e0c661163b1b916c44c44c217fcf85ddd170db9",
+      "input_sha256": "d392f6a0cfe528c12a0a92b6814fe61cc71c6e15a551c958fa96a4047f3a06fa"
+    },
+    {
+      "family": "cycle",
+      "seed": 0,
+      "arm": "no-feedback94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.620246362999751,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 18,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              0
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1642,
+      "feedback_status": "withheld94",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        53,
+        1060,
+        14,
+        39,
+        0,
+        53
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "ffda1d61c663fb7c4d201cf32e0c661163b1b916c44c44c217fcf85ddd170db9",
+      "input_sha256": "77d3f8dc7a5e28f73370afd58d07dd60ee3a4e1925058eee5e95bd652ce99fbb"
+    },
+    {
+      "family": "cycle",
+      "seed": 0,
+      "arm": "no-execution94",
+      "branch": "principal93",
+      "policy": "adaptive92",
+      "seconds": 1.1940857099998539,
+      "complete": 6,
+      "unknown": 18,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 5,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              0
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1642,
+      "feedback_status": "rejected91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "ffda1d61c663fb7c4d201cf32e0c661163b1b916c44c44c217fcf85ddd170db9",
+      "input_sha256": "594e6dcca331494089bec113473450f6c51066e427ce3dedccc218c821a3dea9"
+    },
+    {
+      "family": "cycle",
+      "seed": 0,
+      "arm": "no-prefix94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.8265023570002086,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 18,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              0
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 8,
+      "core_json_bytes": 2141,
+      "feedback_status": "committed91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        53,
+        1060,
+        14,
+        39,
+        0,
+        53
+      ],
+      "candidate_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ]
+        ],
+        [
+          [
+            "s_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            1,
+            2
+          ]
+        ],
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "t_opaque_0",
+            0,
+            2
+          ]
+        ]
+      ],
+      "formation_update": [
+        "committed91",
+        "learn91",
+        "epoch",
+        1
+      ],
+      "data_sha256": "ffda1d61c663fb7c4d201cf32e0c661163b1b916c44c44c217fcf85ddd170db9",
+      "input_sha256": "3d10b6f7f0ee9c5499fe21d723ba0e51d113c058ed00b48798418dffc95e05d1"
+    },
+    {
+      "family": "cycle",
+      "seed": 0,
+      "arm": "no-feedback94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.6333930990003864,
+      "complete": 24,
+      "unknown": 0,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 18,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              0
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1638,
+      "feedback_status": "withheld94",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        53,
+        1060,
+        14,
+        39,
+        0,
+        53
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "ffda1d61c663fb7c4d201cf32e0c661163b1b916c44c44c217fcf85ddd170db9",
+      "input_sha256": "bf137ec4259de17a8e125de36ccbb477cd7bfd9cc97b2204a2efcc10a113d337"
+    },
+    {
+      "family": "cycle",
+      "seed": 0,
+      "arm": "no-execution94",
+      "branch": "lower93",
+      "policy": "adaptive92",
+      "seconds": 1.198184212000342,
+      "complete": 6,
+      "unknown": 18,
+      "pending": 0,
+      "mismatches": 0,
+      "witness_rows": 5,
+      "basis_count": 1,
+      "basis_patterns": [
+        [
+          [
+            "r_opaque_0",
+            0,
+            1
+          ],
+          [
+            "s_opaque_0",
+            1,
+            0
+          ]
+        ]
+      ],
+      "body_formats": [
+        "eml94"
+      ],
+      "basis_leaf_plans": [
+        [
+          [
+            "fact91",
+            "r_opaque_0",
+            [
+              0,
+              1
+            ]
+          ],
+          [
+            "fact91",
+            "s_opaque_0",
+            [
+              1,
+              0
+            ]
+          ]
+        ]
+      ],
+      "called_basis_ids": [
+        1
+      ],
+      "active_operations": 1,
+      "core_json_bytes": 1638,
+      "feedback_status": "rejected91",
+      "feedback_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "query_worker_counters": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "candidate_patterns": [],
+      "formation_update": [
+        "waiting91",
+        "no-supported-application"
+      ],
+      "data_sha256": "ffda1d61c663fb7c4d201cf32e0c661163b1b916c44c44c217fcf85ddd170db9",
+      "input_sha256": "614bd5f23a245c08dec4ee080d0a663da2224a18c13b525386e8e7dc01ab8071"
+    }
+  ],
+  "fresh_native_processes": 56,
+  "separate_finite_probe_processes": 1,
+  "total_queries": 1344,
+  "complete_checks": 1186,
+  "unknown": 158,
+  "pending": 0,
+  "mismatches": 0,
+  "finite_circuits": {
+    "checks": 28,
+    "mismatches": 0,
+    "max_absolute_error": 0.00013200000000246348,
+    "min_oracle_log_operand": 1.0,
+    "rows": [
+      {
+        "branch": "principal93",
+        "inputs": [
+          1
+        ],
+        "EML_nodes": 0,
+        "native_value": [
+          "z93",
+          1000000,
+          0
+        ],
+        "oracle_value": [
+          1.0,
+          0.0
+        ],
+        "absolute_error": 0.0
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          2
+        ],
+        "EML_nodes": 0,
+        "native_value": [
+          "z93",
+          2000000,
+          0
+        ],
+        "oracle_value": [
+          2.0,
+          0.0
+        ],
+        "absolute_error": 0.0
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          1,
+          1
+        ],
+        "EML_nodes": 20,
+        "native_value": [
+          "z93",
+          1000026,
+          0
+        ],
+        "oracle_value": [
+          1.0,
+          0.0
+        ],
+        "absolute_error": 2.6000000000081513e-05
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          2,
+          1
+        ],
+        "EML_nodes": 20,
+        "native_value": [
+          "z93",
+          2000016,
+          0
+        ],
+        "oracle_value": [
+          2.0,
+          0.0
+        ],
+        "absolute_error": 1.6000000000016e-05
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          1,
+          2
+        ],
+        "EML_nodes": 20,
+        "native_value": [
+          "z93",
+          2000044,
+          0
+        ],
+        "oracle_value": [
+          2.0,
+          0.0
+        ],
+        "absolute_error": 4.399999999993298e-05
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          2,
+          2
+        ],
+        "EML_nodes": 20,
+        "native_value": [
+          "z93",
+          4000025,
+          0
+        ],
+        "oracle_value": [
+          4.000000000000001,
+          0.0
+        ],
+        "absolute_error": 2.4999999999053557e-05
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          1,
+          1,
+          1
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          1000046,
+          0
+        ],
+        "oracle_value": [
+          1.0,
+          0.0
+        ],
+        "absolute_error": 4.599999999999049e-05
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          2,
+          1,
+          1
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          2000019,
+          0
+        ],
+        "oracle_value": [
+          2.0,
+          0.0
+        ],
+        "absolute_error": 1.8999999999991246e-05
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          1,
+          2,
+          1
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          2000057,
+          0
+        ],
+        "oracle_value": [
+          2.0,
+          0.0
+        ],
+        "absolute_error": 5.699999999997374e-05
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          2,
+          2,
+          1
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          4000074,
+          0
+        ],
+        "oracle_value": [
+          4.0,
+          0.0
+        ],
+        "absolute_error": 7.399999999968543e-05
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          1,
+          1,
+          2
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          2000084,
+          0
+        ],
+        "oracle_value": [
+          2.0,
+          0.0
+        ],
+        "absolute_error": 8.400000000019503e-05
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          2,
+          1,
+          2
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          4000032,
+          0
+        ],
+        "oracle_value": [
+          4.000000000000001,
+          0.0
+        ],
+        "absolute_error": 3.1999999999143824e-05
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          1,
+          2,
+          2
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          4000106,
+          0
+        ],
+        "oracle_value": [
+          4.000000000000001,
+          0.0
+        ],
+        "absolute_error": 0.00010599999999882925
+      },
+      {
+        "branch": "principal93",
+        "inputs": [
+          2,
+          2,
+          2
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          8000132,
+          0
+        ],
+        "oracle_value": [
+          7.999999999999998,
+          0.0
+        ],
+        "absolute_error": 0.00013200000000246348
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          1
+        ],
+        "EML_nodes": 0,
+        "native_value": [
+          "z93",
+          1000000,
+          0
+        ],
+        "oracle_value": [
+          1.0,
+          0.0
+        ],
+        "absolute_error": 0.0
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          2
+        ],
+        "EML_nodes": 0,
+        "native_value": [
+          "z93",
+          2000000,
+          0
+        ],
+        "oracle_value": [
+          2.0,
+          0.0
+        ],
+        "absolute_error": 0.0
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          1,
+          1
+        ],
+        "EML_nodes": 20,
+        "native_value": [
+          "z93",
+          1000026,
+          0
+        ],
+        "oracle_value": [
+          1.0,
+          0.0
+        ],
+        "absolute_error": 2.6000000000081513e-05
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          2,
+          1
+        ],
+        "EML_nodes": 20,
+        "native_value": [
+          "z93",
+          2000016,
+          0
+        ],
+        "oracle_value": [
+          2.0,
+          0.0
+        ],
+        "absolute_error": 1.6000000000016e-05
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          1,
+          2
+        ],
+        "EML_nodes": 20,
+        "native_value": [
+          "z93",
+          2000044,
+          0
+        ],
+        "oracle_value": [
+          2.0,
+          0.0
+        ],
+        "absolute_error": 4.399999999993298e-05
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          2,
+          2
+        ],
+        "EML_nodes": 20,
+        "native_value": [
+          "z93",
+          4000025,
+          0
+        ],
+        "oracle_value": [
+          4.000000000000001,
+          0.0
+        ],
+        "absolute_error": 2.4999999999053557e-05
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          1,
+          1,
+          1
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          1000046,
+          0
+        ],
+        "oracle_value": [
+          1.0,
+          0.0
+        ],
+        "absolute_error": 4.599999999999049e-05
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          2,
+          1,
+          1
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          2000019,
+          0
+        ],
+        "oracle_value": [
+          2.0,
+          0.0
+        ],
+        "absolute_error": 1.8999999999991246e-05
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          1,
+          2,
+          1
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          2000057,
+          0
+        ],
+        "oracle_value": [
+          2.0,
+          0.0
+        ],
+        "absolute_error": 5.699999999997374e-05
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          2,
+          2,
+          1
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          4000074,
+          0
+        ],
+        "oracle_value": [
+          4.0,
+          0.0
+        ],
+        "absolute_error": 7.399999999968543e-05
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          1,
+          1,
+          2
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          2000084,
+          0
+        ],
+        "oracle_value": [
+          2.0,
+          0.0
+        ],
+        "absolute_error": 8.400000000019503e-05
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          2,
+          1,
+          2
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          4000032,
+          0
+        ],
+        "oracle_value": [
+          4.000000000000001,
+          0.0
+        ],
+        "absolute_error": 3.1999999999143824e-05
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          1,
+          2,
+          2
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          4000106,
+          0
+        ],
+        "oracle_value": [
+          4.000000000000001,
+          0.0
+        ],
+        "absolute_error": 0.00010599999999882925
+      },
+      {
+        "branch": "lower93",
+        "inputs": [
+          2,
+          2,
+          2
+        ],
+        "EML_nodes": 36,
+        "native_value": [
+          "z93",
+          8000132,
+          0
+        ],
+        "oracle_value": [
+          7.999999999999998,
+          0.0
+        ],
+        "absolute_error": 0.00013200000000246348
+      }
+    ]
+  },
+  "counter_fields": [
+    "evaluations",
+    "EML_nodes",
+    "accepted",
+    "rejected",
+    "ground_calls",
+    "candidates"
+  ],
+  "scope": "4 fixed structural families; 2 order/rename/query seeds; 2 explicit branch conventions. 24 new finite-source queries/run, two main arms plus 3 causal controls. Native observation interpretation and basis learning; Python only generates/checks. Timing includes startup/formation/validation/replay/query/output, not OS sandboxing or checkpoint I/O. Unknowns are not scored as correct answers. Seeds are not independent task families."
+}

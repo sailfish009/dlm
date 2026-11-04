@@ -1,0 +1,30 @@
+{
+  "predecessors": {
+    "0092": {
+      "files": 498,
+      "status_preserved": true,
+      "files_preserved": true,
+      "compiler_preserved": true
+    },
+    "0093": {
+      "files": 532,
+      "status_preserved": true,
+      "files_preserved": true,
+      "compiler_preserved": true
+    }
+  },
+  "successor_inherited_changes": [
+    "README.md",
+    "VERSION",
+    "scripts/run.sh",
+    "src/dlm/attention92-execution.l",
+    "src/dlm/attention92-ir.l",
+    "src/dlm/basis91-check.l",
+    "src/dlm/basis91-execution.l",
+    "src/dlm/basis91-formation.l",
+    "src/dlm/basis91-ir.l",
+    "src/dlm/basis91-session.l"
+  ],
+  "compiler_unchanged": true,
+  "readme_archived": true
+}
