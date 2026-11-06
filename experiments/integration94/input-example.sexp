@@ -1,8 +1,0 @@
-(integration-input94 1 (r s t)
- ((atom r (a b)) (atom s (b c)) (atom r (p q)) (atom s (q z)))
- ((atom r (u v)) (atom s (v w)) (atom t (w k)) (atom r (j l)) (atom s (l m)) (atom t (m n)))
- ((query94 fresh-chain ((atom r (aa bb)) (atom s (bb cc)) (atom t (cc dd)))
-    ((r 0 1) (s 1 2) (t 2 3)))
-  (query94 broken-chain ((atom r (aa bb)) (atom s (bb cc)) (atom t (other dd)))
-    ((r 0 1) (s 1 2) (t 2 3))))
- eml94 principal93 adaptive92 200000)

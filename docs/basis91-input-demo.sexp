@@ -1,8 +1,0 @@
-(committed91 learn91 epoch 1)
-(waiting91 no-supported-application)
-(basis91 epoch 1 episodes 1 readings 1 basis-count 1 active-ops 1 events 3 store ())
-(basis-result91 fork raw (batch91 complete ((answer91 ((r 0 1) (s 0 2)) ((match91 (a b c) (0 1)) (match91 (p q z) (2 3))))) (metrics91 18 8 4 0 0 () 2)))
-(basis-result91 fork memo (batch91 complete ((answer91 ((r 0 1) (s 0 2)) ((match91 (a b c) (0 1)) (match91 (p q z) (2 3))))) (metrics91 18 8 4 0 0 () 2)))
-(basis-result91 fork append (batch91 complete ((answer91 ((r 0 1) (s 0 2)) ((match91 (a b c) (0 1)) (match91 (p q z) (2 3))))) (metrics91 18 8 4 0 0 () 2)))
-(basis-result91 fork basis (batch91 complete ((answer91 ((r 0 1) (s 0 2)) ((match91 (a b c) (0 1)) (match91 (p q z) (2 3))))) (metrics91 21 8 4 1 0 (1) 3)))
-(basis-session91 1 (execution-core91 (r s) ((episode91 fork 1 ((atom r (a b)) (atom s (a c)) (atom r (p q)) (atom s (p z))) true)) ((basis91 1 ((r 0 1) (s 0 2)) ((fact91 r (0 1)) (fact91 s (0 2))))) ((reading91 fork 1 ((r 0 1) (s 0 2)) ((call91 1 (0 1 2))))) 1) ((support91 fork 1 ((r 0 1) (s 0 2)) ((match91 (a b c) (0 1)) (match91 (p q z) (2 3))))) ((observe91 fork ((atom r (a b)) (atom s (a c)) (atom r (p q)) (atom s (p z)))) (interpret91 fork 200000) (learn91 (basis91 1 ((r 0 1) (s 0 2)) ((fact91 r (0 1)) (fact91 s (0 2)))) ((rewrite91 fork 1 ((r 0 1) (s 0 2)) ((fact91 r (0 1)) (fact91 s (0 2))) ((call91 1 (0 1 2))))))))

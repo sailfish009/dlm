@@ -1,7 +1,0 @@
-{
-  "api_url": "https://api.github.com/repos/datasets/country-codes/contents/data/country-codes.csv?ref=2d84034a0cae19ea5444b78c2131304a5c7f4bb9",
-  "blob_sha1": "2756ebd48579e93f05155a134eeae88aa4a8f125",
-  "size": 133991,
-  "commit": "2d84034a0cae19ea5444b78c2131304a5c7f4bb9",
-  "matched": true
-}

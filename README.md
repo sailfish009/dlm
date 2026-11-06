@@ -1,227 +1,152 @@
-# DLM 0.0096 — Source-grounded web-to-basis learning
+# DLM 0.0109 — Maru string-compare fix; safety-2 gate green
 
-A CPU-only, local deductive-learning research prototype. Version 0.0096 adds a
-**narrow, reproducible bridge from an actual structured web artifact into the
-existing cumulative DLM learner**. It does not introduce a separate web learner.
-
-> **What this establishes:** source acquisition → checked structured observations
-> → existing basis formation → prefix-guided subsequent formation → source-scoped
-> execution, revision and withdrawal.
->
-> **What it does not establish:** arbitrary web-text understanding, discovery of
-> new geographic laws, general empirical condition invention, or a completed
-> theory of latent axioms. The schema and experimental curriculum are fixed.
-
-## What is learned?
-
-The source is a pinned, public country/region-code CSV. A declared decoder reads
-four columns and supplies source-claimed relations:
+A new, small implementation. The previous trees (`dlm_v0.0088` … `dlm_v0.0102`)
+were **reference only**; nothing from their `src/dlm` was copied. What is kept is
+the DLM structure on top of Maru: a trusted kernel, untrusted reduction, one
+session, and a leveled reading.
 
 ```text
-country → subregion → region → global group
+L0 observation   provenance (source, record, span) + scope
+L1 kernel        form · closure + proof term · independent checker
+L2 adapter       Python source -> ground facts (untrusted, hash-pinned)
+L3 session       one state, one event log, replay-checked snapshot
+L4 agenda        step / run / query / read
+L5 reading       N1 relation, N2 meaning, N3 idiom; support or abstain
 ```
 
-The existing Basis91 learner discovers and admits conservative definitions:
-
-```text
-R1(a,b,c)   := country-subregion96(a,b) ∧ subregion-region96(b,c)
-R2(a,b,c,d) := R1(a,b,c) ∧ region-global96(c,d)
-```
-
-Neither definition body is supplied as a training program. R1 is learned from an
-initial two-edge view. Applying it to later observations changes interpretation
-and makes it a constructor for R2. Execution then actually calls **R2 → R1**.
-All variable roles and original fact witnesses remain visible; this is not a
-projection to an unexplained country-to-world label.
-
-These are reusable logical definitions of source relations, **not newly inferred
-universal truths**. Primitive reasoning already answers the same finite goals.
-The demonstrated change is the model's inference organization and cumulative
-formation path, not a new set of logically impossible-before conclusions.
-
-## What data was used?
-
-Pinned source:
-
-- Repository: [`datasets/country-codes`](https://github.com/datasets/country-codes)
-- Commit: `2d84034a0cae19ea5444b78c2131304a5c7f4bb9`
-- File: `data/country-codes.csv`
-- Original bytes: **133,991**; records: **249**
-- SHA-256: `bb199ebc9636b9872705e8216f1f849359f136a7668ebfa23a3c58048462ab92`
-
-Four eligible records enter the formation episodes; **244** are held out from
-formation. One record, Antarctica, is unresolved for this schema because its
-subregion/region fields are missing. Missing is not interpreted as false.
-
-The selection rule is hand-written and deterministic: sort country codes, choose
-two distinct-region records for the first view, then two more for the next view.
-This is not learned curriculum generation. All rows come from **one artifact**;
-held-out rows are not unseen websites, statistically independent sources or
-transfer to a new ontology. The full CSV is parsed for extraction/selection, but
-only the selected four records enter the learner's support/interpretation tables.
-
-**Licensing:** the upstream file combines data with restricted or unclear terms.
-Its software/arrangement license does not automatically license all source data.
-Raw bytes and full input packets are kept in a private local cache or temporary
-files, not bundled in this product. Reproduction requires explicit initial
-acquisition. See [source provenance and notices](experiments/web96/source/README.md).
-
-## Architecture
-
-```text
-existing CachedWeb HTTP/cache record
- → Python stdlib CSV extraction worker
- → data-only packet containing original bytes and proposed byte-span evidence
- → native SHA-256 + independent byte-CSV/extraction checker
- → atomic source admission in the existing Basis91 state/session/audit
- → existing interpretation / learn91 / global-ID library / Attention92 execution
-```
-
-Added native files:
-
-```text
-src/dlm/web96-bytes.l      bounded bytes, SHA-256 and CSV record/cell spans
-src/dlm/web96-extract.l    declared schema, canonical observations, no-repair gate
-src/dlm/web96-session.l    same-owner admission, source lifecycle and queries
-```
-
-Source provenance is an optional extension of the existing typed95 facet. There
-is **no second learned library, model owner, session or checkpoint format**.
-Direct logic is the main representation; EML is a comparison arm, not a required
-web-learning engine. Existing numeric95/composite95 learning remains available in
-the same global library. Numeric interoperability tests use synthetic data and
-must not be described as numeric learning from this web source.
-
-The historical general `web-state74` ingestion path remains uninterpreted for
-other formats. This bridge reuses its actual acquisition-record implementation;
-it does not claim to integrate all historical DLM subsystems or arbitrary URLs.
-
-## Integrity, evidence and source lifecycle
-
-- The native checker recomputes SHA-256 and separately parses the original bytes.
-  Wrong/omitted facts, rows, unresolved records or byte ranges **reject ingress**;
-  reference output never fills incomplete worker output.
-- Each complete web answer is marked `source-claims96`, with source version/hash,
-  original row numbers, original fact IDs and zero-based, half-open cell byte
-  ranges. Codes are object identifiers, never implicit numeric measurements.
-- Missing rows, stale source artifacts, inactive sources and exhausted query fuel
-  produce explicit `unknown` states with no unfinished answer rows.
-- Byte-identical refetches at the same URL add no event or support. Source CAS
-  tokens include URL, digest, admission version **and activity**, not digest alone.
-- Valid revisions replace both managed episodes/readings atomically. Withdrawal
-  disables current web application while keeping conservative definitions.
-  Restore is a checked new admission; frozen historical models do not mutate.
-- Generic observe/retract cannot mutate bridge-managed episodes. Existing shared
-  checkpoint/replay/locking and failure-atomic publication are reused.
-- Hash agreement proves consistency with supplied bytes, not website truth or
-  authenticated remote origin. A malicious caller can fabricate consistent bytes
-  and relabel a URL. No signed origin or adversarial-host security claim is made.
-
-This tracks the **last admitted artifact**, not a continuously monitored web. A
-rejected update leaves that state intact. A caller who knows a source changed but
-cannot interpret its new content must explicitly withdraw the old source or keep
-it labeled historical. There is no automatic crawler/refresh/revocation service.
-
-## Reproduce
-
-The preserved native compiler is used unchanged. No GPU, external model, LLM/API
-runtime or neural-gradient training is involved. Python handles acquisition,
-worker extraction, orchestration and an external oracle; learning/execution are
-native Maru. Network access is needed only for explicit initial acquisition.
+## Run
 
 ```sh
-cd /research/dlm_v0.0096
-
-# Once: allow HTTPS acquisition of the pinned source into a private cache.
-python3 -B adapters/web96.py --online --output /tmp/web96.sexp
-
-# Subsequently, cache-only. Override the cache with --cache or DLM_WEB96_CACHE.
-python3 -B adapters/web96.py --output /tmp/web96.sexp
-./scripts/run.sh web96-input < /tmp/web96.sexp > /tmp/web96-native.sexp
-
-# Full sequential comparison, after regression tests have finished.
-python3 -B adapters/web96_experiment.py \
-  --queries 244 --repeats 2 --output /tmp/web96-experiment.json
-
-# Tests; the real-source test requires the already acquired offline cache.
-python3 -B -m unittest discover -s tests -p 'test_web96.py' -v
-python3 -B tests/run_offline.py
-./scripts/run.sh test
-bash tests/store-tests.sh
-bash tests/runtime-tests.sh
-bash tests/graph-store-tests.sh
+./scripts/run.sh repl                 # original Maru REPL
+./scripts/run.sh northstar            # the M1 experiment (fixed input)
+./scripts/run.sh test                 # native core assertions
+python3 -m unittest discover -s tests -p 'test_d107.py' -v
 ```
 
-Cache default: `~/.cache/dlm-web96`. A cache miss is an error, not a silent switch
-to synthetic data. The input launcher reads exactly one datum and checks EOF;
-external content is never evaluated as Maru code.
+## Review fixes (0.0104 and 0.0105)
 
-## Public source API
+0.0104 closed nine defects from the 0.0103 review: derived facts posing as
+`given`, rank-as-justification, extensional rule heads, an order-insensitive rule
+digest, a SIGSEGV on malformed input, transitions that were not durable, lost
+updates across sessions, stale overwrites, and read errors treated as a missing
+file.
 
-Within the existing Basis91 API:
+0.0105 closed the remaining P1/P2 items: proofs are now validated as a **DAG**
+(every child's own proof must check, with a bounded walk), the digest is a proper
+order-sensitive hash (FNV-1a 32-bit), proof indices and dotted structures are
+validated instead of faulting, snapshot identity is a **content digest** rather
+than an epoch, negation is evaluated after all positives are bound (literal order
+irrelevant), empty-body rules fire, re-opening without closing is refused, and
+`reduce.py --check` verifies the facts body. `tests/oracle107.py` compares the
+closure with an independent reference on 150 generated programs.
 
-```lisp
-(basis91 'init '(country-subregion96 subregion-region96 region-global96))
-(basis91 'web-token)                       ; missing96, or source-token96
-(basis91 'web-import DOCUMENT EXPECTED-TOKEN)
-(basis91 'web-source)                      ; compact current source manifest
-(basis91 'web-retract EXPECTED-TOKEN)
-(basis91 'web-query VIEW-ID PATTERN FUEL POLICY)
-(basis91 'web-infer MODEL DOCUMENT VIEW-ID PATTERN FUEL POLICY)
+One limitation remains: Maru's reader aborts the process on syntactically invalid
+bytes, so damaged snapshots cannot be rejected in-language (we never write on a
+read failure and keep `.previous`).
+
+## What is actually implemented (M1)
+
+- Ground atoms, rules with **negation restricted to extensional predicates**, so
+  every program is stratified by construction.
+- Forward closure with a **proof term per derived atom**, a budget, and
+  `unknown` on exhaustion (never `false`).
+- An **independent proof checker**: it recomputes the head instance and requires
+  every positive body atom to be present and every negated one to be absent.
+- Observations with `(source, record, scope)`; queries and closures are
+  **scope-isolated**; retraction removes facts and their interpretation.
+- A **single** `state107` with a bounded event log; snapshots are validated by
+  **replaying the log** and comparing the state; the background-law checksum is
+  part of the snapshot, so changing rules invalidates old files.
+- Atomic save (`lock`, `.next`, readback, `.previous`, replace), corrupt-file
+  rejection.
+- Reading emits **N1/N2/N3** sentences only when the support proof checks; level
+  counts are reported. Unreadable predicates produce no sentence.
+- `adapters/reduce.py` reduces `experiments/northstar/input/main.py`
+  (PyTorch MNIST example, pinned bytes) to 209 facts with a pinned
+  `facts-sha256`. It is untrusted and developer-side; the kernel decides.
+
+## Measured M1 result
+
+`./scripts/run.sh northstar` (log: `docs/northstar-m1.log`):
+
+```text
+reduced facts: 209
+status=complete facts=231 sentences=157 skipped=0
+levels ((level 1 135) (level 2 10) (level 3 12))
+library-only view: 121 sentences, levels ((1 99) (2 10) (3 12))
 ```
 
-Use the ordinary `interpret`, `interpret-controlled` and `learn` commands for
-formation. Web policies are existing Attention92 policies or `raw96` for the
-primitive comparison route. A model's definition-count epoch is not its exact
-source revision; preserve the full source token/core identity.
+All 157 sentences carry a proof that the checker accepts (`skipped=0`).
 
-## Validation and experimental results
+## Learning: the data stays, the basis moves (0.0107)
 
-**26 new tests and all 290 offline tests passed**; native, store, runtime and
-graph-store suites also passed. Six legacy local-HTTP tests were excluded.
+`(dlm 'rules ...)` only configures laws and resets state; it is not learning.
+0.0107 adds the direction the review asked for:
 
-Ten sequential fresh-process runs (five arms x two repeats) attempted **9,760
-queries** on the actual source. There were **7,808 complete queries / 7,808
-binding-and-witness rows, zero mismatches**, and 1,952 expected unknowns in the
-no-admitted-extraction control. Unknowns are not counted as correct answers.
-A separate fresh-process, empty-cache, archive/learner-free check completed
-another **976 queries / 976 rows**, also with zero mismatches.
+```text
+(dlm 'step)   interpret an observation, then try to move the basis
+(dlm 'learn)  one learning step: propose, check, admit
+(dlm 'defs)   units with support, active flag, plan steps
+(dlm 'plan PATTERN)     raw steps vs planned steps and the covering unit
+(dlm 'answer 'scope PATTERN)   rows and witness ids
+(dlm 'revise ID PATTERN)       replace a unit; dependents are re-validated
+```
 
-Main whole-process medians for formation/replay plus 976 queries were **93.07 s
-for direct logic** and **126.35 s for EML**. Compact core JSON sizes were 1,567
-and 2,965 bytes respectively. These results do not establish an EML advantage.
-The maximum native-child high-water RSS across the sequential batch was 94,756
-KiB; it includes the runtime and transient source/checker data, not just bases.
+A unit is `(def107 ID VARS PATTERN BODY)`; `BODY` may `(call106 ID ...)` an
+earlier unit. Admission is expansion equality (alpha-renaming and atom order),
+never a score. Support counts distinct records, so retracting data lowers support
+and the unit becomes inactive while the definition stays in the basis.
 
-Detailed evidence and final counts are in:
+Measured on `experiments/learn/run.l` (three records, one owner, three calls):
 
-- [Release and results](docs/release-0096.md)
-- [Design, contracts and limitations](docs/web96-design.md)
-- [Sequential experiment data](docs/web96-experiment.json)
-- [Compact native demonstration](docs/web96-demo.sexp)
-- [Lifecycle and causal interventions](docs/web96-interventions.sexp)
-- [Fresh-process core-only evidence](docs/web96-evidence/standalone.json)
-- [Final preservation and integrity checks](docs/web96-evidence/final-checks.json)
+| before | after |
+|---|---|
+| basis 0 | basis 2 (`b2` calls `b1`) |
+| plan 3 steps | plan 2 steps |
+| 18 answers, 0 unit calls | 18 identical answers, 1 real unit call |
 
-Controls distinguish no extraction, no formation, prior absent at the later
-formation step, and logical versus EML representation. Unknown controls are not
-counted as correct answers. The no-prefix arm is a staged intervention, not an
-equal-total-compute impossibility claim: a separate extra ordinary learning step
-recovers R2 from the same observations.
+The plan is **executed**: a `call` step runs the unit's own body and is counted,
+so removing the basis changes the execution path (the review's P1 finding).
 
-The new tests include native SHA/CSV checks against Python, real pinned input,
-source/worker forgeries, omission, duplicate refetches, version-sensitive CAS,
-revision/withdrawal/restoration, frozen cores, source-aware persistence/locks and
-failed publication. Whole-process time, child RSS and JSON bytes are reported as
-their actual quantities, **not learned parameter counts or kernel-only costs**.
+The observations are byte-identical before and after learning. This is a
+planning/inference-unit change, **not** a speedup: a call expands to its body.
 
-## Remaining research boundaries
+## What this is not
 
-Free-text interpretation, autonomous schema/curriculum invention, general
-empirical conditions and definition revision, noise/conflict handling, physical
-units, new numeric laws from web measurements, multi-source trust and larger
-continual growth remain open. EML-specific superiority is not established by
-this structured-relation experiment.
+- **No learning yet.** There is no definition formation, no lemma promotion, no
+  hypothesis layer, no revision. `run` only interprets observations.
+- **N4–N9 are not implemented** (composition, architecture, causal, purpose,
+  analogy, certified absence).
+- The comparison with 0.0062 is **not** parity: 0.0062 emitted 42 *selected*
+  sentences across N1–N9; this release emits *all* readable facts over its own
+  reduction, so counts are not comparable one-to-one. What is comparable is:
+  every sentence is support-checked, and N1–N3 exist from a real code input.
+- The reduction is an **untrusted Python adapter**; there is no native Maru
+  Python parser yet. Integrity rests on pinned source/facts hashes, not on the
+  kernel re-parsing Python.
+- No SMT, integers, heaps, loops, concurrency, LLM or GPU. No natural-language
+  generation beyond fixed templates.
+- `start`/cooperative idle scheduling is not implemented; `run N` is explicit.
 
-The predecessor is preserved in `README-0095.md`; earlier design/history is
-available in the inherited archives. No user work was reset or committed.
+## Layout
+
+| file | lines | role |
+|---|---:|---|
+| `src/dlm/d107-util.l` | 50 | lists, strings, checksum |
+| `src/dlm/d107-form.l` | 75 | atoms, rules, substitutions |
+| `src/dlm/d107-close.l` | 105 | closure, proof terms, checker |
+| `src/dlm/d107-session.l` | 138 | state, events, replay, storage |
+| `src/dlm/d107-read.l` | 59 | N1–N3 realization |
+| `src/dlm/d107-agenda.l` | 17 | one agenda |
+| `src/dlm/d107-command.l` | 130 | `(dlm ...)` |
+| `adapters/reduce.py` | 117 | untrusted reduction |
+| `tests/core-tests.l` | 95 | 26 native checks |
+
+## Verification
+
+Fifteen Python tests and 72 native checks pass; the compiler was reproduced,
+verified and promoted with three-generation
+LLVM/stripped equality. See `docs/release-0103.md`.
+
+`src/maru` is the Maru compiler baseline, unchanged. No new bootstrap
+dependency. Previous version directories are untouched.

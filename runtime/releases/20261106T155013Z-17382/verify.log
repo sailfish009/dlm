@@ -1,0 +1,116 @@
+maru: OK
+maru.ll: OK
+sources.sha256: OK
+record: OK
+ok rules are safe
+ok closure complete
+ok derived fact has proof
+ok forged substitution rejected
+ok wrong atom rejected
+ok unknown proof shape rejected
+ok blocked source has no start
+ok unblocked source has start
+ok negative over intensional predicate is unsafe
+ok tight budget reports unknown
+ok wide budget derived it
+ok observe applies
+ok duplicate observation rejected
+ok scope A closure isolated
+ok scope B closure isolated
+ok interpret records metrics
+ok retract removes only the retracted facts
+ok retract removes interpretation
+ok replay reproduces state
+ok snapshot validates
+ok tampered snapshot rejected
+ok event limit rejected
+ok reading has status
+ok reading emits sentences
+ok unreadable predicates are not narrated
+ok no sentence without checked support
+ok level counts are consistent
+ok given proof must point at an extensional fact
+ok child with an invalid proof rejected
+ok downstream of an invalid child rejected
+ok cyclic stored proof rejected
+ok negative rule index rejected without a fatal
+ok malformed proof structure rejected
+ok extensional head rejected
+ok head variable must be range-restricted
+ok rule digest detects argument order
+ok malformed observe rejected
+ok dotted term rejected
+ok nested list term rejected
+ok non-numeric budget rejected
+ok empty command rejected
+ok non-atom query rejected
+ok non-list command rejected
+ok negation before its binding still fires
+ok empty-body rule derives its nullary head
+ok empty-body proof checks
+ok no basis before learning
+ok raw plan has 3 steps
+ok first learning step forms a 2-atom unit
+ok second learning step forms a 3-atom unit
+ok two units in the basis
+ok second unit calls the first
+ok planned steps drop 3 -> 2
+ok data unchanged by learning
+ok answers and witnesses unchanged
+ok raw path makes no unit call
+ok planned path actually calls the unit
+ok planned path uses the 2-step plan
+ok planned answer names its cover
+ok closure size unchanged
+ok support drops to 1
+ok unit remains, inactive
+ok plan reverts to 3 steps
+ok retracted answer uses no unit
+ok retracted answers shrink
+ok revision with permuted roles rejected
+ok revision accepted
+ok dependent unit dropped after revision
+ok revised pattern is the tool structure
+ok calls plan no longer covered
+ok repeated atom cannot reuse one fact
+ok distinct facts are still enumerable
+ALL-CORE-TESTS-PASSED
+test_changed_background_rules_invalidate_a_snapshot (test_d107.CoreTests.test_changed_background_rules_invalidate_a_snapshot) ... ok
+test_corrupt_snapshot_is_refused_and_not_overwritten (test_d107.CoreTests.test_corrupt_snapshot_is_refused_and_not_overwritten) ... ok
+test_learning_transition_keeps_data_and_answers (test_d107.CoreTests.test_learning_transition_keeps_data_and_answers) ... ok
+test_malformed_input_does_not_crash_the_process (test_d107.CoreTests.test_malformed_input_does_not_crash_the_process) ... ok
+test_native_core_suite (test_d107.CoreTests.test_native_core_suite) ... ok
+test_negation_oracle_agrees (test_d107.CoreTests.test_negation_oracle_agrees) ... ok
+test_northstar_golden_slice (test_d107.CoreTests.test_northstar_golden_slice) ... ok
+test_observation_is_durable_without_close (test_d107.CoreTests.test_observation_is_durable_without_close) ... ok
+test_reduce_check_detects_a_tampered_body (test_d107.CoreTests.test_reduce_check_detects_a_tampered_body) ... ok
+test_reduction_facts_hash_is_pinned (test_d107.CoreTests.test_reduction_facts_hash_is_pinned) ... ok
+test_reopening_without_close_is_refused (test_d107.CoreTests.test_reopening_without_close_is_refused) ... ok
+test_same_epoch_different_content_is_refused (test_d107.CoreTests.test_same_epoch_different_content_is_refused) ... ok
+test_save_and_open_fresh_process_are_equal (test_d107.CoreTests.test_save_and_open_fresh_process_are_equal) ... ok
+test_second_session_cannot_open_the_same_store (test_d107.CoreTests.test_second_session_cannot_open_the_same_store) ... /opt/miniconda3/envs/py314/lib/python3.14/unittest/case.py:615: ResourceWarning: unclosed file <_io.TextIOWrapper name=7 encoding='UTF-8'>
+  result = method()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/opt/miniconda3/envs/py314/lib/python3.14/unittest/case.py:615: ResourceWarning: unclosed file <_io.TextIOWrapper name=4 encoding='UTF-8'>
+  result = method()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+/opt/miniconda3/envs/py314/lib/python3.14/unittest/case.py:615: ResourceWarning: unclosed file <_io.TextIOWrapper name=5 encoding='UTF-8'>
+  result = method()
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_stale_digest_save_is_refused (test_d107.CoreTests.test_stale_digest_save_is_refused) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 238.813s
+
+OK
+Generated candidate-vm.l from embedded sources using Maru
+warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
+1 warning generated.
+Built compiler-source image: /research/dlm_v0.0109/runtime/releases/20261106T155013Z-17382/next
+Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.
+Generated candidate-vm.l from embedded sources using Maru
+warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
+1 warning generated.
+Built compiler-source image: /research/dlm_v0.0109/runtime/releases/20261106T155013Z-17382/third
+Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.

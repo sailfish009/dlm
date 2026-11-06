@@ -1,7 +1,0 @@
-(attention-input92 1 (r s t)
- ((atom r (a b)) (atom s (b c)) (atom t (c d))
-  (atom r (p q)) (atom s (q z)) (atom t (z w)))
- ((atom r (a b)) (atom r (c d)) (atom r (e f)) (atom r (g h))
-  (atom s (b c)) (atom s (d e)) (atom s (f g)) (atom t (c d)))
- (((r 0 1) (s 1 2) (t 2 3)) ((r 0 1) (s 0 2)) ((r 0 0)))
- adaptive92 2 200000)

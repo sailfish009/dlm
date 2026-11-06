@@ -1,7 +1,0 @@
-(require "experiments/composition95/driver.l")
-(define input95-file (file-open-read "experiments/composition95/input-example.sexp"))
-(define input95-stream (file-stream input95-file))
-(define input95 (read input95-stream))
-(assert (= (read input95-stream) +end+) "example EOF")
-(file-close input95-file)
-(i95-run input95)

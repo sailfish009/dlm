@@ -1,0 +1,194 @@
+{
+  "version": "0.0107",
+  "note": "Continuity ledger: what this tree can actually demonstrate today.",
+  "capabilities": {
+    "horn_closure": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "proof_term_and_checker": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "edb_negation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "budget_unknown": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "scope_isolation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "retraction": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "replay_snapshot": {
+      "status": "implemented",
+      "witness": "tests/test_d103.py"
+    },
+    "atomic_storage": {
+      "status": "implemented",
+      "witness": "tests/test_d103.py"
+    },
+    "code_reduction_adapter": {
+      "status": "implemented-untrusted",
+      "witness": "adapters/reduce.py"
+    },
+    "reading_n1_n3": {
+      "status": "implemented",
+      "witness": "experiments/northstar/run.l"
+    },
+    "definition_formation": {
+      "status": "implemented",
+      "witness": "experiments/learn/run.l"
+    },
+    "lemma_promotion": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "hypothesis_layer": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "revision_demotion": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "record_scoped_support": {
+      "status": "partial",
+      "witness": "observations carry record ids; support is not yet record-scoped"
+    },
+    "reading_n4_n9": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "native_reduction": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "cooperative_idle": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "well_founded_proof": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "edb_head_policy": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "durable_transitions": {
+      "status": "implemented",
+      "witness": "tests/test_d107.py"
+    },
+    "session_lock": {
+      "status": "implemented",
+      "witness": "tests/test_d107.py"
+    },
+    "stale_epoch_refusal": {
+      "status": "implemented",
+      "witness": "tests/test_d107.py"
+    },
+    "order_sensitive_rule_digest": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "malformed_input_guard": {
+      "status": "implemented",
+      "witness": "tests/test_d107.py"
+    },
+    "syntactically_invalid_file_guard": {
+      "status": "not-implemented",
+      "witness": "Maru reader aborts before our code runs"
+    },
+    "proof_dag_validation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "order_sensitive_hash": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "proof_structure_guard": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "snapshot_content_digest": {
+      "status": "implemented",
+      "witness": "tests/test_d107.py"
+    },
+    "negation_order_independent": {
+      "status": "implemented",
+      "witness": "tests/oracle107.py"
+    },
+    "empty_body_rules": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "single_attachment": {
+      "status": "implemented",
+      "witness": "tests/test_d107.py"
+    },
+    "reduction_body_check": {
+      "status": "implemented",
+      "witness": "tests/test_d107.py"
+    },
+    "basis_growth_with_call": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "plan_replacement": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "conservation_check": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "support_from_records": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "retraction_deactivates_unit": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "revision_and_dependent_drop": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "utility_based_demotion": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "plan_execution_with_calls": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "role_preserving_calls": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "witness_check_on_answers": {
+      "status": "implemented",
+      "witness": "src/dlm/d107-plan.l"
+    },
+    "distinct_fact_per_row": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "resume_digest_consistency": {
+      "status": "implemented",
+      "witness": "tests/test_d107.py"
+    },
+    "alignment_sentinel_handling": {
+      "status": "implemented",
+      "witness": "experiments/learn/run.l"
+    }
+  }
+}

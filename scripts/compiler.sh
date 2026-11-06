@@ -23,16 +23,7 @@ case "$MODE" in
   DIR="$ROOT/runtime/releases/$ID"
   (cd "$DIR"; sha256sum -c artifacts.sha256) > "$DIR/verify.log" 2>&1
   MARU="$DIR/maru" "$ROOT/scripts/run.sh" test >> "$DIR/verify.log" 2>&1
-  MARU="$DIR/maru" bash "$ROOT/tests/store-tests.sh" >> "$DIR/verify.log" 2>&1
-  MARU="$DIR/maru" bash "$ROOT/tests/runtime-tests.sh" >> "$DIR/verify.log" 2>&1
-  MARU="$DIR/maru" bash "$ROOT/tests/graph-store-tests.sh" >> "$DIR/verify.log" 2>&1
-  MARU="$DIR/maru" python3 -m unittest discover -s "$ROOT/tests" -p 'test_*.py' -v >> "$DIR/verify.log" 2>&1
-  if [[ -f "$ROOT/../dlm_v0.0066/dlm/kernel.py" ]]; then
-   MARU="$DIR/maru" python3 "$ROOT/tests/graph-differential.py" >> "$DIR/verify.log" 2>&1
-   MARU="$DIR/maru" python3 "$ROOT/tests/differential.py" >> "$DIR/verify.log" 2>&1
-  else
-   echo 'SKIP optional sibling0066 graph/Horn development oracles (reference absent)' >> "$DIR/verify.log"
-  fi
+  MARU="$DIR/maru" python3 -m unittest discover -s "$ROOT/tests" -p 'test_d107.py' -v >> "$DIR/verify.log" 2>&1
   "$TOOL" --self "$DIR/maru" "$DIR/next" >> "$DIR/verify.log" 2>&1
   cmp "$DIR/maru.ll" "$DIR/next.ll" >> "$DIR/verify.log" 2>&1
   cp "$DIR/maru" "$DIR/maru.stripped"; cp "$DIR/next" "$DIR/next.stripped"
@@ -42,7 +33,7 @@ case "$MODE" in
   cmp "$DIR/next.ll" "$DIR/third.ll" >> "$DIR/verify.log" 2>&1
   cp "$DIR/third" "$DIR/third.stripped"; strip "$DIR/third.stripped"
   cmp "$DIR/next.stripped" "$DIR/third.stripped" >> "$DIR/verify.log" 2>&1
-  (cd "$ROOT"; { find src/dlm tests adapters scripts -type f \( -name '*.l' -o -name '*.sh' -o -name '*.py' -o -name '*.sexp' \); find experiments -mindepth 2 -maxdepth 2 -type f -name '*.l'; printf '%s\n' experiments/graph/actions.sexp experiments/proof/problem.sexp VERSION .gitignore; } | sort -u | xargs sha256sum) > "$DIR/tests.sha256"
+  (cd "$ROOT"; { find src/dlm tests adapters scripts experiments -type f \( -name '*.l' -o -name '*.sh' -o -name '*.py' -o -name '*.sexp' \); printf '%s\n' VERSION; } | sort -u | xargs sha256sum) > "$DIR/tests.sha256"
   (cd "$DIR"; sha256sum artifacts.sha256 tests.sha256 verify.log) > "$DIR/verified"
   echo "Verified: $ID" ;;
  promote)

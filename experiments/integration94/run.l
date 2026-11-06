@@ -1,6 +1,0 @@
-(require "experiments/integration94/driver.l")
-(let ((stream (file-open-read "experiments/integration94/input-example.sexp")))
-  (assert stream "open integration94 example")
-  (let* ((reader (file-stream stream)) (input (read reader)))
-    (assert (= (read reader) +end+) "example trailing data")
-    (file-close stream) (i94-run input)))

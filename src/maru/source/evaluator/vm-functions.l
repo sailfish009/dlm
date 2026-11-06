@@ -270,7 +270,8 @@
 (define-vm-function (string-length ()) ((arg <string>))
   (<string>-size arg))
 
-(define-vm-function (string-compare ()) ((s1 <string>) (s2 <string>)))
+(define-vm-function (string-compare ()) ((s1 <string>) (s2 <string>))
+  (box <long> (string-compare s1 s2)))
 
 (define-vm-function (array-at ()) ((array <array>) (index <long>))
   (array-at array index))

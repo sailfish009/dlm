@@ -6,8 +6,16 @@ experiments/*/cache/
 reports/
 output.json
 
-# Generated compiler intermediates and local experimental checkpoints.
-/runtime/releases/**/*.ll
+# Publish only the promoted runtime, including its manifest-referenced LLVM files.
+# Update this allow-list when publishing a newly promoted release.
+/runtime/releases/*
+!/runtime/releases/20261106T155013Z-17382/
+
+# Rebuildable safety diagnostics and machine-local rollback state.
+/runtime/safety2/
+/runtime/previous
+
+# Local experimental checkpoints.
 /experiments/repl/store/
 /experiments/web/store/
 /experiments/basis90/store/
