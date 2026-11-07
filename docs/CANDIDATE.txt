@@ -1,0 +1,5 @@
+CANDIDATE — not promoted.
+
+The promoted runtime is the 0.0116 release 20261107T064706Z-31624.
+This tree adds 0.0117–0.0120 (surface notation, total patterns, exact call
+arity, assert). Promote separately after review.

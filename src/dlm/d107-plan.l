@@ -43,10 +43,12 @@
         (set out d)))
     out))
 (define-function p107-plan (s pattern)
-  (let ((d (p107-cover s pattern)))
-    (if d (list 'plan107 pattern (p107-len pattern) (p107-len (p107-def-body d))
-                (p107-def-body d) (p107-def-id d))
-      (list 'plan107 pattern (p107-len pattern) (p107-len pattern) pattern ()))))
+  (if (not (p107-query-pattern? pattern))
+    (list 'plan107 pattern 'invalid 0 () ())
+    (let ((d (p107-cover s pattern)))
+      (if d (list 'plan107 pattern (p107-len pattern) (p107-len (p107-def-body d))
+                  (p107-def-body d) (p107-def-id d))
+        (list 'plan107 pattern (p107-len pattern) (p107-len pattern) pattern ())))))
 ;;; ---------- executing the PLAN (calls counted), not the raw pattern ----------
 (define *p107-calls* 0)
 (define *p107-steps* 0)
@@ -159,6 +161,11 @@
           (set less (p107-append less (list r)))))
       (p107-append (p107-sort-rows less) (p107-append (list head) (p107-sort-rows more))))))
 
+(define-function p107-witness-atoms? (ids ground table)
+  (if (not ids) true
+    (let ((f (p107-fact-by-id (car ids) table)))
+      (and f (p107-member? (p107-atom-key (p107-nth f 2)) (p107-map p107-atom-key ground))
+           (p107-witness-atoms? (cdr ids) ground table)))))
 (define-function p107-witnesses-ok? (ids table)
   ;; every witness must be an actual fact of this scope/closure
   (if (not ids) true
@@ -166,7 +173,10 @@
       (and f (p107-witnesses-ok? (cdr ids) table)))))
 
 (define-function p107-answer-plan (s scope pattern budget use-plan)
-  (let* ((c (p107-closure s scope budget)) (status (p107-nth c 0)) (table (p107-nth c 1))
+  (if (not (and (symbol? scope) (p107-query-pattern? pattern)
+                (is <long> budget) (> budget 0)))
+    (list 'answer107 pattern 'invalid () () 0 0 ())
+    (let* ((c (p107-closure s scope budget)) (status (p107-nth c 0)) (table (p107-nth c 1))
          (vars (p107-all-vars pattern))
          (plan (p107-plan s pattern))
          (steps (if use-plan (p107-nth plan 4) pattern))
@@ -183,12 +193,12 @@
               (let ((out ()) (bad false))
                 (list-do r rows
                   (let ((ground (p107-instantiate steps (p107-defs-of s) (car r))))
-                    (if (or (equal ground 'invalid) (not (p107-witnesses-ok? (cdr r) table))) (set bad true)
+                    (if (or (equal ground 'invalid) (not (p107-witness-atoms? (cdr r) ground table))) (set bad true)
                       (let ((q (p107-match-ground pattern ground (p107-subst ()))))
                         (if (equal q 'no) (set bad true)
                           (set out (p107-append out (list (list 'row107
                             (p107-row-values q vars) (p107-sort-keys (cdr r)))))))))))
                 (list 'answer107 pattern (if bad 'invalid 'complete) vars
-                      (p107-sort-rows out) *p107-calls* *p107-steps* cover)))))))))
+                      (p107-sort-rows out) *p107-calls* *p107-steps* cover))))))))))
 (define-function p107-answer (s scope pattern budget) (p107-answer-plan s scope pattern budget true))
 (define-function p107-answer-raw (s scope pattern budget) (p107-answer-plan s scope pattern budget false))

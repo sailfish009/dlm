@@ -7,19 +7,21 @@
 ;;; Definitions are conservative: they add no facts and change no answer. What
 ;;; changes is the inference unit (a plan step) and, later, its support.
 
+(define-function p107-call (id terms) (list 'call107 id terms))
+(define-function p107-call? (x) (and (p107-shape? x 3) (equal (car x) 'call107) (p107-name? (p107-nth x 1))))
+(define-function p107-step? (x) (or (p107-atom? x) (p107-call? x)))
+
 (define-function p107-def (id vars pattern body) (list 'def107 id vars pattern body))
 (define-function p107-def? (d)
   (and (p107-shape? d 5) (equal (car d) 'def107) (p107-name? (p107-nth d 1))
        (p107-list? (p107-nth d 2)) (p107-list? (p107-nth d 3)) (p107-list? (p107-nth d 4))
-       (not (p107-any? (lambda (a) (not (p107-atom? a))) (p107-nth d 3)))))
+       (not (p107-any? (lambda (a) (not (p107-atom? a))) (p107-nth d 3)))
+       ;; body steps are atoms or call107, not arbitrary lists
+       (not (p107-any? (lambda (s) (not (p107-step? s))) (p107-nth d 4)))))
 (define-function p107-def-id (d) (p107-nth d 1))
 (define-function p107-def-vars (d) (p107-nth d 2))
 (define-function p107-def-pattern (d) (p107-nth d 3))
 (define-function p107-def-body (d) (p107-nth d 4))
-
-(define-function p107-call (id terms) (list 'call107 id terms))
-(define-function p107-call? (x) (and (p107-shape? x 3) (equal (car x) 'call107) (p107-name? (p107-nth x 1))))
-(define-function p107-step? (x) (or (p107-atom? x) (p107-call? x)))
 (define-function p107-defs? (ds) (and (p107-list? ds) (not (p107-any? (lambda (d) (not (p107-def? d))) ds))))
 (define-function p107-find-def (ds id) (let ((out ())) (list-do d ds (if (equal (p107-def-id d) id) (set out d))) out))
 
@@ -70,7 +72,9 @@
 
 ;;; ---------- expansion ----------
 (define-function p107-call-bindings (dvars terms)
-  (if (not dvars) ()
+  ;; exactly as many actuals as formals: admission and execution now share the
+  ;; same arity rule (0.0110 review F5).
+  (if (not dvars) (if terms 'bind-failed ())
     (if (not terms) 'bind-failed
       (let ((rest (p107-call-bindings (cdr dvars) (cdr terms))))
         (if (equal rest 'bind-failed) 'bind-failed (cons (list (car dvars) (car terms)) rest))))))
@@ -104,6 +108,15 @@
             (begin (set seen (cons a seen)) (set vars (p107-union vars (p107-atom-vars a)))
                    (set changed true)))))
       (= (p107-len seen) (p107-len atoms)))))
+
+;;; A query pattern is a proper, connected list of atoms. This guard runs before
+;;; p107-atom-vars / p107-conj-key / p107-all-vars so a malformed public pattern
+;;; is a rejection rather than a native fault.
+(define-function p107-atoms? (xs)
+  (and (p107-list? xs)
+       (not (p107-any? (lambda (a) (not (p107-atom? a))) xs))))
+(define-function p107-query-pattern? (xs)
+  (and (p107-atoms? xs) (p107-connected? xs)))
 (define-function p107-known-def? (defs id)
   ;; every call in a body must name an earlier definition
   (let ((found false))
@@ -124,13 +137,17 @@
       (list-do t (p107-args a)
         (if (and (p107-var? t) (not (p107-member? t out))) (set out (p107-append out (list t))))))
     out))
+(define-function p107-exact-key (atoms)
+  ;; order-insensitive in atoms, but variable names are NOT renamed
+  (p107-sort-keys (p107-map p107-serialize atoms)))
 (define-function p107-def-ok? (d defs)
   (and (p107-def? d)
        (equal (p107-def-vars d) (p107-var-order (p107-def-pattern d)))
        (p107-connected? (p107-def-pattern d))
        (let ((exp (p107-expand (p107-def-body d) defs 0)))
          (and (not (equal exp 'expand-failed))
-              (equal (p107-conj-key exp) (p107-conj-key (p107-def-pattern d)))
+              ;; roles are the interface: compare with VARS fixed, no renaming
+              (equal (p107-exact-key exp) (p107-exact-key (p107-def-pattern d)))
               (p107-set-equal? (p107-all-vars exp) (p107-all-vars (p107-def-pattern d)))))))
 
 ;;; ---------- keep the longest prefix that still checks ----------

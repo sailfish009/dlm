@@ -1,4 +1,4 @@
-# DLM 0.0109 — Maru string-compare fix; safety-2 gate green
+# DLM 0.0120 (candidate) — surface notation, total patterns, and assert
 
 A new, small implementation. The previous trees (`dlm_v0.0088` … `dlm_v0.0102`)
 were **reference only**; nothing from their `src/dlm` was copied. What is kept is
@@ -13,6 +13,44 @@ L3 session       one state, one event log, replay-checked snapshot
 L4 agenda        step / run / query / read
 L5 reading       N1 relation, N2 meaning, N3 idiom; support or abstain
 ```
+
+## Contract layer (0.0113–0.0120)
+
+`(c107 NAME VARS PRE BODY POST FRAME)` is verified universally over every
+Boolean input that satisfies Pre. 0.0114 added `if` with both branches checked.
+0.0116 adds `(call NAME)`:
+
+- a unit is `(unit107 NAME CONTRACT CASES)`; `CASES` must equal the table the
+  verifier recomputes under the units before it;
+- `p107-c-lib-check` validates a library strictly in prefix order, so forged
+  summaries, duplicate names, forward/self calls and interface mismatches are
+  rejected;
+- `run` / `scan` / `check` take an **explicit** checked library (no ambient
+  global); a call applies one summary row and never re-executes the callee body;
+- `(refuted call-precondition NAME)` is preserved through run, scan and
+  verify-lib instead of being wrapped as `invalid`;
+- evidence is `(evidence CONTRACT RESULT LIB)`; only `(verified CASES)` is
+  admissible and the checker recomputes the whole result under LIB, so a changed
+  callee reports `stale-library` and a refuted/unknown/fabricated result is
+  rejected;
+- a Shen-inspired surface expander (`d107-surface.l`) reads
+  `(contract NAME (VARS) (pre E) (body S...) (post E) (frame V...))` and
+  `(unit NAME CONTRACT CASES)`, then re-validates the canonical `c107`/`unit107`
+  data; `(define NAME (VARS) (pattern ...) (body ...))` expands to `def107`
+  with `(call ...)` sugar for `call107`. It is notation, not a new trust
+  boundary;
+- public `answer`/`plan`/`revise` validate the whole query pattern before
+  traversal (malformed → `(rejected107 pattern)`), and admission/execution share
+  one exact call-arity rule;
+- `(assert E)` is a proof obligation inside a body or `if` branch: true
+  continues, false is `(refuted IN assert E)`;
+- the verifier is **bounded**: at most 8 variables (256 states), 32
+  statements/branch, 512 IR nodes, depth 16, 16 library units and 256 summary
+  rows. Over-limit input is `(invalid unsupported-limit KIND)`, not a stack
+  overflow. `unknown` is propagated but no budget scheduler produces it.
+
+See `docs/release-0116.md` for the review-to-fix mapping. Release
+`20261107T064706Z-31624`; the 0.0114 runtime is kept as `runtime/previous`.
 
 ## Run
 
@@ -113,8 +151,9 @@ planning/inference-unit change, **not** a speedup: a call expands to its body.
 
 ## What this is not
 
-- **No learning yet.** There is no definition formation, no lemma promotion, no
-  hypothesis layer, no revision. `run` only interprets observations.
+- **The contract layer does not learn.** Definition formation/revision is the
+  separate 0.0107 loop (`dlm 'step/learn/revise`); the finite contract verifier
+  only checks and reuses summaries. It does not invent lemmas from contracts.
 - **N4–N9 are not implemented** (composition, architecture, causal, purpose,
   analogy, certified absence).
 - The comparison with 0.0062 is **not** parity: 0.0062 emitted 42 *selected*
@@ -132,21 +171,30 @@ planning/inference-unit change, **not** a speedup: a call expands to its body.
 
 | file | lines | role |
 |---|---:|---|
-| `src/dlm/d107-util.l` | 50 | lists, strings, checksum |
-| `src/dlm/d107-form.l` | 75 | atoms, rules, substitutions |
-| `src/dlm/d107-close.l` | 105 | closure, proof terms, checker |
-| `src/dlm/d107-session.l` | 138 | state, events, replay, storage |
-| `src/dlm/d107-read.l` | 59 | N1–N3 realization |
-| `src/dlm/d107-agenda.l` | 17 | one agenda |
-| `src/dlm/d107-command.l` | 130 | `(dlm ...)` |
-| `adapters/reduce.py` | 117 | untrusted reduction |
-| `tests/core-tests.l` | 95 | 26 native checks |
+| `src/dlm/d107-util.l` | 74 | lists, strings, checksum |
+| `src/dlm/d107-form.l` | 84 | atoms, rules, substitutions |
+| `src/dlm/d107-close.l` | 163 | closure, proof terms, checker |
+| `src/dlm/d107-match.l` | 48 | Shen-shaped pattern matching |
+| `src/dlm/d107-contract.l` | 450 | bounded finite contracts, call summaries, assert |
+| `src/dlm/d107-surface.l` | 117 | Shen-inspired surface expander |
+| `src/dlm/d107-def.l` | 160 | definition units, admission, revision |
+| `src/dlm/d107-session.l` | 182 | state, events, replay, storage |
+| `src/dlm/d107-plan.l` | 204 | plan execution |
+| `src/dlm/d107-learn.l` | 177 | basis learning |
+| `src/dlm/d107-read.l` | 60 | N1–N3 realization |
+| `src/dlm/d107-agenda.l` | 28 | one agenda |
+| `src/dlm/d107-command.l` | 196 | `(dlm ...)` |
+| `adapters/reduce.py` | 122 | untrusted reduction |
+| `tests/core-tests.l` | 748 | 200 native checks |
 
 ## Verification
 
-Fifteen Python tests and 72 native checks pass; the compiler was reproduced,
-verified and promoted with three-generation
-LLVM/stripped equality. See `docs/release-0103.md`.
+Fifteen Python tests and 200 native checks pass (normal and safety-2), and the
+independent review contract oracle still passes 256/256. This candidate reuses
+the promoted 0.0116 runtime `20261107T064706Z-31624` (three-generation
+LLVM/stripped equality); it has not been promoted itself. The contract checker
+recomputes with the same library; it is not a separately implemented second
+verifier.
 
 `src/maru` is the Maru compiler baseline, unchanged. No new bootstrap
 dependency. Previous version directories are untouched.

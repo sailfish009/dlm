@@ -1,0 +1,40 @@
+# 0.0120 verification — 2026-11-07T07:30:46Z
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0120 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 200
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ MARU=runtime/safety2/maru ./scripts/run.sh test
+checks: 200
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## python suite
+$ python3 -m unittest discover -s tests -p "test_d107.py"
+Ran 15 tests in 242.722s
+OK
+rc=0
+
+## independent review contract oracle (seed 116)
+256/256 PASS; verified 84 / refuted 95 / invalid 39 / inapplicable 38; 111 callers exercising calls
+
+## 0.0110 F3 probes (previously SIGSEGV)
+malformed-answer: before (rejected107 pattern)survived 
+malformed-plan: before (rejected107 pattern)survived 
+malformed-revise: before (rejected107 pattern)survived 
+
+## manifests
+$ sha256sum -c docs/release.sources.sha256 && sha256sum -c docs/release.tests.sha256
+sources: OK (78 files)
+tests:   OK (28 files)
+
+## predecessor artifacts unchanged (review-0115-evidence)
+0.0114: 196 files OK
+0.0115: 177 files OK

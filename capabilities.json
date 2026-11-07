@@ -1,5 +1,5 @@
 {
-  "version": "0.0107",
+  "version": "0.0120",
   "note": "Continuity ledger: what this tree can actually demonstrate today.",
   "capabilities": {
     "horn_closure": {
@@ -28,11 +28,11 @@
     },
     "replay_snapshot": {
       "status": "implemented",
-      "witness": "tests/test_d103.py"
+      "witness": "tests/test_d107.py"
     },
     "atomic_storage": {
       "status": "implemented",
-      "witness": "tests/test_d103.py"
+      "witness": "tests/test_d107.py"
     },
     "code_reduction_adapter": {
       "status": "implemented-untrusted",
@@ -60,7 +60,8 @@
     },
     "record_scoped_support": {
       "status": "partial",
-      "witness": "observations carry record ids; support is not yet record-scoped"
+      "witness": null,
+      "note": "observations carry record ids; support is not yet record-scoped"
     },
     "reading_n4_n9": {
       "status": "not-implemented",
@@ -104,7 +105,8 @@
     },
     "syntactically_invalid_file_guard": {
       "status": "not-implemented",
-      "witness": "Maru reader aborts before our code runs"
+      "witness": null,
+      "note": "Maru reader aborts before our code runs"
     },
     "proof_dag_validation": {
       "status": "implemented",
@@ -189,6 +191,83 @@
     "alignment_sentinel_handling": {
       "status": "implemented",
       "witness": "experiments/learn/run.l"
+    },
+    "finite_contract_verification": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "contract_if_branches": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "contract_call_summary": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "checked_library_prefix": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "library_dependency_invalidation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "explicit_library_context": {
+      "status": "implemented",
+      "witness": "src/dlm/d107-contract.l"
+    },
+    "contract_resource_budget": {
+      "status": "not-implemented",
+      "witness": null,
+      "note": "unknown is propagated but never produced; size limits reject over-limit input instead"
+    },
+    "bounded_contract_limits": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "contract_evidence_validation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "surface_contract_notation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "surface_unit_notation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "surface_revalidates_canonical_ir": {
+      "status": "implemented",
+      "witness": "src/dlm/d107-surface.l"
+    },
+    "surface_definition_notation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "definition_body_step_validation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "total_query_pattern_validation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "shared_exact_call_arity": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "contract_assert": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "surface_notation_expander": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "surface_notation_revalidates_canonical_ir": {
+      "status": "implemented",
+      "witness": "src/dlm/d107-surface.l"
     }
   }
 }

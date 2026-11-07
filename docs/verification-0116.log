@@ -1,0 +1,55 @@
+# 0.0116 verification — 2026-11-07T06:43:02Z
+
+## native suite
+$ ./scripts/run.sh test
+checks: 161
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ MARU=runtime/safety2/maru ./scripts/run.sh test
+checks: 161
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## python suite
+$ python3 -m unittest discover -s tests -p "test_d107.py"
+Ran 15 tests in 234.902s
+OK
+rc=0
+
+## manifests
+$ sha256sum -c docs/release.sources.sha256 && sha256sum -c docs/release.tests.sha256
+sources: OK (77 files)
+tests:   OK (27 files)
+
+## predecessor artifacts unchanged (review-0115-evidence)
+0.0114: 196 files OK
+0.0115: 177 files OK
+
+## independent review oracle
+
+The oracle from `review-0116-evidence/contract_oracle.py` (seed 116) was run
+against this tree with `paths.json` -> `/research/dlm_v0.0116`:
+
+    cases: 256, passed: 256, failures: []
+    outcomes: verified 84, refuted 95, invalid 39, inapplicable 38
+    callers_exercising_calls: 111
+    reference: Python inlines callee bodies; native consumes the generated summary tables
+
+## promotion (2026-11-07)
+
+    $ ./scripts/compiler.sh reproduce
+    20261107T064706Z-31624
+    $ ./scripts/compiler.sh verify 20261107T064706Z-31624
+    Verified: 20261107T064706Z-31624
+    $ ./scripts/compiler.sh promote 20261107T064706Z-31624
+    Promoted: 20261107T064706Z-31624
+
+    record:        mode=reproduce, parent_sha256=b79581ef... (0.0114 compiler)
+    maru.ll = next.ll = third.ll          16b9b39cc9b27ae1a110644e927b846632fec4fcbb2048ab07d03ce7460885b8
+    maru.stripped = next.stripped = third.stripped
+                                           cce40f997f14118f62e1f25750da2973bfb146da6b6e8eb87804de92923f8a25
+    maru-compiler -> runtime/releases/20261107T064706Z-31624/maru
+    runtime/previous -> runtime/releases/20261107T001902Z-17924/maru
+    post-promote ./scripts/run.sh test: 161 ok, ALL-CORE-TESTS-PASSED

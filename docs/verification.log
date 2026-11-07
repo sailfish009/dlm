@@ -74,6 +74,37 @@ ok revised pattern is the tool structure
 ok calls plan no longer covered
 ok repeated atom cannot reuse one fact
 ok distinct facts are still enumerable
+ok role-preserving definition accepted
+ok definition with permuted roles rejected
+ok call with permuted actuals rejected
+ok call with matching actuals accepted
+ok witness for a different atom rejected
+ok witness for a matching atom accepted
+ok literal match
+ok literal mismatch
+ok repeated variable must be equal
+ok empty bindings are a success, not a failure
+ok dotted pattern is an error, not a mismatch
+ok guard failure falls through to the next clause
+ok no clause yields the fallback
+ok mismatch never calls the body
+ok valid contract verified
+ok eligible inputs are exactly the Pre-satisfying states
+ok case table has 4 rows
+ok wrong postcondition refuted
+ok vacuous precondition inapplicable
+ok frame violation refuted
+ok undeclared assign is invalid
+ok checker accepts the real table
+ok checker rejects a forged output
+ok checker rejects a missing row
+ok checker rejects a duplicated row
+ok checker rejects a non-boolean input row
+ok if with both branches verifies
+ok if produces one case per eligible input
+ok if outputs contain both branch results
+ok feasible else branch that violates Post is refuted
+ok if on an undeclared variable is invalid
 ALL-CORE-TESTS-PASSED
 test_changed_background_rules_invalidate_a_snapshot (test_d107.CoreTests.test_changed_background_rules_invalidate_a_snapshot) ... ok
 test_corrupt_snapshot_is_refused_and_not_overwritten (test_d107.CoreTests.test_corrupt_snapshot_is_refused_and_not_overwritten) ... ok
@@ -101,16 +132,16 @@ ok
 test_stale_digest_save_is_refused (test_d107.CoreTests.test_stale_digest_save_is_refused) ... ok
 
 ----------------------------------------------------------------------
-Ran 15 tests in 238.813s
+Ran 15 tests in 221.528s
 
 OK
 Generated candidate-vm.l from embedded sources using Maru
 warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
 1 warning generated.
-Built compiler-source image: /research/dlm_v0.0109/runtime/releases/20261106T155013Z-17382/next
+Built compiler-source image: /research/dlm_v0.0114/runtime/releases/20261107T001902Z-17924/next
 Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.
 Generated candidate-vm.l from embedded sources using Maru
 warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
 1 warning generated.
-Built compiler-source image: /research/dlm_v0.0109/runtime/releases/20261106T155013Z-17382/third
+Built compiler-source image: /research/dlm_v0.0114/runtime/releases/20261107T001902Z-17924/third
 Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.
