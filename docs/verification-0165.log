@@ -1,0 +1,41 @@
+# 0.0165 verification — 2026-11-08
+
+## native
+checks: 20
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 20
+
+## four-fact chain synthesis
+C2 0
+C3 0
+C4 1
+SYNTH rule body=4 support=(a0 a1 a2 a3)
+COVERAGE 2/2
+NEGATIVE clean
+HELD proof
+FROZEN fail
+done-long
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T080559Z-25061
+$ ./scripts/compiler.sh verify 20261109T080559Z-25061
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR 4/4
+- typed 4/4
+- proof credit/frontier
+- synthesis / ranked / chain3 / chain4
+- next/third LLVM + stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Bounded chain search (max 4); no general ILP or theory revision.

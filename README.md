@@ -1,200 +1,109 @@
-# DLM 0.0120 (candidate) — surface notation, total patterns, and assert
+# DLM 0.0205 — minimal deductive core
 
-A new, small implementation. The previous trees (`dlm_v0.0088` … `dlm_v0.0102`)
-were **reference only**; nothing from their `src/dlm` was copied. What is kept is
-the DLM structure on top of Maru: a trusted kernel, untrusted reduction, one
-session, and a leveled reading.
+This is the **minimal-core lineage** of DLM on Maru. It keeps the trusted
+symbolic kernel, proof gate, basis/axiom layer, and the DT proof-state dialect.
+It intentionally removes the older `d107-*` contract layer (see below).
 
 ```text
-L0 observation   provenance (source, record, span) + scope
-L1 kernel        form · closure + proof term · independent checker
-L2 adapter       Python source -> ground facts (untrusted, hash-pinned)
-L3 session       one state, one event log, replay-checked snapshot
-L4 agenda        step / run / query / read
-L5 reading       N1 relation, N2 meaning, N3 idiom; support or abstain
+facts / observations
+→ Horn closure + proof term + independent checker
+→ basis axioms / axiom graph / proof-credit frontier
+→ DT proof-state dialect (mdmodule / mdop / verify)
+→ optional web / NL / recursive self-supervision boundaries
 ```
 
-## Contract layer (0.0113–0.0120)
+## Core modules
 
-`(c107 NAME VARS PRE BODY POST FRAME)` is verified universally over every
-Boolean input that satisfies Pre. 0.0114 added `if` with both branches checked.
-0.0116 adds `(call NAME)`:
-
-- a unit is `(unit107 NAME CONTRACT CASES)`; `CASES` must equal the table the
-  verifier recomputes under the units before it;
-- `p107-c-lib-check` validates a library strictly in prefix order, so forged
-  summaries, duplicate names, forward/self calls and interface mismatches are
-  rejected;
-- `run` / `scan` / `check` take an **explicit** checked library (no ambient
-  global); a call applies one summary row and never re-executes the callee body;
-- `(refuted call-precondition NAME)` is preserved through run, scan and
-  verify-lib instead of being wrapped as `invalid`;
-- evidence is `(evidence CONTRACT RESULT LIB)`; only `(verified CASES)` is
-  admissible and the checker recomputes the whole result under LIB, so a changed
-  callee reports `stale-library` and a refuted/unknown/fabricated result is
-  rejected;
-- a Shen-inspired surface expander (`d107-surface.l`) reads
-  `(contract NAME (VARS) (pre E) (body S...) (post E) (frame V...))` and
-  `(unit NAME CONTRACT CASES)`, then re-validates the canonical `c107`/`unit107`
-  data; `(define NAME (VARS) (pattern ...) (body ...))` expands to `def107`
-  with `(call ...)` sugar for `call107`. It is notation, not a new trust
-  boundary;
-- public `answer`/`plan`/`revise` validate the whole query pattern before
-  traversal (malformed → `(rejected107 pattern)`), and admission/execution share
-  one exact call-arity rule;
-- `(assert E)` is a proof obligation inside a body or `if` branch: true
-  continues, false is `(refuted IN assert E)`;
-- the verifier is **bounded**: at most 8 variables (256 states), 32
-  statements/branch, 512 IR nodes, depth 16, 16 library units and 256 summary
-  rows. Over-limit input is `(invalid unsupported-limit KIND)`, not a stack
-  overflow. `unknown` is propagated but no budget scheduler produces it.
-
-See `docs/release-0116.md` for the review-to-fix mapping. Release
-`20261107T064706Z-31624`; the 0.0114 runtime is kept as `runtime/previous`.
+```text
+src/dlm/logic.l          lists, terms, atoms, substitution
+src/dlm/infer.l          clauses, unification, forward inference
+src/dlm/deduce.l         closure, proof terms, proof checker
+src/dlm/fragment.l       fragments/templates
+src/dlm/assemble.l       composition
+src/dlm/match.l          pattern matching
+src/dlm/typed.l          typed admission
+src/dlm/proof.l          p-prove / p-proof-check
+src/dlm/synth.l          checked synthesis
+src/dlm/basis.l          basis axioms, activation, rollback, CSE
+src/dlm/axiom.l          axiom store and subset selection
+src/dlm/axiom-graph.l    axiom DAG, DCE/CSE, selection
+src/dlm/dtir.l           DT proof-state dialect
+src/dlm/mlir.l           MLIR-shaped internal form
+src/dlm/graph-ir.l       graph IR
+src/dlm/nl.l             NL boundary (parse/build/answer)
+src/dlm/web.l            observation/web boundary
+src/dlm/selfssl.l        recursive self-supervision
+src/dlm/repl.l           REPL / driver surface
+```
 
 ## Run
 
 ```sh
 ./scripts/run.sh repl                 # original Maru REPL
-./scripts/run.sh northstar            # the M1 experiment (fixed input)
+./scripts/run.sh experiment           # fragment experiment
+./scripts/run.sh mlir                 # MLIR-shaped experiment
+./scripts/run.sh typed                # typed experiment
+./scripts/run.sh synth                # synthesis experiment
+./scripts/run.sh proof DRIVER         # proof driver
 ./scripts/run.sh test                 # native core assertions
-python3 -m unittest discover -s tests -p 'test_d107.py' -v
 ```
 
-## Review fixes (0.0104 and 0.0105)
+## Verify a release
 
-0.0104 closed nine defects from the 0.0103 review: derived facts posing as
-`given`, rank-as-justification, extensional rule heads, an order-insensitive rule
-digest, a SIGSEGV on malformed input, transitions that were not durable, lost
-updates across sessions, stale overwrites, and read errors treated as a missing
-file.
+```sh
+./scripts/verify_release.sh
+```
 
-0.0105 closed the remaining P1/P2 items: proofs are now validated as a **DAG**
-(every child's own proof must check, with a bounded walk), the digest is a proper
-order-sensitive hash (FNV-1a 32-bit), proof indices and dotted structures are
-validated instead of faulting, snapshot identity is a **content digest** rather
-than an epoch, negation is evaluated after all positives are bound (literal order
-irrelevant), empty-body rules fire, re-opening without closing is refused, and
-`reduce.py --check` verifies the facts body. `tests/oracle107.py` compares the
-closure with an independent reference on 150 generated programs.
+This checks:
 
-One limitation remains: Maru's reader aborts the process on syntactically invalid
-bytes, so damaged snapshots cannot be rejected in-language (we never write on a
-read failure and keep `.previous`).
+- `VERSION`, `docs/release.txt`, and the `maru-compiler` symlink agree;
+- no unapproved file larger than 5 MB outside `runtime/`;
+- `./scripts/run.sh test` (`ALL-CORE-TESTS-PASSED`);
+- `./scripts/compiler.sh verify <release-id>` (self-host `Verified`).
 
-## What is actually implemented (M1)
+## Research snapshots
 
-- Ground atoms, rules with **negation restricted to extensional predicates**, so
-  every program is stratified by construction.
-- Forward closure with a **proof term per derived atom**, a budget, and
-  `unknown` on exhaustion (never `false`).
-- An **independent proof checker**: it recomputes the head instance and requires
-  every positive body atom to be present and every negated one to be absent.
-- Observations with `(source, record, scope)`; queries and closures are
-  **scope-isolated**; retraction removes facts and their interpretation.
-- A **single** `state107` with a bounded event log; snapshots are validated by
-  **replaying the log** and comparing the state; the background-law checksum is
-  part of the snapshot, so changing rules invalidates old files.
-- Atomic save (`lock`, `.next`, readback, `.previous`, replace), corrupt-file
-  rejection.
-- Reading emits **N1/N2/N3** sentences only when the support proof checks; level
-  counts are reported. Unreadable predicates produce no sentence.
-- `adapters/reduce.py` reduces `experiments/northstar/input/main.py`
-  (PyTorch MNIST example, pinned bytes) to 209 facts with a pinned
-  `facts-sha256`. It is untrusted and developer-side; the kernel decides.
-
-## Measured M1 result
-
-`./scripts/run.sh northstar` (log: `docs/northstar-m1.log`):
+The release includes code-only snapshots of:
 
 ```text
-reduced facts: 209
-status=complete facts=231 sentences=157 skipped=0
-levels ((level 1 135) (level 2 10) (level 3 12))
-library-only view: 121 sentences, levels ((1 99) (2 10) (3 12))
+experiments/tiny_transformer_maru/          Q16 transformer inference port
+experiments/deductive_transformer_maru/     DT × MNIST learning/eval
 ```
 
-All 157 sentences carry a proof that the checker accepts (`skipped=0`).
+Large data (`mnist.npz`), checkpoints, generated weights, and per-run logs are
+intentionally excluded. Regenerate them with the READMEs/scripts in each
+experiment before running the research verifiers.
 
-## Learning: the data stays, the basis moves (0.0107)
-
-`(dlm 'rules ...)` only configures laws and resets state; it is not learning.
-0.0107 adds the direction the review asked for:
+The DT × MNIST result is **research**, not a core claim:
 
 ```text
-(dlm 'step)   interpret an observation, then try to move the basis
-(dlm 'learn)  one learning step: propose, check, admit
-(dlm 'defs)   units with support, active flag, plan steps
-(dlm 'plan PATTERN)     raw steps vs planned steps and the covering unit
-(dlm 'answer 'scope PATTERN)   rows and witness ids
-(dlm 'revise ID PATTERN)       replace a unit; dependents are re-validated
+baseline Maru perceptron:        8/10, proof 10/10
+validated rule library:          9/10, proof 10/10
+label-free support/conflict:     8/10 (negative)
+case 0 ceiling: perception + no head-5 valid rule
 ```
 
-A unit is `(def107 ID VARS PATTERN BODY)`; `BODY` may `(call106 ID ...)` an
-earlier unit. Admission is expansion equality (alpha-renaming and atom order),
-never a score. Support counts distinct records, so retracting data lowers support
-and the unit becomes inactive while the definition stays in the basis.
+Training uses MNIST labels as observations; it is observation-supervised and
+proof-gated, not label-free deductive learning.
 
-Measured on `experiments/learn/run.l` (three records, one owner, three calls):
+## Removed in 0.0205
 
-| before | after |
-|---|---|
-| basis 0 | basis 2 (`b2` calls `b1`) |
-| plan 3 steps | plan 2 steps |
-| 18 answers, 0 unit calls | 18 identical answers, 1 real unit call |
+The `d107-*` contract layer from 0.0120 is **not part of this tree**:
 
-The plan is **executed**: a `call` step runs the unit's own body and is counted,
-so removing the basis changes the execution path (the review's P1 finding).
+```text
+no src/dlm/d107-*.l
+no tests/test_d107.py
+no d107 contract/unit/surface/plan/session modules
+```
 
-The observations are byte-identical before and after learning. This is a
-planning/inference-unit change, **not** a speedup: a call expands to its body.
+This is an intentional breaking change: 0.0205 is the minimal proof/axiom/DT
+core, not a superset of 0.0120. Historical 0.0120 documentation is kept under
+`docs/README-0120.md` and `docs/release-0116.md` for reference only.
 
-## What this is not
+## Limits
 
-- **The contract layer does not learn.** Definition formation/revision is the
-  separate 0.0107 loop (`dlm 'step/learn/revise`); the finite contract verifier
-  only checks and reuses summaries. It does not invent lemmas from contracts.
-- **N4–N9 are not implemented** (composition, architecture, causal, purpose,
-  analogy, certified absence).
-- The comparison with 0.0062 is **not** parity: 0.0062 emitted 42 *selected*
-  sentences across N1–N9; this release emits *all* readable facts over its own
-  reduction, so counts are not comparable one-to-one. What is comparable is:
-  every sentence is support-checked, and N1–N3 exist from a real code input.
-- The reduction is an **untrusted Python adapter**; there is no native Maru
-  Python parser yet. Integrity rests on pinned source/facts hashes, not on the
-  kernel re-parsing Python.
-- No SMT, integers, heaps, loops, concurrency, LLM or GPU. No natural-language
-  generation beyond fixed templates.
-- `start`/cooperative idle scheduling is not implemented; `run N` is explicit.
-
-## Layout
-
-| file | lines | role |
-|---|---:|---|
-| `src/dlm/d107-util.l` | 74 | lists, strings, checksum |
-| `src/dlm/d107-form.l` | 84 | atoms, rules, substitutions |
-| `src/dlm/d107-close.l` | 163 | closure, proof terms, checker |
-| `src/dlm/d107-match.l` | 48 | Shen-shaped pattern matching |
-| `src/dlm/d107-contract.l` | 450 | bounded finite contracts, call summaries, assert |
-| `src/dlm/d107-surface.l` | 117 | Shen-inspired surface expander |
-| `src/dlm/d107-def.l` | 160 | definition units, admission, revision |
-| `src/dlm/d107-session.l` | 182 | state, events, replay, storage |
-| `src/dlm/d107-plan.l` | 204 | plan execution |
-| `src/dlm/d107-learn.l` | 177 | basis learning |
-| `src/dlm/d107-read.l` | 60 | N1–N3 realization |
-| `src/dlm/d107-agenda.l` | 28 | one agenda |
-| `src/dlm/d107-command.l` | 196 | `(dlm ...)` |
-| `adapters/reduce.py` | 122 | untrusted reduction |
-| `tests/core-tests.l` | 748 | 200 native checks |
-
-## Verification
-
-Fifteen Python tests and 200 native checks pass (normal and safety-2), and the
-independent review contract oracle still passes 256/256. This candidate reuses
-the promoted 0.0116 runtime `20261107T064706Z-31624` (three-generation
-LLVM/stripped equality); it has not been promoted itself. The contract checker
-recomputes with the same library; it is not a separately implemented second
-verifier.
-
-`src/maru` is the Maru compiler baseline, unchanged. No new bootstrap
-dependency. Previous version directories are untouched.
+- No dense tensor/attention ops in the trusted core.
+- Web acquisition remains a boundary experiment; web text is not truth.
+- Numerical/embedding components only rank; proof remains the truth gate.
+- Research snapshots are not part of the core test suite.
+- No promotion of any unpublished runtime beyond the recorded release.

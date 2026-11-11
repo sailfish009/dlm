@@ -1,0 +1,5 @@
+AUTO parent mode=stride coverage=1/1 rules=2
+AUTO parent same-stride yes
+AUTO alt mode=pair coverage=1/1 rules=2
+AUTO alt same-pair yes
+done-mlir-auto

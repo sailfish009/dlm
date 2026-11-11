@@ -1,0 +1,25 @@
+# 0.0194 verification — 2026-11-10
+
+## native
+checks: 61
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 61
+
+## persistent web store
+SAVE /tmp/dlm-web-store.l obs=3 rules=2
+P1 proved
+done-persist-p1
+LOAD (3 2)
+P2 proved
+P3 unknown
+done-persist-p2
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T095253Z-25297
+$ ./scripts/compiler.sh verify 20261110T095253Z-25297
+Verified

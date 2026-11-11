@@ -1,0 +1,46 @@
+# 0.0159 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0159 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 6
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 6
+rc=0
+
+## MLIR-shaped REPL experiment
+MLIR module fragment_match ops=16
+fragments 5, templates 4, programs 3, tasks 4
+selected: p-rec, p-comp
+tasks solved: 4/4, conflicts 0
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T073112Z-22271
+$ ./scripts/compiler.sh verify 20261109T073112Z-22271
+Verified: 20261109T073112Z-22271
+
+verify.log and mlir.log contain:
+- ALL-CORE-TESTS-PASSED
+- MLIR module fragment_match ops=16
+- tasks 4 solved 4, active p-rec/p-comp
+- done-mlir gate passed
+- next/third compiler LLVM and stripped equality (verify rc=0)
+
+## boundary
+Internal MLIR-shaped IR, not upstream MLIR. No external MLIR/LLVM dialect
+dependency; the compiler remains self-hostable.
+
+## strict MLIR result gate
+compiler.sh now fails verify unless mlir.log contains:
+- done-mlir
+- tasks 4 solved 4
+The rebuilt MLIR log contains active p-rec/p-comp and 4/4 tasks.

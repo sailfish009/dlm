@@ -1,0 +1,20 @@
+# 0.0203 verification — 2026-11-10
+
+## native
+checks: 68
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 68
+
+## DT proof-state dialect
+DT name=dt1 selected=(A-0 A-1) cov=3 proof=proof
+done-dtir
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T121123Z-26575
+$ ./scripts/compiler.sh verify 20261110T121123Z-26575
+Verified

@@ -2,26 +2,30 @@ __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
-experiments/*/cache/
 reports/
 output.json
 
 # Publish only the promoted runtime, including its manifest-referenced LLVM files.
-# Update this allow-list when publishing a newly promoted release.
 /runtime/releases/*
-!/runtime/releases/20261106T155013Z-17382/
+!/runtime/releases/20261111T094802Z-19215/
 
-# Rebuildable safety diagnostics and machine-local rollback state.
+# Rebuildable diagnostics and machine-local rollback state.
 /runtime/safety2/
 /runtime/previous
 
-# Local experimental checkpoints.
-/experiments/repl/store/
-/experiments/web/store/
-/experiments/basis90/store/
-/experiments/basis91/store/
-/experiments/attention92/store/
+# Research datasets / checkpoints / generated weights are not release artifacts.
+experiments/**/data/*.npz
+experiments/**/data/*.json
+experiments/**/*.pt
+experiments/**/checkpoint.*
+experiments/**/__pycache__/
+experiments/**/cache/
+experiments/**/debug*.l
+experiments/**/all.l
+experiments/**/probe*.l
+experiments/**/re/
+experiments/**/iterations/
 
-# Rebuildable FLDx2 exports; keep compact reports in docs/ instead.
-/experiments/fld/audit/
-/experiments/fld/validation-smoke/
+# Large generated experiment outputs; keep only the final summary files.
+experiments/**/*.out
+experiments/**/*.log

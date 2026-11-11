@@ -1,0 +1,42 @@
+# 0.0142 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0142 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 343
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 343
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 142
+oracle107: 256/256 agree
+rc=0
+
+## schema-selection experiment
+select:        recursive, calibration TP=2 FP=0, held 9/9, negatives 5/5
+first:         direct, 3/9, 5/5
+single:        single composition, 3/9, 5/5
+frozen:        0/9, 5/5
+oracle:        recursive, 9/9, 5/5
+random:        reverse, 0/9, 4/5
+no-calibration:none, 0/9, 5/5
+source-only:   0/9, 5/5
+
+## boundary
+Selection uses target calibration labels. It chooses among supplied schemas; it
+does not invent a new schema or provide a proof-DAG credit explanation.

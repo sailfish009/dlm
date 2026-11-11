@@ -1,0 +1,42 @@
+# 0.0140 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0140 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 336
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 336
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 140
+oracle107: 256/256 agree
+rc=0
+
+## failure-triggered rule experiment
+failure:          before=0 after=1 held=9/9 negatives=5/5
+seed only:        before=0 after=0 held=3/9 negatives=5/5
+single:           before=0 after=0 held=3/9 negatives=5/5
+frozen:           before=0 after=0 held=0/9 negatives=5/5
+oracle:           before=0 after=1 held=9/9 negatives=5/5
+random/reverse:   before=0 after=0 held=0/9 negatives=4/5
+no-label:         failure-none, held=0/9
+
+## boundary
+The failed goal selects the target, and unlabeled entities are not treated as
+negative examples. Candidate generation is still observed-pair based, not a
+proof-DAG credit/failure-frontier decomposition.

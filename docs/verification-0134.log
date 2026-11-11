@@ -1,0 +1,68 @@
+# 0.0134 verification — 2026-11-08T05:01:48Z
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0134 is not promoted
+scope: claim-order independence, adapter/identity/budget/trust, one-session experiment
+
+## native suite
+$ ./scripts/run.sh test
+checks: 311
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ MARU=runtime/safety2/maru ./scripts/run.sh test
+checks: 311
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## python suite
+$ python3 -m unittest discover -s tests -p "test_d107.py"
+Ran 17 tests in 118.905s
+OK
+rc=0
+
+## independent review contract oracle
+256/256 PASS
+
+## claim probes
+TRUST guessed-valid=true observations=()
+TRUST query=(no107 web (atom invented (unverified)) complete)
+SCOPE cross-scope-observations=()
+IDENTITY input-valid=true converted=((obs107 web:l1:s1:x web record:x|l2:s3:A-B,s1:C,l2:s5:peer1,s2:v1 web ((atom p (x)))) (obs107 web:l1:s1:y web record:y|l2:s1:A,s3:B-C,l2:s5:peer2,s2:v1 web ((atom q (y)))))
+IDENTITY converted-count=2 admitted-count=2 q-query=(answer107 (atom q (y)) (given web:l1:s1:y#0))
+ORDER same-claims=true
+ORDER ordered-observations=((obs107 web:l1:s2:m1 web record:m1|l2:s1:A,s2:v1,l2:s1:B,s2:v1 train ((atom calls (m1 open)) (atom calls (m1 read)) (atom calls (m1 close)) (atom calls (m1 log)))))
+ORDER reordered-observations=((obs107 web:l1:s2:m1 web record:m1|l2:s1:A,s2:v1,l2:s1:B,s2:v1 train ((atom calls (m1 open)) (atom calls (m1 read)) (atom calls (m1 close)) (atom calls (m1 log)))))
+ORDER ordered-learn=(nothing107) defs=0
+ORDER reordered-learn=(nothing107) defs=0
+ORDER reordered-defs=(defs107 ())
+SELF before-budget=1 answer=(answer107 ((atom p ((var x))) (atom q ((var x)))) unknown ((var x)) () 0 1 ())
+SELF report=(self107 scope self-scope ability ((predicate p facts 1) (predicate q facts 1)) weak (p q) closure-status complete gaps ()) after-budget=1 semantic-state-unchanged=true answer=(answer107 ((atom p ((var x))) (atom q ((var x)))) unknown ((var x)) () 0 1 ())
+
+## fan-out budget
+public budget=1 status=unknown rows=0 steps=1
+public-fixture budget=2 status=complete rows=2 steps=2
+fanout budget=1 status=unknown rows=0 steps=1
+fanout budget=2 status=unknown rows=0 steps=2
+fanout budget=3 status=complete rows=2 steps=3
+
+## adapter end-to-end
+claims=9
+load-rc=0
+
+## recursive web experiment (one session per arm)
+web: train_obs=2 defs=2 train_plan=2 held_obs=1 held_plan=2 held_rows=6 held_calls=1
+no-web: train_obs=0 defs=0 train_plan=3 held_obs=0 held_plan=3 held_rows=0 held_calls=0
+single: train_obs=0 defs=0 train_plan=3 held_obs=0 held_plan=3 held_rows=0 held_calls=0
+scrambled: train_obs=1 defs=0 train_plan=3 held_obs=0 held_plan=3 held_rows=0 held_calls=0
+frozen: train_obs=2 defs=0 train_plan=3 held_obs=1 held_plan=3 held_rows=6 held_calls=0
+
+## manifests
+$ sha256sum -c docs/release.sources.sha256 && sha256sum -c docs/release.tests.sha256
+sources: OK (83 files)
+tests:   OK (38 files)
+
+## predecessor note
+0.0114 and 0.0115 directories are not present; no preservation claim.

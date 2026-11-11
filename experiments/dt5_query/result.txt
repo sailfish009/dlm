@@ -1,0 +1,8 @@
+query loops 1 dog selected ['A-0', 'A-1', 'A-2'] exact True reward 1.0
+query loops 1 sparrow selected ['A-2', 'A-3'] exact True reward 1.0
+query loops 3 dog selected ['A-1', 'A-2'] exact False reward -0.2
+query loops 3 sparrow selected ['A-1', 'A-2'] exact False reward -0.2
+blind loops 1 dog selected ['A-2'] exact False reward -0.2
+blind loops 1 sparrow selected ['A-2'] exact False reward -0.2
+blind loops 3 dog selected [] exact False reward -0.2
+blind loops 3 sparrow selected ['A-0'] exact False reward -0.2

@@ -1,0 +1,38 @@
+# 0.0150 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0150 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 364
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 364
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 150
+oracle107: 256/256 agree
+rc=0
+
+## negative-cache experiment (20 unrelated observations)
+whole-state: total probes=80, first=4, hits=0
+touched:     total probes=4,  first=4, hits=19
+false status: no107
+after adding parent(c,a): answer107
+
+## boundary
+Touched-predicate negative cache for conservative positive rules. A change in a
+touched predicate invalidates; unrelated predicates do not.

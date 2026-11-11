@@ -1,0 +1,26 @@
+;;; Embedding-prioritized scheduling: order changes, graph run does not.
+(define x (list 'var 'x)) (define z (list 'var 'z))
+(define head (l-atom 'R (list x z)))
+(define seed (l-atom 'P (list x z)))
+(define module
+  (ml-module "schedule-graph"
+    (list
+      (ml-op 'fragment (list "fseed" head (list seed)))
+      (ml-op 'template (list "seed" head (list seed)))
+      (ml-op 'program (list "p" (list "seed")))
+      (ml-op 'task (list "t1" (list (l-atom 'parent (list "a" "b"))) (list (l-atom 'ancestor (list "a" "b"))) () (list (list 'R 'ancestor) (list 'P 'parent))))
+      (ml-op 'task (list "t2" (list (l-atom 'parent (list "c" "d"))) (list (l-atom 'ancestor (list "c" "d"))) () (list (list 'R 'ancestor) (list 'P 'parent))))
+      (ml-op 'task (list "t3" (list (l-atom 'parent (list "e" "f"))) (list (l-atom 'ancestor (list "e" "f"))) () (list (list 'R 'ancestor) (list 'P 'parent)))))))
+(define g (mg-from-module module))
+(print "GRAPH " (mg-check g) "\n")
+(print "EMBED " (mg-check-embeddings g *graph-embeddings*) "\n")
+(print "BASE " (mg-topo g) "\n")
+(print "RANKED " (mg-topo-ranked g *graph-embeddings* "p") "\n")
+(define base (mg-to-module "base" g))
+(define ranked (mg-to-module-ranked "ranked" g *graph-embeddings* "p"))
+(define r1 (ml-run base))
+(define r2 (ml-run ranked))
+(print "BASE RUN " (l-nth r1 12) "\n")
+(print "RANK RUN " (l-nth r2 12) "\n")
+(print "SAME " (if (equal (l-nth r1 12) (l-nth r2 12)) "yes" "no") "\n")
+(print "done-schedule\n")

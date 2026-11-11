@@ -1,0 +1,31 @@
+# 0.0177 verification — 2026-11-08
+
+## native
+checks: 46
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 46
+
+## graph constraints
+HARD ok
+REPORT ((c-node hard active true) (c-kind hard active true)
+        (c-not hard active true) (c-acyclic hard active true)
+        (c-soft soft active false))
+BAD (rejected107 mg-constraint c-missing)
+BADEXPR (rejected107 mg-constraint-expr c-expr)
+done-constraints
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T112810Z-17962
+$ ./scripts/compiler.sh verify 20261109T112810Z-17962
+Verified
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Hard/soft finite constraint evaluator; no SMT/quantifiers.

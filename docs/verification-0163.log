@@ -1,0 +1,41 @@
+# 0.0163 verification — 2026-11-08
+
+## native
+checks: 16
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 16
+
+## ranked synthesis
+FIRST (alt2 ...)
+RANKED (hop2 ...)
+RANKED COVERAGE 2/2
+FIRST COVERAGE 1/2
+HELD RANKED proof
+FROZEN fail
+done-rank
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T075858Z-18858
+$ ./scripts/compiler.sh verify 20261109T075858Z-18858
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR 4/4
+- typed 4/4
+- proof credit/frontier
+- synthesis
+- ranked synthesis 2/2 + held proof
+- next/third LLVM and stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Two-fact composition candidates only; coverage-first ranking; fixed task
+constraints.

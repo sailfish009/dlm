@@ -1,0 +1,125 @@
+{
+  "pass": true,
+  "results": [
+    {
+      "name": "Q16 kernel tests",
+      "pass": true,
+      "detail": "7 pass"
+    },
+    {
+      "name": "Maru dump deterministic",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "dump has 8 encoders and 8 logit rows",
+      "pass": true,
+      "detail": "8/8"
+    },
+    {
+      "name": "encoder row counts match source lengths",
+      "pass": true,
+      "detail": [
+        7,
+        7,
+        7,
+        7,
+        8,
+        8,
+        8,
+        8
+      ]
+    },
+    {
+      "name": "encoder max abs error < 0.01 (8 cases)",
+      "pass": true,
+      "detail": "0.000816"
+    },
+    {
+      "name": "logits max abs error < 0.05 (8 cases)",
+      "pass": true,
+      "detail": "0.001814"
+    },
+    {
+      "name": "first-step argmax matches (8 cases)",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "8 cases emitted",
+      "pass": true,
+      "detail": 8
+    },
+    {
+      "name": "greedy translations 8/8",
+      "pass": true,
+      "detail": "8/8"
+    },
+    {
+      "name": "Maru text equals exported reference",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "encoder_max_abs_error": 0.0008164793252944946,
+  "logits_max_abs_error": 0.0018139481544494629,
+  "greedy_matched": 8,
+  "sentences": [
+    {
+      "case": 0,
+      "source": "there is a cat under the table",
+      "maru": "桌子下面有一只猫",
+      "ref": "桌子下面有一只猫",
+      "match": 1
+    },
+    {
+      "case": 1,
+      "source": "there is a dog on the chair",
+      "maru": "椅子上面有一只狗",
+      "ref": "椅子上面有一只狗",
+      "match": 1
+    },
+    {
+      "case": 2,
+      "source": "there is a cat on the chair",
+      "maru": "椅子上面有一只猫",
+      "ref": "椅子上面有一只猫",
+      "match": 1
+    },
+    {
+      "case": 3,
+      "source": "there is a dog under the table",
+      "maru": "桌子下面有一只狗",
+      "ref": "桌子下面有一只狗",
+      "match": 1
+    },
+    {
+      "case": 4,
+      "source": "there is a small cat on the table",
+      "maru": "桌子上面有一只小猫",
+      "ref": "桌子上面有一只小猫",
+      "match": 1
+    },
+    {
+      "case": 5,
+      "source": "there is a small dog under the chair",
+      "maru": "椅子下面有一只小狗",
+      "ref": "椅子下面有一只小狗",
+      "match": 1
+    },
+    {
+      "case": 6,
+      "source": "there is a black cat under the chair",
+      "maru": "椅子下面有一只黑色猫",
+      "ref": "椅子下面有一只黑色猫",
+      "match": 1
+    },
+    {
+      "case": 7,
+      "source": "there is a black dog on the table",
+      "maru": "桌子上面有一只黑色狗",
+      "ref": "桌子上面有一只黑色狗",
+      "match": 1
+    }
+  ]
+}

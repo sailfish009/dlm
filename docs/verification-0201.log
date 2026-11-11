@@ -1,0 +1,23 @@
+# 0.0201 verification — 2026-11-10
+
+## native
+checks: 66
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 66
+
+## transformer behavior → inverse deduction
+teacher_train_acc=0.9989
+wrote ... train_pos=3 train_neg=3
+TRAIN pos=3 neg=3 RULES 1
+HELD 2/2 NEGPROOFS 0
+done-teacher-transformer
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T113905Z-20425
+$ ./scripts/compiler.sh verify 20261110T113905Z-20425
+Verified

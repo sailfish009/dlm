@@ -1,0 +1,36 @@
+# 0.0148 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0148 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 360
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 360
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 148
+oracle107: 256/256 agree
+rc=0
+
+## goal-proof cache experiment (20 repeated public queries)
+no proof cache: total probes=260, first=13
+proof cache:    total probes=13,  first=13, hits=19, misses=1
+
+## boundary
+In-memory ground-goal proof cache. Fact/rule changes invalidate by key; there is
+no incremental or per-predicate dependency tracking.

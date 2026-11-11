@@ -1,0 +1,61 @@
+# 0.0133 verification — 2026-11-08T04:14:28Z
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0133 is not promoted
+scope: search surface, web claims/corroboration, self signals, cached recursive experiment
+
+## native suite
+$ ./scripts/run.sh test
+
+real	1m44.926s
+user	1m44.056s
+sys	0m0.127s
+checks: 304
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ MARU=runtime/safety2/maru ./scripts/run.sh test
+checks: 304
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## python suite
+$ python3 -m unittest discover -s tests -p "test_d107.py"
+Ran 16 tests in 120.079s
+OK
+rc=0
+
+## independent review contract oracle
+256/256 PASS
+
+## recursive web experiment (final round per arm)
+web: train_obs=2 defs=2 train_plan=2 held_obs=1 held_plan=2 held_rows=6 held_calls=1
+no-web: train_obs=0 defs=0 train_plan=3 held_obs=0 held_plan=3 held_rows=0 held_calls=0
+single: train_obs=0 defs=0 train_plan=3 held_obs=0 held_plan=3 held_rows=0 held_calls=0
+scrambled: train_obs=1 defs=0 train_plan=3 held_obs=0 held_plan=3 held_rows=0 held_calls=0
+frozen: train_obs=2 defs=0 train_plan=3 held_obs=1 held_plan=3 held_rows=6 held_calls=0
+
+## experiment files
+experiments/recursive_web/analysis.md
+# Recursive web -> basis experiment
+
+## web
+| round | sources | train_obs | defs | train_plan_steps | held_obs | held_plan_steps | held_rows | held_calls |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| 1 | A | 0 | 0 | 3 | 0 | 3 | 0 | 0 |
+| 2 | A+B | 1 | 0 | 3 | 0 | 3 | 0 | 0 |
+| 3 | A+B+C | 1 | 0 | 3 | 0 | 3 | 0 | 0 |
+| 4 | A+B+C+D | 2 | 2 | 2 | 0 | 2 | 0 | 1 |
+| 5 | A+B+C+D+E | 2 | 2 | 2 | 0 | 2 | 0 | 1 |
+| 6 | A+B+C+D+E+F | 2 | 2 | 2 | 1 | 2 | 6 | 1 |
+
+
+## manifests
+$ sha256sum -c docs/release.sources.sha256 && sha256sum -c docs/release.tests.sha256
+sources: OK (83 files)
+tests:   OK (38 files)
+
+## predecessor note
+0.0114 and 0.0115 directories are not present at verification time; no preservation claim.

@@ -1,0 +1,21 @@
+;;; Teacher behavior → inverse deduction → basis → English query answer.
+(define facts (list
+  (l-fact "s0" (l-atom 'subclass (list 'cat 'mammal)))
+  (l-fact "s1" (l-atom 'subclass (list 'mammal 'animal)))
+  (l-fact "s2" (l-atom 'subclass (list 'animal 'living-thing)))
+  (l-fact "s3" (l-atom 'subclass (list 'dog 'mammal)))
+  (l-fact "s4" (l-atom 'subclass (list 'sparrow 'bird)))
+  (l-fact "s5" (l-atom 'subclass (list 'bird 'animal)))))
+;; Teacher behavior: transitive isa. Only a few labels are observed.
+(define pos (list (l-atom 'isa (list 'cat 'living-thing))))
+(define neg (list (l-atom 'isa (list 'living-thing 'cat))))
+(define prog (s-template-synthesize facts pos neg 20000))
+(define b0 (b-add () "T1" (s-rec-rules prog) (list "teacher:behavior") (s-rec-support prog)))
+(define b1 (b-activate b0 "T1"))
+(define rules (b-active-rules b1))
+(print "PROGRAM rules=" (l-len rules) " support=" (s-rec-support prog) "\n")
+(print "HELD cat=" (l-nth (p-prove facts rules (l-atom 'isa (list 'cat 'living-thing)) 20000) 1) "\n")
+(print "HELD sparrow=" (l-nth (p-prove facts rules (l-atom 'isa (list 'sparrow 'living-thing)) 20000) 1) "\n")
+(print "NL1 " (l-nth (nl-answer-with facts rules "Is a sparrow a living thing?") 3) "\n")
+(print "NL2 " (l-nth (nl-answer-with facts rules "Is a living thing a sparrow?") 3) "\n")
+(print "done-teacher\n")

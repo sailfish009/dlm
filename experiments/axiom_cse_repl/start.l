@@ -1,0 +1,13 @@
+;;; Duplicate atomic axioms → CSE graph.
+(define seed (l-rule (l-atom 'isa (list (l-var 'x) (l-var 'z)))
+                     (list (l-atom 'subclass (list (l-var 'x) (l-var 'z))))))
+(define step (l-rule (l-atom 'isa (list (l-var 'x) (l-var 'z)))
+                     (list (l-atom 'subclass (list (l-var 'x) (l-var 'y)))
+                           (l-atom 'isa (list (l-var 'y) (l-var 'z))))))
+(define axs (a-from-program "A" (s-rec-program (list seed step) (list "s")) (list "e") (list "s")))
+(set axs (a-add axs "D" seed (list "e") (list "s") ()))
+(define g (ag-from-axioms axs))
+(define c (ag-cse g))
+(print "BEFORE " (l-len (ag-nodes g)) " AFTER " (l-len (ag-nodes c)) " check=" (ag-check c) " deps=" (ag-deps (ag-find "A-1" (ag-nodes c))) "\n")
+(print "SEL " (l-nth (ag-select c *web-edges* *train-pos* *neg* 20000) 1) "\n")
+(print "done-axiom-cse\n")

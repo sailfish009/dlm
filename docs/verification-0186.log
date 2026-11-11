@@ -1,0 +1,32 @@
+# 0.0186 verification — 2026-11-08
+
+## native
+checks: 55
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 55
+
+## NL → basis → proof
+PARSED (... 4 records)
+BASIS RULES 2
+STATUS1 proved
+ANSWER1 Yes, a cat is a living thing.
+WHY1 A cat is a mammal. All mammals are animals. All animals are living things.
+STATUS2 unknown
+ANSWER2 I cannot prove that a cat is a plant.
+done-nl
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T012133Z-2489
+$ ./scripts/compiler.sh verify 20261110T012133Z-2489
+Verified
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+NL boundary → basis axioms; per-query accumulation only.

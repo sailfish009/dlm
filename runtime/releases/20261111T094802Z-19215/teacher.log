@@ -1,0 +1,6 @@
+PROGRAM rules=2 support=(s0)
+HELD cat=proof
+HELD sparrow=proof
+NL1 Yes, a sparrow is a living thing.
+NL2 I cannot prove that a living thing is a sparrow.
+done-teacher

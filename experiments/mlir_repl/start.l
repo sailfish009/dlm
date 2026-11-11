@@ -1,0 +1,47 @@
+;;; MLIR-shaped module lowered to the fragment/match core in the Maru REPL.
+(define x (list 'var 'x)) (define y (list 'var 'y)) (define z (list 'var 'z))
+(define head (l-atom 'R (list x z)))
+(define seed (l-atom 'P (list x z)))
+(define left (l-atom 'P (list x y)))
+(define right (l-atom 'R (list y z)))
+(define q (l-atom 'Q (list y z)))
+(define rev (l-atom 'P (list z x)))
+(define module
+  (ml-module "fragment_match"
+    (list
+      (ml-op 'fragment (list "seed" head (list seed)))
+      (ml-op 'fragment (list "left" head (list left)))
+      (ml-op 'fragment (list "right" head (list right)))
+      (ml-op 'fragment (list "q" head (list q)))
+      (ml-op 'fragment (list "rev" head (list rev)))
+      (ml-op 'template (list "seed" head (list seed)))
+      (ml-op 'combine (list "rec" "left" "right"))
+      (ml-op 'combine (list "comp" "left" "q"))
+      (ml-op 'template (list "rev" head (list rev)))
+      (ml-op 'program (list "p-rec" (list "seed" "rec")))
+      (ml-op 'program (list "p-comp" (list "comp")))
+      (ml-op 'program (list "p-rev" (list "rev")))
+      (ml-op 'task (list "ancestor"
+        (list (l-atom 'parent (list "a" "b")) (l-atom 'parent (list "b" "c")))
+        (list (l-atom 'ancestor (list "a" "c")))
+        (list (l-atom 'ancestor (list "c" "a")))
+        (list (list 'R 'ancestor) (list 'P 'parent))))
+      (ml-op 'task (list "reaches"
+        (list (l-atom 'manages (list "j" "k")) (l-atom 'manages (list "k" "l")))
+        (list (l-atom 'reaches (list "j" "l")))
+        (list (l-atom 'reaches (list "l" "j")))
+        (list (list 'R 'reaches) (list 'P 'manages))))
+      (ml-op 'task (list "inside"
+        (list (l-atom 'contains (list "u" "v")) (l-atom 'contains (list "v" "w")))
+        (list (l-atom 'inside (list "u" "w")))
+        (list (l-atom 'inside (list "w" "u")))
+        (list (list 'R 'inside) (list 'P 'contains))))
+      (ml-op 'task (list "path"
+        (list (l-atom 'hop1 (list "r" "s")) (l-atom 'hop2 (list "s" "t")))
+        (list (l-atom 'path (list "r" "t")))
+        (list (l-atom 'path (list "t" "r")))
+        (list (list 'R 'path) (list 'P 'hop1) (list 'Q 'hop2)))))))
+(print "MLIR module " (ml-name module) " ops=" (l-len (ml-ops module)) "\n")
+(define result (ml-run module))
+(dump result) (print "\n")
+(print "done-mlir\n")

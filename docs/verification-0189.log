@@ -1,0 +1,22 @@
+# 0.0189 verification — 2026-11-10
+
+## native
+checks: 58
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 58
+
+## multi-page web observations
+OBS 2
+DOG proved Yes, a dog is a mammal.
+CAT proved Yes, a cat is a mammal.
+done-web-multi
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T081810Z-30036
+$ ./scripts/compiler.sh verify 20261110T081810Z-30036
+Verified

@@ -1,0 +1,10 @@
+wrote /research/dlm_v0.0205/experiments/graph_embed_repl/embeddings.l nodes=4
+GRAPH ok
+EMBED ok
+EMBEDDINGS 4
+RANK ((p 1000000729790) (t 371270909353) (seed 344082641939) (fseed 298811334744))
+BADDIM (rejected107 mg-embedding-dim)
+BADNODE (rejected107 mg-embedding-node)
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+RUN (summary tasks 1 solved 1 active (p))
+done-embed

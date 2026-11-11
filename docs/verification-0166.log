@@ -1,0 +1,39 @@
+# 0.0166 verification — 2026-11-08
+
+## native
+checks: 23
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 23
+
+## recursive synthesis
+PROGRAM recursive rules=2 support=(p0 p1 r2)
+COVERAGE 2/2
+NEGATIVE clean
+HELD proof
+SEED ONLY HELD fail
+FROZEN fail
+done-recursive
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T081559Z-4366
+$ ./scripts/compiler.sh verify 20261109T081559Z-4366
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR 4/4
+- typed 4/4
+- proof credit/frontier
+- synthesis / ranked / chain3 / chain4 / recursive
+- next/third LLVM + stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Recursive seed+step program synthesis; bounded evaluation budget, not general ILP.

@@ -1,0 +1,29 @@
+# 0.0185 verification — 2026-11-08
+
+## native
+checks: 55
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 55
+
+## basis accumulation/lifecycle
+A proof=proof
+B proof=proof
+B OFF path=fail reach=proof
+B ROLLBACK status=active path=proof
+done-basis
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T005004Z-23861
+$ ./scripts/compiler.sh verify 20261110T005004Z-23861
+Verified
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+In-memory basis; NL boundary separate.

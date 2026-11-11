@@ -1,748 +1,818 @@
-;;; core-tests.l — native assertions for the minimal 0.0103 core.
-;;; Each block is independent; a failure aborts with a message.
-
 (define *failures* 0)
-(define-function check (label value)
-  (if (not value) (begin (set *failures* (+ *failures* 1)) (print "FAIL " label "\n"))
-    (print "ok " label "\n")))
+(define-function check (name ok)
+  (if ok (print "ok " name "\n")
+    (begin (set *failures* (+ *failures* 1)) (print "FAIL " name "\n"))))
+(define x (list 'var 'x)) (define y (list 'var 'y)) (define z (list 'var 'z))
+(define rule (l-rule (l-atom 'ancestor (list x z))
+  (list (l-atom 'parent (list x z)))))
+(define facts (list (l-fact "a" (l-atom 'parent (list "a" "b")))
+                    (l-fact "b" (l-atom 'parent (list "b" "c")))))
+(define closed (l-close facts (list rule) 1000))
+(check "unification and closure"
+  (and (= (car closed) 'complete)
+       (not (not (l-lookup (l-atom 'ancestor (list "a" "b")) (l-nth closed 1))))))
+(define rec (l-rule (l-atom 'ancestor (list x z))
+  (list (l-atom 'parent (list x y)) (l-atom 'ancestor (list y z)))))
+(define closed2 (l-close facts (list rule rec) 1000))
+(check "recursive closure"
+  (not (not (l-lookup (l-atom 'ancestor (list "a" "c")) (l-nth closed2 1)))))
+(define lib (list (d-axiom "R" (list rule rec))))
+(define task (d-task "t" (list (l-atom 'parent (list "a" "b")) (l-atom 'parent (list "b" "c")))
+  (list (l-atom 'ancestor (list "a" "c"))) (list (l-atom 'ancestor (list "c" "a")))))
+(define run (d-run (list task) lib 1000))
+(check "deductive matching selects the axiom"
+  (and (= 1 (l-nth run 4)) (equal (l-nth run 6) (list "R"))))
 
-;;; ---------- 1. proof checker ----------
-(set *p107-edb* '(link right blocked))
-(define rules (list
-  (p107-rule (p107-atom 'path (list (p107-var 'x) (p107-var 'z)))
-    (list (p107-atom 'link (list (p107-var 'x) (p107-var 'y)))
-          (p107-atom 'right (list (p107-var 'y) (p107-var 'z)))))
-  (p107-rule (p107-atom 'start (list (p107-var 'x)))
-    (list (p107-atom 'link (list (p107-var 'x) (p107-var 'y)))
-          (p107-neg (p107-atom 'blocked (list (p107-var 'x))))))))
-(check "rules are safe" (p107-rules? rules))
-(define facts (list (p107-given-id "g0" (p107-atom 'link (list "a" "b")))
-                    (p107-given-id "g1" (p107-atom 'link (list "b" "c")))
-                    (p107-given-id "g2" (p107-atom 'right (list "c" "d")))
-                    (p107-given-id "g3" (p107-atom 'blocked (list "b")))))
-(define cl (p107-close facts rules 5000))
-(check "closure complete" (equal (p107-nth cl 1) 'complete))
-(define table (p107-nth cl 2))
-(define path (p107-atom 'path (list "b" "d")))
-(define proof (p107-evidence path table))
-(check "derived fact has proof" (p107-proof-ok? proof path table rules))
-(check "forged substitution rejected"
-  (not (p107-proof-ok? '(pr 0 (((var x) "a") ((var y) "b") ((var z) "d"))) path table rules)))
-(check "wrong atom rejected" (not (p107-proof-ok? proof (p107-atom 'path (list "a" "d")) table rules)))
-(check "unknown proof shape rejected" (not (p107-proof-ok? '(bogus) path table rules)))
-
-;;; ---------- 2. negation is closed-world over EDB ----------
-(check "blocked source has no start" (not (p107-lookup (p107-atom 'start (list "b")) table)))
-(check "unblocked source has start" (p107-lookup (p107-atom 'start (list "a")) table))
-(check "negative over intensional predicate is unsafe"
-  (not (p107-rule-safe? (p107-rule (p107-atom 'q (list (p107-var 'x)))
-    (list (p107-atom 'link (list (p107-var 'x) (p107-var 'y)))
-          (p107-neg (p107-atom 'path (list (p107-var 'x) (p107-var 'y)))))))))
-
-;;; ---------- 3. budget exhaustion is unknown, never false ----------
-(define tight (p107-close facts rules 2))
-(check "tight budget reports unknown" (equal (p107-nth tight 1) 'unknown))
-(define wide (p107-lookup path table))
-(check "wide budget derived it" (not (equal wide ())))
-
-;;; ---------- 4. session, scope, retraction, replay ----------
-(define-function obs-of (id scope atoms) (list 'obs107 id "src" "rec" scope atoms))
-(define s0 (p107-new))
-(define r1 (p107-transition s0 (list 'obs107 'oA "src" "rec" 'scopeA
-  (list (p107-atom 'link (list "a" "b")) (p107-atom 'right (list "b" "c"))
-        (p107-atom 'calls (list "a" "b"))))))
-(define s1 (p107-nth r1 1))
-(check "observe applies" (equal (car r1) 'applied))
-(check "duplicate observation rejected"
-  (equal (p107-apply s1 (list 'obs107 'oA "src" "rec" 'scopeA ())) '(rejected107 observation)))
-(define r2 (p107-transition s1 (list 'obs107 'oB "src" "rec" 'scopeB
-  (list (p107-atom 'link (list "z" "z"))))))
-(define s2 (p107-nth r2 1))
-(check "scope A closure isolated"
-  (= 3 (p107-len (p107-nth (p107-closure s2 'scopeA 5000) 1))))
-(check "scope B closure isolated"
-  (= 1 (p107-len (p107-nth (p107-closure s2 'scopeB 5000) 1))))
-(define r3 (p107-transition s2 (list 'interpret107 'oA 5000)))
-(define s3 (p107-nth r3 1))
-(check "interpret records metrics" (and (= 5 (p107-len (p107-int s3 'oA)))
-  (equal (p107-nth (p107-int s3 'oA) 2) 'complete)))
-(define r4 (p107-transition s3 (list 'retract107 'oA)))
-(define s4 (p107-nth r4 1))
-(check "retract removes only the retracted facts"
-  (and (= 1 (p107-len (p107-obs-list s4))) (not (p107-obs s4 'oA)) (p107-obs s4 'oB)))
-(check "retract removes interpretation" (= 0 (p107-len (p107-int-list s4))))
-(define rr (p107-replay (p107-events s3)))
-(check "replay reproduces state" (and (= (car rr) 'replayed) (equal (p107-nth rr 1) s3)))
-(check "snapshot validates" (p107-snapshot? (p107-snapshot s3)))
-(define tampered (p107-snapshot (p107-set s3 5 (list (p107-def 'x () (list (p107-atom 'q (list))) ())))))
-(check "tampered snapshot rejected" (not (p107-snapshot? tampered)))
-(check "event limit rejected"
-  (let ((big (p107-set s3 6 (p107-map (lambda (i) (list 'reset107)) (p107-range 300)))))
-    (equal (p107-transition big '(reset107)) '(rejected107 event-limit))))
-
-;;; ---------- 5. reading abstains without support ----------
-(define sent (p107-read s3 'scopeA 5000))
-(check "reading has status" (= (p107-nth sent 2) 'complete))
-(check "reading emits sentences" (= 1 (p107-len (p107-nth sent 4))))
-(check "unreadable predicates are not narrated" (= 0 (p107-level-count (p107-nth sent 4) 2)))
-(check "no sentence without checked support"
-  (not (p107-any? (lambda (x) (not (p107-proof-ok? (p107-nth x 4) (p107-nth x 3)
-                                                    (p107-nth (p107-closure s3 'scopeA 5000) 1) rules)))
-                  (p107-nth sent 4))))
-(check "level counts are consistent"
-  (= (p107-len (p107-nth sent 4))
-     (let ((n 0)) (list-do l (p107-levels (p107-nth sent 4)) (set n (+ n (p107-nth l 1)))) n)))
+;;; fragment decomposition + assembly (0.0158)
+(define fx (list 'var 'x)) (define fy (list 'var 'y)) (define fz (list 'var 'z))
+(define fh (l-atom 'R (list fx fz)))
+(define ff1 (f-fragment "seed" fh (list (l-atom 'P (list fx fz)))))
+(define ff2 (f-fragment "left" fh (list (l-atom 'P (list fx fy)))))
+(define ff3 (f-fragment "right" fh (list (l-atom 'R (list fy fz)))))
+(define ff4 (f-fragment "q" fh (list (l-atom 'Q (list fy fz)))))
+(define ft1 (a-template "seed" fh (f-body ff1)))
+(define ft2 (a-combine "rec" ff2 ff3))
+(define ft3 (a-combine "comp" ff2 ff4))
+(check "fragments combine into a two-literal recursive template"
+  (and (= 2 (l-len (a-template-body ft2)))
+       (= 1 (l-len (a-template-body ft1)))))
+(define fprogs (list (a-program-from-templates "p-rec" (list ft1 ft2))
+                     (a-program-from-templates "p-comp" (list ft3))))
+(define fa (m-task "ancestor" (list (l-atom 'parent (list "a" "b")) (l-atom 'parent (list "b" "c")))
+  (list (l-atom 'ancestor (list "a" "c"))) (list (l-atom 'ancestor (list "c" "a")))
+  (list (list 'R 'ancestor) (list 'P 'parent))))
+(define fc (m-task "path" (list (l-atom 'hop1 (list "r" "s")) (l-atom 'hop2 (list "s" "t")))
+  (list (l-atom 'path (list "r" "t"))) (list (l-atom 'path (list "t" "r")))
+  (list (list 'R 'path) (list 'P 'hop1) (list 'Q 'hop2))))
+(define frun (m-run (list fa fc) fprogs))
+(check "assembled programs match two different task shapes"
+  (and (= 2 (l-nth frun 4)) (equal (l-nth frun 6) (list "p-rec" "p-comp"))))
 
 
-;;; ---------- 6. review regressions (0.0103 defects) ----------
-;;; (a) a derived fact cannot be presented as an extensional `given`
-(define derived-id (p107-nth (p107-lookup path table) 1))
-(check "given proof must point at an extensional fact"
-  (not (p107-proof-ok? (list 'given derived-id) path table rules)))
-
-;;; (b) a child with an invalid proof cannot support a later conclusion
-(set *p107-edb* '(seed q))
-(define srules (list
-  (p107-rule (p107-atom 'node (list (p107-var 'x))) (list (p107-atom 'q (list (p107-var 'x)))))
-  (p107-rule (p107-atom 'node2 (list (p107-var 'x))) (list (p107-atom 'node (list (p107-var 'x)))))))
-(define forged (list (p107-given-id "g0" (p107-atom 'q (list "a")))
-                     (list 'fact "d0" (p107-atom 'node (list "z"))
-                           (list 'pr 0 (list (list (p107-var 'x) "z")) ()))
-                     (list 'fact "d1" (p107-atom 'node2 (list "z"))
-                           (list 'pr 1 (list (list (p107-var 'x) "z")) (list "d0")))
-                     (list 'fact "d2" (p107-atom 'node (list "z"))
-                           (list 'pr 0 (list (list (p107-var 'x) "z")) (list "d2")))))
-(check "child with an invalid proof rejected"
-  (not (p107-proof-ok? (list 'pr 0 (list (list (p107-var 'x) "z")) ()) (p107-atom 'node (list "z")) forged srules)))
-(check "downstream of an invalid child rejected"
-  (not (p107-proof-ok? (list 'pr 1 (list (list (p107-var 'x) "z")) (list "d0"))
-                       (p107-atom 'node2 (list "z")) forged srules)))
-(check "cyclic stored proof rejected"
-  (not (p107-proof-ok? (list 'pr 0 (list (list (p107-var 'x) "z")) (list "d2"))
-                       (p107-atom 'node (list "z")) forged srules)))
-(check "negative rule index rejected without a fatal"
-  (not (p107-proof-ok? (list 'pr -1 () ()) (p107-atom 'node (list "z")) forged srules)))
-(check "malformed proof structure rejected"
-  (not (p107-proof-ok? (list 'pr 0 'notpairs ()) (p107-atom 'node (list "z")) forged srules)))
-
-;;; (c) an extensional predicate cannot be a rule head
-(set *p107-edb* '(q r))
-(check "extensional head rejected"
-  (not (p107-rule-safe? (p107-rule (p107-atom 'q (list (p107-var 'a) (p107-var 'b)))
-    (list (p107-atom 'r (list (p107-var 'a) (p107-var 'b))))))))
-(check "head variable must be range-restricted"
-  (not (p107-rule-safe? (p107-rule (p107-atom 'h (list (p107-var 'a)))
-    (list (p107-atom 'q (list (p107-var 'b) (p107-var 'b))))))))
-
-;;; (d) argument order changes the background-law digest
-(define rorder1 (list (p107-rule (p107-atom 'h (list (p107-var 'x) (p107-var 'y)))
-  (list (p107-atom 'q (list (p107-var 'x) (p107-var 'y)))))))
-(define rorder2 (list (p107-rule (p107-atom 'h (list (p107-var 'x) (p107-var 'y)))
-  (list (p107-atom 'q (list (p107-var 'y) (p107-var 'x)))))))
-(check "rule digest detects argument order"
-  (not (equal (p107-digest rorder1) (p107-digest rorder2))))
-
-;;; (e) malformed command input is rejected, not a native fault
-(check "malformed observe rejected" (equal (dlm 'observe 'x "s" "r" 'demo 'notalist)
-                                           '(rejected107 observation)))
-(check "dotted term rejected"
-  (equal (dlm 'observe 'x "s" "r" 'demo (list (p107-atom 'q (list (cons "a" "b")))))
-         '(rejected107 observation)))
-(check "nested list term rejected"
-  (equal (dlm 'observe 'x "s" "r" 'demo (list (p107-atom 'q (list (list "a")))))
-         '(rejected107 observation)))
-(check "non-numeric budget rejected" (equal (dlm 'step "x") '(rejected107 command-or-arity)))
-(check "empty command rejected" (equal (dlm) '(rejected107 command)))
-(check "non-atom query rejected" (equal (dlm 'query 'demo 'notatom) '(rejected107 query)))
-(check "non-list command rejected" (equal (dlm 'run . 5) '(rejected107 command)))
+;;; MLIR-shaped module lowering (0.0159)
+(define mx (list 'var 'x)) (define mz (list 'var 'z))
+(define mh (l-atom 'R (list mx mz)))
+(define m-module (ml-module "m"
+  (list
+    (ml-op 'fragment (list "seed" mh (list (l-atom 'P (list mx mz)))))
+    (ml-op 'template (list "seed" mh (list (l-atom 'P (list mx mz)))))
+    (ml-op 'program (list "p-seed" (list "seed")))
+    (ml-op 'task (list "t"
+      (list (l-atom 'parent (list "a" "b")))
+      (list (l-atom 'ancestor (list "a" "b")))
+      (list (l-atom 'ancestor (list "b" "a")))
+      (list (list 'R 'ancestor) (list 'P 'parent)))))))
+(define mr (ml-run m-module))
+(check "an MLIR-shaped module lowers to the fragment/match core"
+  (and (equal (car mr) 'mlir-result)
+       (= 1 (l-nth mr 4))
+       (= 1 (l-nth mr 8))
+       (= 1 (l-nth (l-nth mr 12) 4))))
 
 
-;;; (f) literal order does not matter: a negation may precede its binding
-(set *p107-edb* '(q blocked))
-(define order-rules (list (p107-rule (p107-atom 'ok (list (p107-var 'x)))
-  (list (p107-neg (p107-atom 'blocked (list (p107-var 'x))))
-        (p107-atom 'q (list (p107-var 'x)))))))
-(define order-facts (list (p107-given-id "g0" (p107-atom 'q (list "a")))
-                          (p107-given-id "g1" (p107-atom 'q (list "b")))
-                          (p107-given-id "g2" (p107-atom 'blocked (list "b")))))
-(define order-table (p107-nth (p107-close order-facts order-rules 5000) 2))
-(check "negation before its binding still fires"
-  (and (p107-lookup (p107-atom 'ok (list "a")) order-table)
-       (not (p107-lookup (p107-atom 'ok (list "b")) order-table))))
-
-;;; (g) an empty body derives a nullary fact
-(define empty-rules (list (p107-rule (p107-atom 'base ()) ())))
-(define empty-table (p107-nth (p107-close () empty-rules 5000) 2))
-(check "empty-body rule derives its nullary head" (p107-lookup (p107-atom 'base ()) empty-table))
-(check "empty-body proof checks"
-  (p107-proof-ok? (p107-nth (p107-lookup (p107-atom 'base ()) empty-table) 3)
-                  (p107-atom 'base ()) empty-table empty-rules))
-
-
-;;; ---------- 7. learning transition: data fixed, basis moves ----------
-(set *p107-edb* '(calls tool))
-(define-function lrec (s id owner a b c t1 t2)
-  (p107-transition s (list 'obs107 id "fixture" id 'demo
-    (list (p107-atom 'calls (list owner a)) (p107-atom 'calls (list owner b))
-          (p107-atom 'calls (list owner c)) (p107-atom 'tool (list owner t1))
-          (p107-atom 'tool (list owner t2))))))
-(define ls0 (lrec (p107-new) 'r1 "m1" "open" "read" "close" "torch" "numpy"))
-(define ls (p107-nth (lrec (p107-nth ls0 1) 'r2 "m2" "open" "write" "close" "torch" "numpy") 1))
-(define q3 (list (p107-atom 'calls (list (p107-var 'a) (p107-var 'b)))
-                 (p107-atom 'calls (list (p107-var 'a) (p107-var 'c)))
-                 (p107-atom 'calls (list (p107-var 'a) (p107-var 'd)))))
-(define before (p107-answer ls 'demo q3 200000))
-(check "no basis before learning" (= 0 (p107-len (p107-defs-of ls))))
-(check "raw plan has 3 steps" (= 3 (p107-nth (p107-plan ls q3) 2)))
-(define l1 (p107-learn ls))
-(check "first learning step forms a 2-atom unit" (equal (car l1) 'learned107))
-(define ls1 (p107-nth (p107-transition ls (list 'def107 (p107-nth l1 1))) 1))
-(define l2 (p107-learn ls1))
-(check "second learning step forms a 3-atom unit" (equal (car l2) 'learned107))
-(define ls2 (p107-nth (p107-transition ls1 (list 'def107 (p107-nth l2 1))) 1))
-(check "two units in the basis" (= 2 (p107-len (p107-defs-of ls2))))
-(check "second unit calls the first"
-  (p107-call? (car (p107-def-body (p107-find-def (p107-defs-of ls2) 'b2)))))
-(check "planned steps drop 3 -> 2" (= 2 (p107-nth (p107-plan ls2 q3) 3)))
-(check "data unchanged by learning"
-  (equal (p107-obs-list ls) (p107-obs-list ls2)))
-(define after (p107-answer ls2 'demo q3 200000))
-(check "answers and witnesses unchanged" (equal (p107-nth before 4) (p107-nth after 4)))
-(check "raw path makes no unit call" (= 0 (p107-nth before 5)))
-(check "planned path actually calls the unit" (>= (p107-nth after 5) 1))
-(check "planned path uses the 2-step plan" (= 2 (p107-nth (p107-plan ls2 q3) 3)))
-(check "planned answer names its cover" (equal (p107-nth after 7) 'b2))
-(check "closure size unchanged" (= (p107-len (p107-nth before 4)) (p107-len (p107-nth after 4))))
-
-;;; retraction reduces support; the unit stays but stops being used
-(define ls3 (p107-nth (p107-transition ls2 (list 'retract107 'r2)) 1))
-(check "support drops to 1" (= 1 (p107-support ls3 (p107-def-pattern (p107-find-def (p107-defs-of ls3) 'b1)))))
-(check "unit remains, inactive" (= 2 (p107-len (p107-defs-of ls3))))
-(check "plan reverts to 3 steps" (= 3 (p107-nth (p107-plan ls3 q3) 2)))
-(check "retracted answer uses no unit" (= 0 (p107-nth (p107-answer ls3 'demo q3 200000) 5)))
-(check "retracted answers shrink" (< (p107-len (p107-nth (p107-answer ls3 'demo q3 200000) 4))
-                                     (p107-len (p107-nth after 4))))
-
-;;; revision: replace the 2-atom unit by another supported structure
-(define b1v (p107-def-vars (p107-find-def (p107-defs-of ls2) 'b1)))
-(define toolq (list (p107-atom 'tool (list (p107-nth b1v 0) (p107-nth b1v 1)))
-                    (p107-atom 'tool (list (p107-nth b1v 0) (p107-nth b1v 2)))))
-(check "revision with permuted roles rejected"
-  (equal (car (p107-transition ls2 (list 'revise107 'b1
-    (list (p107-atom 'tool (list (p107-nth b1v 0) (p107-nth b1v 2)))
-          (p107-atom 'tool (list (p107-nth b1v 0) (p107-nth b1v 1))))))) 'rejected107))
-(define rev (p107-transition ls2 (list 'revise107 'b1 toolq)))
-(check "revision accepted" (equal (car rev) 'applied))
-(define ls4 (p107-nth rev 1))
-(check "dependent unit dropped after revision" (= 1 (p107-len (p107-defs-of ls4))))
-(check "revised pattern is the tool structure"
-  (equal (p107-conj-key (p107-def-pattern (p107-find-def (p107-defs-of ls4) 'b1)))
-         (p107-conj-key toolq)))
-(check "calls plan no longer covered" (= 3 (p107-nth (p107-plan ls4 q3) 2)))
-
-;;; a row may not reuse one fact for two atoms (shared-DAG refusal)
-(define one (p107-nth (lrec (p107-new) 'r9 "m9" "open" "read" "close" "torch" "numpy") 1))
-(define dupq (list (p107-atom 'calls (list (p107-var 'a) (p107-var 'b)))
-                   (p107-atom 'calls (list (p107-var 'a) (p107-var 'b)))))
-(check "repeated atom cannot reuse one fact"
-  (= 0 (p107-len (p107-nth (p107-answer one 'demo dupq 200000) 4))))
-(define shared (list (p107-atom 'calls (list (p107-var 'a) (p107-var 'b)))
-                     (p107-atom 'calls (list (p107-var 'a) (p107-var 'c)))))
-(check "distinct facts are still enumerable"
-  (= 6 (p107-len (p107-nth (p107-answer one 'demo shared 200000) 4))))
-
-;;; role preservation: a permuted body no longer passes the definition check
-(set *p107-edb* '(q))
-(define rp (p107-def 'rp (list (p107-var 'v0) (p107-var 'v1))
-  (list (p107-atom 'q (list (p107-var 'v0) (p107-var 'v1))))
-  (list (p107-atom 'q (list (p107-var 'v0) (p107-var 'v1))))))
-(define rp-bad (p107-def 'rp (list (p107-var 'v0) (p107-var 'v1))
-  (list (p107-atom 'q (list (p107-var 'v0) (p107-var 'v1))))
-  (list (p107-atom 'q (list (p107-var 'v1) (p107-var 'v0))))))
-(check "role-preserving definition accepted" (p107-def-ok? rp ()))
-(check "definition with permuted roles rejected" (not (p107-def-ok? rp-bad ())))
-(define rp-call (p107-def 'rp2 (list (p107-var 'v0) (p107-var 'v1))
-  (list (p107-atom 'q (list (p107-var 'v0) (p107-var 'v1))))
-  (list (p107-call 'rp (list (p107-var 'v1) (p107-var 'v0))))))
-(define rp-ok (p107-def 'rp2 (list (p107-var 'v0) (p107-var 'v1))
-  (list (p107-atom 'q (list (p107-var 'v0) (p107-var 'v1))))
-  (list (p107-call 'rp (list (p107-var 'v0) (p107-var 'v1))))))
-(check "call with permuted actuals rejected" (not (p107-def-ok? rp-call (list rp))))
-(check "call with matching actuals accepted" (p107-def-ok? rp-ok (list rp)))
-
-;;; an answer witness must denote an atom of the grounded plan
-(define wt (list (p107-given-id "w0" (p107-atom 'calls (list "zz" "yy")))))
-(check "witness for a different atom rejected"
-  (not (p107-witness-atoms? (list "w0") (list (p107-atom 'calls (list "a" "b"))) wt)))
-(check "witness for a matching atom accepted"
-  (p107-witness-atoms? (list "w0") (list (p107-atom 'calls (list "zz" "yy"))) wt))
-
-;;; ---------- 8. Shen-inspired structural matching (library, not a VM) ----------
-(define-function mv (n) (p107-pat-var n))
-(check "literal match" (equal (car (p107-match1 "a" "a" ())) 'ok))
-(check "literal mismatch" (equal (car (p107-match1 "a" "b" ())) 'no-match))
-(check "repeated variable must be equal"
-  (and (equal (car (p107-match1 (list (mv 'a) (mv 'a)) (list "v" "v") ())) 'ok)
-       (equal (car (p107-match1 (list (mv 'a) (mv 'a)) (list "v" "w") ())) 'no-match)))
-(check "empty bindings are a success, not a failure"
-  (and (equal (car (p107-match1 (list) (list) ())) 'ok)
-       (equal (p107-nth (p107-match1 (list) (list) ()) 1) ())))
-(check "dotted pattern is an error, not a mismatch"
-  (equal (car (p107-match1 (cons "a" "b") (list "a") ())) 'error))
-(check "guard failure falls through to the next clause"
-  (equal (p107-cases 2 (list (list (mv 'n) (lambda (b) false) (lambda (b) 'first))
-                             (list (mv 'n) () (lambda (b) 'second)))
-                     (lambda () 'fallback))
-         '(ok second)))
-(check "no clause yields the fallback"
-  (equal (p107-cases 3 (list (list "a" () (lambda (b) 'x))) (lambda () '(no-match)))
-         '(no-match)))
-(check "mismatch never calls the body"
-  (equal (p107-cases "z" (list (list "a" () (lambda (b) 'x))) (lambda () '(no-match)))
-         '(no-match)))
-
-;;; ---------- 9. Silicon-shaped Pre/Body/Post: assign only (step 0+1) ----------
-(define c-ok (list 'c107 'setflag (list 'flag 'ready) '(b 1)
-                   (list '(assign flag 1)) '(v flag) (list 'flag)))
-(define c-post (list 'c107 'badpost (list 'flag) '(b 1)
-                     (list '(assign flag 1)) '(not (v flag)) (list 'flag)))
-(define c-vac (list 'c107 'vac (list 'x) (list 'and '(v x) '(not (v x)))
-                    (list '(assign x 1)) '(b 1) (list 'x)))
-(define c-frame (list 'c107 'badframe (list 'flag 'ready) '(b 1)
-                      (list '(assign ready 1)) '(v flag) (list 'flag)))
-(define c-bad (list 'c107 'bad (list 'x) '(b 1) (list '(assign y 1)) '(b 1) (list 'x)))
-(check "valid contract verified" (equal (car (p107-c-verify c-ok)) 'verified))
-(check "eligible inputs are exactly the Pre-satisfying states"
-  (= 4 (p107-len (p107-nth (p107-c-verify c-ok) 1))))
-(check "case table has 4 rows" (= 4 (p107-len (p107-nth (p107-c-verify c-ok) 1))))
-(check "wrong postcondition refuted" (equal (car (p107-c-verify c-post)) 'refuted))
-(check "vacuous precondition inapplicable" (equal (car (p107-c-verify c-vac)) 'inapplicable))
-(check "frame violation refuted" (equal (car (p107-c-verify c-frame)) 'refuted))
-(check "undeclared assign is invalid" (equal (car (p107-c-verify c-bad)) 'invalid))
-(define ok-cases (p107-nth (p107-c-verify c-ok) 1))
-(check "checker accepts the real table" (p107-c-check c-ok ok-cases))
-(check "checker rejects a forged output"
-  (not (p107-c-check c-ok (list (list 'case (list 1 1) (list 0 0))
-                                (list 'case (list 1 0) (list 0 0))
-                                (list 'case (list 0 1) (list 0 0))
-                                (list 'case (list 0 0) (list 0 0))))))
-(check "checker rejects a missing row"
-  (not (p107-c-check c-ok (cdr ok-cases))))
-(check "checker rejects a duplicated row"
-  (not (p107-c-check c-ok (cons (car ok-cases) ok-cases))))
-(check "checker rejects a non-boolean input row"
-  (not (p107-c-check c-ok (list (list 'case (list 1 2) (list 1 1))))))
-
-;;; ---------- 10. if: every feasible branch is checked ----------
-(define c-if (list 'c107 'iff (list 'c 'f) '(b 1)
-  (list (list 'if '(v c) (list '(assign f 1)) (list '(assign f 0))))
-  (list 'or (list 'and '(v c) '(v f)) (list 'and (list 'not '(v c)) (list 'not '(v f))))
-  (list 'f)))
-(check "if with both branches verifies" (equal (car (p107-c-verify c-if)) 'verified))
-(check "if produces one case per eligible input"
-  (= 4 (p107-len (p107-nth (p107-c-verify c-if) 1))))
-(check "if outputs contain both branch results"
-  (let ((outs (p107-map (lambda (k) (p107-nth k 2)) (p107-nth (p107-c-verify c-if) 1))))
-    (and (p107-member? (list 1 1) outs) (p107-member? (list 0 0) outs))))
-(define c-if-bad (list 'c107 'ifbad (list 'c 'f) '(b 1)
-  (list (list 'if '(v c) (list '(assign f 1)) ()))
-  (list 'and '(v c) '(v f))
-  (list 'f)))
-(check "feasible else branch that violates Post is refuted"
-  (equal (car (p107-c-verify c-if-bad)) 'refuted))
-(define c-if-invalid (list 'c107 'ifinv (list 'c) '(b 1)
-  (list (list 'if '(v q) (list '(assign c 1)) ())) '(b 1) (list 'c)))
-(check "if on an undeclared variable is invalid"
-  (equal (car (p107-c-verify c-if-invalid)) 'invalid))
-
-;;; ---------- 11. call summaries over a prefix-checked library ----------
-;;; The callee summary is the verified case table. A call applies a row; it
-;;; never re-runs the callee body.
-(define cc-clear (list 'c107 'clear (list 'b) '(b 1)
-  (list '(assign b 0)) '(not (v b)) (list 'b)))
-(define cc-clear-cases (p107-nth (p107-c-verify cc-clear) 1))
-(define cc-clear-unit (list 'unit107 'clear cc-clear cc-clear-cases))
-(define cc-lib (list cc-clear-unit))
-(check "callee summary verifies" (equal (car (p107-c-verify cc-clear)) 'verified))
-(check "callee has one row per Boolean input" (= 2 (p107-len cc-clear-cases)))
-(check "checked library accepts the exact summary"
-  (equal (car (p107-c-lib-check cc-lib)) 'ok))
-
-(define cc-caller (list 'c107 'caller (list 'a 'b) '(v b)
-  (list '(call clear)) '(not (v b)) (list 'b)))
-(define cc-caller-r (p107-c-verify-lib cc-caller cc-lib))
-(define cc-caller-cases (p107-nth cc-caller-r 1))
-(check "caller verifies against the checked library" (equal (car cc-caller-r) 'verified))
-(check "environment construction stays separate from update"
-  (and (equal (p107-c-env (list 'x 'y) (list 1 0)) '((x 1) (y 0)))
-       (equal (p107-c-update (p107-c-env (list 'x 'y) (list 1 0)) 'y 1) '((x 1) (y 1)))))
-(check "eligible inputs are exactly the Pre-satisfying states"
-  (p107-set-equal? (p107-c-eligible cc-caller) (list (list 1 1) (list 0 1))))
-(check "call changes the callee bit and preserves the rest of the state"
-  (and (= 2 (p107-len cc-caller-cases))
-       (p107-member? (list 'case (list 1 1) (list 1 0)) cc-caller-cases)
-       (p107-member? (list 'case (list 0 1) (list 0 0)) cc-caller-cases)))
-(check "caller table is accepted by the public checker"
-  (p107-c-check-lib cc-caller cc-caller-cases cc-lib))
-
-;;; Reuse accounting: the direct evaluator applies one row with lib checked
-;;; once; the public boundary re-validates the whole prefix before evaluating.
-(p107-c-reset-stats)
-(define cc-run (p107-c-run (list '(call clear)) (list (list 'a 1) (list 'b 1)) cc-lib))
-(check "call applies a summary row" (equal cc-run '(ok ((a 1) (b 0)))))
-(check "call does not re-execute the callee body"
-  (and (= *p107-c-applied* 1) (= *p107-c-verified* 0) (= *p107-c-call-runs* 1)))
-(p107-c-reset-stats)
-(define cc-pub (p107-c-verify-lib cc-caller cc-lib))
-(check "public boundary revalidates the prefix, then the caller"
-  (and (equal (car cc-pub) 'verified) (= *p107-c-verified* 2) (= *p107-c-applied* 2)))
-
-;;; Nested calls: `top` calls `mid`, which called `clear` when its own summary was
-;;; verified. A top-level call must still consume only `mid`'s summary row.
-(define cc-mid (list 'c107 'mid (list 'b) '(b 1)
-  (list '(call clear)) '(not (v b)) (list 'b)))
-(define cc-lib3 (list cc-clear-unit
-  (list 'unit107 'mid cc-mid (p107-nth (p107-c-verify-lib cc-mid cc-lib) 1))))
-(define cc-top (list 'c107 'top (list 'a 'b) '(v b)
-  (list '(call mid)) '(not (v b)) (list 'b)))
-(check "nested calls verify through checked summaries"
-  (equal (car (p107-c-verify-lib cc-top cc-lib3)) 'verified))
-(p107-c-reset-stats)
-(check "nested call applies one row and re-runs no callee body"
-  (and (equal (p107-c-run (list '(call mid)) (list (list 'a 1) (list 'b 1)) cc-lib3)
-              '(ok ((a 1) (b 0))))
-       (= *p107-c-applied* 1) (= *p107-c-verified* 0) (= *p107-c-call-runs* 1)))
-
-;;; Evidence binds the result to the exact library it was checked against.
-(define cc-ev (p107-c-evidence cc-caller cc-lib))
-(check "evidence re-checks in the same library"
-  (equal (p107-c-check-evidence cc-ev cc-lib) '(ok)))
-(define cc-clear2 (list 'c107 'clear (list 'b) '(b 1)
-  (list '(assign b 1)) '(v b) (list 'b)))
-(define cc-lib2 (list (list 'unit107 'clear cc-clear2
-  (p107-nth (p107-c-verify cc-clear2) 1))))
-(check "a changed callee makes old evidence stale"
-  (equal (p107-c-check-evidence cc-ev cc-lib2) '(invalid stale-library)))
-(check "old caller table is rejected under the changed callee"
-  (not (p107-c-check-lib cc-caller cc-caller-cases cc-lib2)))
-
-;;; A callee precondition counterexample is `refuted`, not `invalid`, and the
-;;; input plus cause survive from run to verify.
-(define cc-need (list 'c107 'needflag (list 'flag) '(v flag)
-  (list '(assign flag 1)) '(v flag) (list 'flag)))
-(define cc-need-unit (list 'unit107 'needflag cc-need
-  (p107-nth (p107-c-verify cc-need) 1)))
-(define cc-need-lib (list cc-need-unit))
-(define cc-need-caller (list 'c107 'needcaller (list 'flag) '(b 1)
-  (list '(call needflag)) '(v flag) (list 'flag)))
-(define cc-need-r (p107-c-verify-lib cc-need-caller cc-need-lib))
-(check "direct call precondition failure is refuted"
-  (equal (p107-c-run (list '(call needflag)) (list (list 'flag 0)) cc-need-lib)
-         '(refuted call-precondition needflag)))
-(check "verify-lib preserves the refuted call-precondition tag"
-  (and (equal (car cc-need-r) 'refuted)
-       (equal (p107-nth cc-need-r 1) (list 0))
-       (equal (p107-nth cc-need-r 2) 'call-precondition)
-       (equal (p107-nth cc-need-r 3) 'needflag)))
-(check "refuted is never wrapped as invalid"
-  (not (equal (car cc-need-r) 'invalid)))
-
-;;; Library boundary: forged/empty summaries, duplicate names, forward and
-;;; self calls, and interface mismatches are all rejected.
-(define cc-forged-lib (list (list 'unit107 'clear cc-clear2 cc-clear-cases)))
-(check "a summary that does not match its contract is rejected"
-  (equal (p107-c-lib-check cc-forged-lib) '(invalid summary-mismatch clear)))
-(check "public verify refuses an unchecked/forged library"
-  (equal (p107-c-verify-lib cc-caller cc-forged-lib) '(invalid library summary-mismatch clear)))
-(check "public check refuses a forged library"
-  (not (p107-c-check-lib cc-caller cc-caller-cases cc-forged-lib)))
-(check "an empty summary for a non-inapplicable contract is rejected"
-  (equal (p107-c-lib-check (list (list 'unit107 'needflag cc-need ())))
-         '(invalid summary-mismatch needflag)))
-(check "duplicate unit names are rejected"
-  (equal (p107-c-lib-check (list cc-clear-unit cc-clear-unit))
-         '(invalid duplicate-unit clear)))
-(define cc-vac (list 'c107 'vac (list 'x) (list 'and '(v x) '(not (v x)))
-  (list '(assign x 1)) '(b 1) (list 'x)))
-(check "an inapplicable unit with an empty summary is accepted"
-  (equal (car (p107-c-lib-check (list (list 'unit107 'vac cc-vac ())))) 'ok))
-(check "the checker accepts the empty table of an inapplicable contract"
-  (p107-c-check cc-vac ()))
-(define cc-forward (list 'c107 'forward (list 'b) '(b 1)
-  (list '(call later)) '(b 1) (list 'b)))
-(check "a forward dependency is rejected"
-  (p107-member? 'unknown-unit
-    (p107-c-lib-check (list (list 'unit107 'forward cc-forward ())))))
-(define cc-self (list 'c107 'selfc (list 'b) '(b 1)
-  (list '(call selfc)) '(b 1) (list 'b)))
-(check "a self dependency is rejected"
-  (p107-member? 'unknown-unit
-    (p107-c-lib-check (list (list 'unit107 'selfc cc-self ())))))
-(define cc-iface (list 'c107 'iface (list 'a) '(b 1)
-  (list '(call clear)) '(b 1) (list 'a)))
-(check "a callee variable missing from the caller is an interface error"
-  (let ((r (p107-c-verify-lib cc-iface cc-lib)))
-    (and (equal (car r) 'invalid) (p107-member? 'interface r))))
-(define cc-unknown (list 'c107 'unk (list 'a) '(b 1)
-  (list '(call nope)) '(b 1) (list 'a)))
-(check "an unknown unit at call time is invalid"
-  (let ((r (p107-c-verify-lib cc-unknown cc-lib)))
-    (and (equal (car r) 'invalid) (p107-member? 'unknown-unit r))))
-
-;;; Inherited IR weaknesses from the 0.0112 review: distinct variables and
-;;; exact arity are now enforced, and the checker compares tables exactly.
-(check "duplicate declared variables are invalid"
-  (not (p107-c-valid? (list 'c107 'dupv (list 'x 'x) '(b 1)
-    (list '(assign x 1)) '(v x) (list 'x)))))
-(check "extra expression arity is invalid"
-  (not (p107-c-valid? (list 'c107 'dupa (list 'x) '(b 1)
-    (list '(assign x 1)) '(b 1 0) (list 'x)))))
-(check "a call with extra arguments is not a valid body"
-  (not (p107-c-valid? (list 'c107 'dupc (list 'x) '(b 1)
-    (list (list 'call 'x 'y)) '(b 1) (list 'x)))))
-(check "the checker rejects a duplicated input row of the right length"
-  (not (p107-c-check (list 'c107 'duprow (list 'x 'y) '(b 1)
-    (list '(assign x 1)) '(v x) (list 'x))
-    (list (list 'case (list 1 1) (list 1 1)) (list 'case (list 1 1) (list 1 1))
-          (list 'case (list 1 0) (list 1 0)) (list 'case (list 0 0) (list 0 0))))))
+;;; typed ports + provenance (0.0160)
+(define tx (list 'var 'x)) (define ty (list 'var 'y)) (define tz (list 'var 'z))
+(define th (l-atom 'R (list tx tz)))
+(define tf-seed (pt-fragment "seed" th (list (l-atom 'P (list tx tz)))
+  (list (pt-port tx 'in) (pt-port tz 'out)) (list "claim:seed")))
+(define tf-left (pt-fragment "left" th (list (l-atom 'P (list tx ty)))
+  (list (pt-port tx 'in) (pt-port ty 'out)) (list "claim:left")))
+(define tf-right (pt-fragment "right" th (list (l-atom 'R (list ty tz)))
+  (list (pt-port ty 'in) (pt-port tz 'out)) (list "claim:right")))
+(check "typed fragments and a compatible combine are verified"
+  (and (pt-fragment-ok? tf-seed) (pt-fragment-ok? tf-left)
+       (pt-fragment-ok? tf-right)
+       (pt-template? (pt-combine "rec" tf-left tf-right))
+       (equal (pt-template-prov (pt-combine "rec" tf-left tf-right))
+              (list "claim:left" "claim:right"))))
+(check "incompatible port roles are rejected before proving"
+  (equal (car (pt-combine "bad" tf-left tf-left)) 'rejected107))
+(define tmodule (pt-module "tm" (list
+  (pt-op 'fragment (list "seed" th (pt-body tf-seed) (pt-ports tf-seed) (pt-prov tf-seed)))
+  (pt-op 'fragment (list "left" th (pt-body tf-left) (pt-ports tf-left) (pt-prov tf-left)))
+  (pt-op 'fragment (list "right" th (pt-body tf-right) (pt-ports tf-right) (pt-prov tf-right)))
+  (pt-op 'template (list "seed-t" th (pt-body tf-seed) (pt-ports tf-seed) (pt-prov tf-seed)))
+  (pt-op 'combine (list "rec" "left" "right"))
+  (pt-op 'program (list "p" (list "seed-t" "rec")))
+  (pt-op 'task (list "a" (list (l-atom 'parent (list "a" "b")) (l-atom 'parent (list "b" "c")))
+    (list (l-atom 'ancestor (list "a" "c"))) (list (l-atom 'ancestor (list "c" "a")))
+    (list (list 'R 'ancestor) (list 'P 'parent)))))))
+(define tr (pt-run tmodule))
+(check "typed IR lowers to a verified matching program"
+  (and (equal (car tr) 'typed-result)
+       (= 1 (l-nth (l-nth tr 14) 4))
+       (= 1 (l-len (l-nth tr 12)))))
 
 
-;;; ---------- 12. evidence RESULT is validated, not just its table ----------
-(check "evidence with an integer RESULT is cleanly rejected"
-  (equal (p107-c-check-evidence (list 'evidence cc-caller 1 ()) ())
-         '(invalid evidence-result)))
-(check "evidence with a dotted RESULT is cleanly rejected"
-  (equal (p107-c-check-evidence (list 'evidence cc-caller (cons 'verified 1) ()) ())
-         '(invalid evidence-result)))
-(check "evidence with a symbol RESULT is cleanly rejected"
-  (equal (p107-c-check-evidence (list 'evidence cc-caller 'verified ()) ())
-         '(invalid evidence-result)))
-(check "evidence with an empty RESULT is cleanly rejected"
-  (equal (p107-c-check-evidence (list 'evidence cc-caller () ()) ())
-         '(invalid evidence-result)))
-(check "a refuted tag over correct cases is rejected"
-  (equal (p107-c-check-evidence (list 'evidence cc-caller
-          (list 'refuted cc-caller-cases) cc-lib) cc-lib)
-         '(invalid evidence-result)))
-(check "an unknown tag over correct cases is rejected"
-  (equal (p107-c-check-evidence (list 'evidence cc-caller
-          (list 'unknown cc-caller-cases) cc-lib) cc-lib)
-         '(invalid evidence-result)))
-(check "verified evidence with an extra RESULT field is rejected"
-  (equal (p107-c-check-evidence (list 'evidence cc-caller
-          (list 'verified cc-caller-cases 'extra) cc-lib) cc-lib)
-         '(invalid evidence-result)))
-(check "verified evidence for an inapplicable contract is rejected"
-  (equal (p107-c-check-evidence (list 'evidence cc-vac (list 'verified ()) ()) ())
-         '(invalid evidence-mismatch)))
-(check "verified evidence with a wrong table is rejected"
-  (equal (p107-c-check-evidence (list 'evidence cc-caller
-          (list 'verified ()) cc-lib) cc-lib)
-         '(invalid evidence-mismatch)))
-(check "the real evidence still passes"
-  (equal (p107-c-check-evidence cc-ev cc-lib) '(ok)))
-
-;;; ---------- 13. bounded finite Boolean input ----------
-(define-function cc-repeat (s n) (if (= n 0) () (cons s (cc-repeat s (- n 1)))))
-(define-function cc-deep (n) (if (= n 0) '(b 1) (list 'not (cc-deep (- n 1)))))
-(define cc-vars8 '(v1 v2 v3 v4 v5 v6 v7 v8))
-(define cc-vars9 '(v1 v2 v3 v4 v5 v6 v7 v8 v9))
-(define cc-vars14 '(v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14))
-(define cc-id8 (list 'c107 'id8 cc-vars8 '(b 1) () '(b 1) ()))
-(define cc-id9 (list 'c107 'id9 cc-vars9 '(b 1) () '(b 1) ()))
-(define cc-id14 (list 'c107 'id14 cc-vars14 '(b 1) () '(b 1) ()))
-(check "8 variables (256 states) verify" (equal (car (p107-c-verify cc-id8)) 'verified))
-(check "8 variables produce 256 cases"
-  (= 256 (p107-len (p107-nth (p107-c-verify cc-id8) 1))))
-(check "9 variables are a clean variable-limit rejection"
-  (equal (p107-c-verify cc-id9) '(invalid unsupported-limit vars)))
-(check "14 variables are a clean variable-limit rejection"
-  (equal (p107-c-verify cc-id14) '(invalid unsupported-limit vars)))
-(define cc-stmts32 (list 'c107 's32 (list 'x) '(b 1)
-  (cc-repeat '(assign x 1) 32) '(v x) (list 'x)))
-(check "32 statements are accepted" (equal (car (p107-c-verify cc-stmts32)) 'verified))
-(check "33 statements are a clean statement-limit rejection"
-  (equal (p107-c-verify (list 'c107 's33 (list 'x) '(b 1)
-          (cc-repeat '(assign x 1) 33) '(v x) (list 'x)))
-         '(invalid unsupported-limit statements)))
-(check "an over-long if branch is a clean statement-limit rejection"
-  (equal (p107-c-verify (list 'c107 'if33 (list 'x) '(b 1)
-          (list (list 'if '(v x) (cc-repeat '(assign x 1) 33) ())) '(v x) (list 'x)))
-         '(invalid unsupported-limit statements)))
-(define cc-d2 (list 'c107 'd2 (list 'x) (cc-deep 2) () (cc-deep 2) ()))
-(check "nested expressions within the depth limit verify"
-  (equal (car (p107-c-verify cc-d2)) 'verified))
-(check "excessive expression depth is a clean depth-limit rejection"
-  (equal (p107-c-verify (list 'c107 'd20 (list 'x) (cc-deep 20) () (cc-deep 20) ()))
-         '(invalid unsupported-limit depth)))
-(define cc-if32 (cc-repeat (list 'if '(v x) (list '(assign x 1)) (list '(assign x 0))) 32))
-(check "an over-large IR is a clean node-limit rejection"
-  (equal (p107-c-verify (list 'c107 'n32 (list 'x) '(b 1) cc-if32 '(v x) (list 'x)))
-         '(invalid unsupported-limit nodes)))
-(define cc-units17 (p107-map (lambda (i) cc-clear-unit) (p107-range 17)))
-(check "17 library units are a clean unit-limit rejection"
-  (equal (p107-c-lib-check cc-units17) '(invalid unsupported-limit units)))
-(define cc-many-cases (p107-map (lambda (i) (list 'case (list 0) (list 0))) (p107-range 257)))
-(check "257 summary rows are a clean case-limit rejection"
-  (equal (p107-c-lib-check (list (list 'unit107 'clear cc-clear cc-many-cases)))
-         '(invalid unsupported-limit cases)))
-(check "the public table checker bounds case count"
-  (not (p107-c-check cc-clear cc-many-cases)))
-(define cc-long-row (list 'case (p107-map (lambda (i) 0) (p107-range 1000)) (list 1)))
-(check "an over-long case row is rejected without full traversal"
-  (not (p107-c-check cc-clear (list cc-long-row))))
+;;; proof-DAG credit / frontier (0.0161)
+(define px (list 'var 'x)) (define py (list 'var 'y)) (define pz (list 'var 'z))
+(define pseed (l-rule (l-atom 'ancestor (list px pz)) (list (l-atom 'parent (list px pz)))))
+(define prec (l-rule (l-atom 'ancestor (list px pz)) (list (l-atom 'parent (list px py)) (l-atom 'ancestor (list py pz)))))
+(define pf (list (l-fact "q0" (l-atom 'parent (list "a" "b"))) (l-fact "q1" (l-atom 'parent (list "b" "c")))))
+(define pg (l-atom 'ancestor (list "a" "c")))
+(check "a proof carries both rules as essential"
+  (equal (p-essential-rules pf (list pseed prec) pg 20000) (list 0 1)))
+(check "failure frontier exposes the missing path relation"
+  (equal (p-frontier pf (list pseed prec)
+          (l-atom 'path (list "a" "c")) 20000)
+         (list 'missing107 (l-atom 'path (list "a" "c")))))
 
 
-;;; ---------- 14. Shen-inspired surface notation (contracts/units) ----------
-(define sc-form
-  '(contract surfclear (b)
-     (pre (b 1))
-     (body ((assign b 0)))
-     (post (not (v b)))
-     (frame (b))))
-(define sc-r (p107-sc sc-form))
-(check "surface contract expands" (equal (car sc-r) 'ok))
-(define sc-c (p107-nth sc-r 1))
-(check "surface contract equals canonical"
-  (equal sc-c (list 'c107 'surfclear (list 'b) '(b 1)
-                    '((assign b 0)) '(not (v b)) (list 'b))))
-(check "surface contract revalidates and verifies"
-  (equal (car (p107-c-verify sc-c)) 'verified))
-(check "surface contract round-trips"
-  (equal (p107-sc (p107-sc-write sc-c)) (list 'ok sc-c)))
-(check "surface contract rejects a dotted value"
-  (equal (p107-sc (cons 'contract 'x)) '(invalid surface-shape)))
-(check "surface contract rejects a missing field"
-  (equal (p107-sc '(contract x (b) (pre (b 1)) (body ()) (post (b 1))))
-         '(invalid surface-shape)))
-(check "surface contract rejects an extra field"
-  (equal (p107-sc (p107-append sc-form (list '(extra 1))))
-         '(invalid surface-shape)))
-(check "surface contract rejects an invalid body"
-  (equal (p107-sc '(contract bad (b) (pre (b 1)) (body ((assign q 1)))
-                             (post (b 1)) (frame (b))))
-         '(invalid contract)))
-(define su-form (list 'unit 'surfclear sc-form
-                      (list (list 'case (list 1) (list 0)))))
-(define su-r (p107-su su-form))
-(check "surface unit expands" (equal (car su-r) 'ok))
-(define su-u (p107-nth su-r 1))
-(check "surface unit equals canonical"
-  (equal su-u (list 'unit107 'surfclear sc-c
-                    (list (list 'case (list 1) (list 0))))))
-(check "surface unit round-trips"
-  (equal (p107-su (p107-su-write su-u)) (list 'ok su-u)))
-(check "surface unit enforces the repeated name"
-  (equal (p107-su (list 'unit 'other sc-form ())) '(invalid surface-shape)))
+;;; frontier-driven rule synthesis (0.0162)
+(define sx (list 'var 'x)) (define sy (list 'var 'y)) (define sz (list 'var 'z))
+(define ss (l-rule (l-atom 'ancestor (list sx sz)) (list (l-atom 'parent (list sx sz)))))
+(define sr (l-rule (l-atom 'ancestor (list sx sz)) (list (l-atom 'parent (list sx sy)) (l-atom 'ancestor (list sy sz)))))
+(define sf (list (l-fact "h0" (l-atom 'hop1 (list "r" "s"))) (l-fact "h1" (l-atom 'hop2 (list "s" "t")))))
+(define sg (l-atom 'path (list "r" "t")))
+(define sn (l-atom 'path (list "t" "r")))
+(define syr (s-synthesize sf sg (list ss sr) (list sn) 20000))
+(check "frontier facts synthesize a composition rule with support"
+  (and (equal (car syr) 'synth107)
+       (equal (s-support syr) (list "h0" "h1"))
+       (not (not (l-lookup sg (p-close sf (l-append (list ss sr) (list (s-rule syr))) 20000))))))
+(check "synthesis rejects the reverse negative relation"
+  (not (l-lookup sn (p-close sf (list (s-rule syr)) 20000))))
 
 
-;;; ---------- 15. surface notation for checked definitions ----------
-(define sd-form
-  '(define surfp (x)
-     (pattern ((atom p ((var x)))))
-     (body ((atom p ((var x)))))))
-(define sd-r (p107-sd sd-form))
-(check "surface definition expands" (equal (car sd-r) 'ok))
-(define sd-d (p107-nth sd-r 1))
-(check "surface definition equals canonical"
-  (equal sd-d (list 'def107 'surfp (list 'x)
-                    '((atom p ((var x)))) '((atom p ((var x)))))))
-(check "surface definition passes the canonical validator" (p107-def? sd-d))
-(check "surface definition round-trips"
-  (equal (p107-sd (p107-sd-write sd-d)) (list 'ok sd-d)))
-(define sdc-form
-  '(define callp (x)
-     (pattern ((atom q ((var x)))))
-     (body ((call d1 ((var x)))))))
-(define sdc-r (p107-sd sdc-form))
-(check "surface definition maps call to call107"
-  (equal (p107-nth sdc-r 1)
-         (list 'def107 'callp (list 'x)
-               '((atom q ((var x)))) '((call107 d1 ((var x)))))))
-(check "surface definition call form round-trips"
-  (equal (p107-sd (p107-sd-write (p107-nth sdc-r 1))) (list 'ok (p107-nth sdc-r 1))))
-(check "surface definition rejects a missing field"
-  (equal (p107-sd '(define x (y) (pattern ((atom p ((var y)))))))
-         '(invalid surface-shape)))
-(check "canonical definition body steps are validated"
-  (not (p107-def? (list 'def107 'bad (list 'x)
-                        '((atom p ((var x)))) '((assign x 1))))))
-(check "surface definition rejects an invalid body"
-  (equal (p107-sd '(define bad (x) (pattern ((atom p ((var x)))))
-                            (body ((assign x 1)))))
-         '(invalid definition)))
+;;; ranked synthesis candidate selection (0.0163)
+(define rx (list 'var 'x)) (define ry (list 'var 'y)) (define rz (list 'var 'z))
+(define rs (l-rule (l-atom 'ancestor (list rx rz)) (list (l-atom 'parent (list rx rz)))))
+(define rr (l-rule (l-atom 'ancestor (list rx rz)) (list (l-atom 'parent (list rx ry)) (l-atom 'ancestor (list ry rz)))))
+(define rfacts (list
+  (l-fact "a0" (l-atom 'alt1 (list "r" "u")))
+  (l-fact "a1" (l-atom 'alt2 (list "u" "t")))
+  (l-fact "h0" (l-atom 'hop1 (list "r" "s")))
+  (l-fact "h1" (l-atom 'hop2 (list "s" "t")))
+  (l-fact "h2" (l-atom 'hop1 (list "v" "w")))
+  (l-fact "h3" (l-atom 'hop2 (list "w" "p")))))
+(define rpos (list (l-atom 'path (list "r" "t")) (l-atom 'path (list "v" "p"))))
+(define rneg (list (l-atom 'path (list "t" "r"))))
+(define rfirst (s-synthesize rfacts (car rpos) (list rs rr) rneg 20000))
+(define rrank (s-ranked-synthesize rfacts rpos rneg (list rs rr) 20000))
+(check "ranking selects the candidate with full training coverage"
+  (and (equal (car rrank) 'synth107)
+       (= 2 (s-coverage rfacts (l-append (list rs rr) (list (s-rule rrank))) rpos 20000))))
+(check "first-fit synthesis covers only one of the positives"
+  (= 1 (s-coverage rfacts (l-append (list rs rr) (list (s-rule rfirst))) rpos 20000)))
+(define rheld (list (l-fact "h4" (l-atom 'hop1 (list "j" "k")))
+                    (l-fact "h5" (l-atom 'hop2 (list "k" "l")))))
+(check "ranked synthesis transfers to a held path"
+  (not (not (l-lookup (l-atom 'path (list "j" "l"))
+    (p-close rheld (l-append (list rs rr) (list (s-rule rrank))) 20000)))))
 
 
-;;; ---------- 16. total public patterns and exact call arity ----------
-(check "malformed answer pattern is rejected"
-  (equal (dlm 'answer 's 'not-a-pattern) '(rejected107 pattern)))
-(check "malformed plan pattern is rejected"
-  (equal (dlm 'plan 'not-a-pattern) '(rejected107 pattern)))
-(check "malformed revise pattern is rejected"
-  (equal (dlm 'revise 'missing 'not-a-pattern) '(rejected107 pattern)))
-(check "a dotted pattern is rejected at the command boundary"
-  (equal (car (dlm 'plan (cons 'atom 'x))) 'rejected107))
-(check "the plan API refuses a malformed pattern"
-  (equal (p107-nth (p107-plan *p107-state* 'not-a-pattern) 2) 'invalid))
-(check "the answer API refuses a malformed pattern"
-  (equal (p107-nth (p107-answer *p107-state* 'demo 'not-a-pattern 200000) 2) 'invalid))
-(check "query-pattern rejects a dotted list"
-  (not (p107-query-pattern? (cons (p107-atom 'q ()) 'x))))
-(check "query-pattern rejects a disconnected pattern"
-  (not (p107-query-pattern?
-         (list (p107-atom 'q (list (p107-var 'x)))
-               (p107-atom 'r (list (p107-var 'y)))))))
-
-;;; 0.0110 review F5: admission and execution must use the same arity rule.
-(define f5-d1 (p107-def 'f5d1 (list (p107-var 'x))
-  (list (p107-atom 'q (list (p107-var 'x))))
-  (list (p107-atom 'q (list (p107-var 'x))))))
-(define f5-bad (p107-def 'f5bad (list (p107-var 'y))
-  (list (p107-atom 'q (list (p107-var 'y))))
-  (list (p107-call 'f5d1 (list (p107-var 'y) (p107-var 'y))))))
-(define f5-ok (p107-def 'f5ok (list (p107-var 'y))
-  (list (p107-atom 'q (list (p107-var 'y))))
-  (list (p107-call 'f5d1 (list (p107-var 'y))))))
-(check "admission rejects extra actuals" (not (p107-def-ok? f5-bad (list f5-d1))))
-(check "admission accepts exact arity" (p107-def-ok? f5-ok (list f5-d1)))
-(check "expansion rejects extra actuals"
-  (equal (p107-expand (p107-def-body f5-bad) (list f5-d1) 0) 'expand-failed))
+;;; three-fact chain synthesis (0.0164)
+(define cf (list
+  (l-fact "ca0" (l-atom 'hop1 (list "a" "b")))
+  (l-fact "ca1" (l-atom 'hop2 (list "b" "c")))
+  (l-fact "ca2" (l-atom 'hop3 (list "c" "d")))
+  (l-fact "cb0" (l-atom 'hop1 (list "e" "f")))
+  (l-fact "cb1" (l-atom 'hop2 (list "f" "g")))
+  (l-fact "cb2" (l-atom 'hop3 (list "g" "h")))))
+(define cpos (list (l-atom 'path (list "a" "d")) (l-atom 'path (list "e" "h"))))
+(define cneg (list (l-atom 'path (list "d" "a"))))
+(define csyn (s-chain-synthesize cf cpos cneg () 20000))
+(check "a three-fact chain is synthesized when two-fact candidates are absent"
+  (and (= 0 (l-len (s-candidates cf (car cpos))))
+       (= 1 (l-len (s-chain3-candidates cf (car cpos))))
+       (equal (car csyn) 'synth107)
+       (= 2 (s-coverage cf (list (s-rule csyn)) cpos 20000))
+       (not (s-conflict? cf (list (s-rule csyn)) cneg 20000))))
+(define cheld (list (l-fact "ch0" (l-atom 'hop1 (list "i" "j")))
+                    (l-fact "ch1" (l-atom 'hop2 (list "j" "k")))
+                    (l-fact "ch2" (l-atom 'hop3 (list "k" "l")))))
+(check "the three-fact rule transfers to a held chain"
+  (not (not (l-lookup (l-atom 'path (list "i" "l"))
+    (p-close cheld (list (s-rule csyn)) 20000)))))
 
 
-;;; ---------- 17. assert: a proof obligation inside a body ----------
-(define ca-ok (list 'c107 'caok (list 'b) '(b 1)
-  (list '(assert (b 1)) '(assign b 0) '(assert (not (v b))))
-  '(not (v b)) (list 'b)))
-(check "a true assert verifies" (equal (car (p107-c-verify ca-ok)) 'verified))
-(define ca-bad (list 'c107 'cabad (list 'b) '(b 1)
-  (list '(assert (not (v b))) '(assign b 1)) '(v b) (list 'b)))
-(define ca-bad-r (p107-c-verify ca-bad))
-(check "a false assert is refuted"
-  (and (equal (car ca-bad-r) 'refuted) (equal (p107-nth ca-bad-r 2) 'assert)))
-(check "the assert counterexample carries its input"
-  (equal (p107-nth ca-bad-r 1) (list 1)))
-(define ca-if-ok (list 'c107 'caifok (list 'c 'b) '(b 1)
-  (list (list 'if '(v c)
-              (list '(assert (v c)))
-              (list '(assert (not (v c))))))
-  '(b 1) ()))
-(check "assert is allowed in both if branches"
-  (equal (car (p107-c-verify ca-if-ok)) 'verified))
-(define ca-inv (list 'c107 'cainv (list 'b) '(b 1)
-  (list '(assert (v q))) '(b 1) (list 'b)))
-(check "assert on an undeclared variable is invalid"
-  (equal (car (p107-c-verify ca-inv)) 'invalid))
-(check "assert with extra fields is invalid"
-  (equal (car (p107-c-verify (list 'c107 'cabad2 (list 'b) '(b 1)
-    (list '(assert (b 1) extra)) '(b 1) (list 'b)))) 'invalid))
-(define ca-form
-  '(contract surfassert (b)
-     (pre (b 1))
-     (body ((assert (b 1)) (assign b 0)))
-     (post (not (v b)))
-     (frame (b))))
-(define ca-c (p107-nth (p107-sc ca-form) 1))
-(check "surface contract accepts assert"
-  (equal (car (p107-c-verify ca-c)) 'verified))
+;;; four-fact chain synthesis (0.0165)
+(define qf (list
+  (l-fact "qa0" (l-atom 'hop1 (list "a" "b")))
+  (l-fact "qa1" (l-atom 'hop2 (list "b" "c")))
+  (l-fact "qa2" (l-atom 'hop3 (list "c" "d")))
+  (l-fact "qa3" (l-atom 'hop4 (list "d" "e")))
+  (l-fact "qb0" (l-atom 'hop1 (list "f" "g")))
+  (l-fact "qb1" (l-atom 'hop2 (list "g" "h")))
+  (l-fact "qb2" (l-atom 'hop3 (list "h" "i")))
+  (l-fact "qb3" (l-atom 'hop4 (list "i" "j")))))
+(define qpos (list (l-atom 'path (list "a" "e")) (l-atom 'path (list "f" "j"))))
+(define qneg (list (l-atom 'path (list "e" "a"))))
+(define qsyn (s-long-synthesize qf qpos qneg () 20000))
+(check "bounded chain search synthesizes a four-fact rule"
+  (and (= 0 (l-len (s-candidates qf (car qpos))))
+       (= 0 (l-len (s-chain3-candidates qf (car qpos))))
+       (= 1 (l-len (s-walk-candidates qf (car qpos) 4)))
+       (equal (car qsyn) 'synth107)
+       (= 4 (l-len (l-body (s-rule qsyn))))
+       (= 2 (s-coverage qf (list (s-rule qsyn)) qpos 20000))))
+(define qheld (list (l-fact "qh0" (l-atom 'hop1 (list "k" "l")))
+                    (l-fact "qh1" (l-atom 'hop2 (list "l" "m")))
+                    (l-fact "qh2" (l-atom 'hop3 (list "m" "n")))
+                    (l-fact "qh3" (l-atom 'hop4 (list "n" "o")))))
+(check "the four-fact rule transfers to a held chain"
+  (not (not (l-lookup (l-atom 'path (list "k" "o"))
+    (p-close qheld (list (s-rule qsyn)) 20000)))))
+
+;;; recursive seed+step program synthesis (0.0166)
+(define rf (list
+  (l-fact "rp0" (l-atom 'parent (list "a" "b")))
+  (l-fact "rp1" (l-atom 'parent (list "b" "c")))
+  (l-fact "rp2" (l-atom 'parent (list "c" "d")))
+  (l-fact "rp3" (l-atom 'parent (list "d" "e")))
+  (l-fact "rr0" (l-atom 'ancestor (list "a" "b")))
+  (l-fact "rr1" (l-atom 'ancestor (list "b" "c")))
+  (l-fact "rr2" (l-atom 'ancestor (list "c" "d")))
+  (l-fact "rr3" (l-atom 'ancestor (list "d" "e")))))
+(define rpos (list (l-atom 'ancestor (list "a" "e")) (l-atom 'ancestor (list "c" "e"))))
+(define rneg (list (l-atom 'ancestor (list "e" "a"))))
+(define rprog (s-rec-synthesize rf rpos rneg 20000))
+(define rbase (s-no-target rf 'ancestor))
+(check "recursive seed+step program is synthesized"
+  (and (s-rec-program? rprog)
+       (= 2 (l-len (s-rec-rules rprog)))
+       (= 2 (s-coverage rbase (s-rec-rules rprog) rpos 20000))
+       (not (s-conflict? rbase (s-rec-rules rprog) rneg 20000))))
+(define rheld (list (l-fact "rh0" (l-atom 'parent (list "f" "g")))
+                    (l-fact "rh1" (l-atom 'parent (list "g" "h")))
+                    (l-fact "rh2" (l-atom 'parent (list "h" "i")))
+                    (l-fact "rh3" (l-atom 'parent (list "i" "j")))))
+(check "the recursive program derives an arbitrary-length held chain"
+  (not (not (l-lookup (l-atom 'ancestor (list "f" "j"))
+    (p-close rheld (s-rec-rules rprog) 20000)))))
+(define rseed (list (s-rule (car (s-seed-candidates rf (car rpos))))))
+(check "the seed alone does not derive the held four-hop chain"
+  (not (not (not (l-lookup (l-atom 'ancestor (list "f" "j"))
+    (p-close rheld rseed 20000))))))
+
+;;; template synthesis from one long positive and base edges (0.0167)
+(define tf (list (l-fact "tp0" (l-atom 'parent (list "a" "b")))
+                 (l-fact "tp1" (l-atom 'parent (list "b" "c")))
+                 (l-fact "tp2" (l-atom 'parent (list "c" "d")))
+                 (l-fact "tp3" (l-atom 'parent (list "d" "e")))))
+(define tpos (list (l-atom 'ancestor (list "a" "e"))))
+(define tneg (list (l-atom 'ancestor (list "e" "a"))))
+(define tprog (s-template-synthesize tf tpos tneg 20000))
+(check "a recursive program is synthesized from one long positive"
+  (and (s-rec-program? tprog)
+       (= 2 (l-len (s-rec-rules tprog)))
+       (= 1 (s-coverage tf (s-rec-rules tprog) tpos 20000))
+       (not (s-conflict? tf (s-rec-rules tprog) tneg 20000))))
+(define theld (list (l-fact "th0" (l-atom 'parent (list "k" "l")))
+                    (l-fact "th1" (l-atom 'parent (list "l" "m")))
+                    (l-fact "th2" (l-atom 'parent (list "m" "n")))
+                    (l-fact "th3" (l-atom 'parent (list "n" "o")))))
+(check "the template program transfers without direct target examples"
+  (not (not (l-lookup (l-atom 'ancestor (list "k" "o"))
+    (p-close theld (s-rec-rules tprog) 20000)))))
+
+;;; counterexample-driven stride-2 revision (0.0168)
+(define vf (list (l-fact "vp0" (l-atom 'parent (list "a" "b")))
+                 (l-fact "vp1" (l-atom 'parent (list "b" "c")))
+                 (l-fact "vp2" (l-atom 'parent (list "c" "d")))
+                 (l-fact "vp3" (l-atom 'parent (list "d" "e")))
+                 (l-fact "vp4" (l-atom 'parent (list "e" "f")))))
+(define vpos (list (l-atom 'ancestor (list "a" "e"))))
+(define vneg (list (l-atom 'ancestor (list "a" "d"))))
+(define vone (s-template-synthesize vf vpos () 20000))
+(check "the one-step template over-generalizes on the negative"
+  (and (s-rec-program? vone)
+       (s-conflict? vf (s-rec-rules vone) vneg 20000)))
+(define vprog (s-revise-synthesize vf vpos vneg 20000))
+(check "the stride-2 revision covers the positive and rejects the negative"
+  (and (s-rec-program? vprog)
+       (= 2 (l-len (s-rec-rules vprog)))
+       (= 1 (s-coverage vf (s-rec-rules vprog) vpos 20000))
+       (not (s-conflict? vf (s-rec-rules vprog) vneg 20000))))
+(define vheld (list (l-fact "vh0" (l-atom 'parent (list "g" "h")))
+                    (l-fact "vh1" (l-atom 'parent (list "h" "i")))
+                    (l-fact "vh2" (l-atom 'parent (list "i" "j")))
+                    (l-fact "vh3" (l-atom 'parent (list "j" "k")))
+                    (l-fact "vh4" (l-atom 'parent (list "k" "l")))))
+(check "the revised program transfers but still rejects the held negative"
+  (and (not (not (l-lookup (l-atom 'ancestor (list "g" "k"))
+         (p-close vheld (s-rec-rules vprog) 20000))))
+       (not (l-lookup (l-atom 'ancestor (list "g" "j"))
+         (p-close vheld (s-rec-rules vprog) 20000)))))
+
+;;; general stride inference (0.0169)
+(define uf (list (l-fact "up0" (l-atom 'parent (list "a" "b")))
+                 (l-fact "up1" (l-atom 'parent (list "b" "c")))
+                 (l-fact "up2" (l-atom 'parent (list "c" "d")))
+                 (l-fact "up3" (l-atom 'parent (list "d" "e")))
+                 (l-fact "up4" (l-atom 'parent (list "e" "f")))
+                 (l-fact "up5" (l-atom 'parent (list "f" "g")))))
+(define upos (list (l-atom 'ancestor (list "a" "g"))))
+(define uneg (list (l-atom 'ancestor (list "a" "c"))
+                   (l-atom 'ancestor (list "a" "e"))
+                   (l-atom 'ancestor (list "a" "f"))))
+(define up1 (s-stride-synthesize uf upos uneg 1 20000))
+(define up2 (s-stride-synthesize uf upos uneg 2 20000))
+(define uprog (s-stride-synthesize uf upos uneg 4 20000))
+(check "strides one and two conflict, so stride three is selected"
+  (and (not (s-rec-program? up1))
+       (not (s-rec-program? up2))
+       (s-rec-program? uprog)
+       (= 3 (l-len (l-body (l-nth (s-rec-rules uprog) 0))))
+       (= 1 (s-coverage uf (s-rec-rules uprog) upos 20000))
+       (not (s-conflict? uf (s-rec-rules uprog) uneg 20000))))
+(define uheld (list (l-fact "uh0" (l-atom 'parent (list "h" "i")))
+                    (l-fact "uh1" (l-atom 'parent (list "i" "j")))
+                    (l-fact "uh2" (l-atom 'parent (list "j" "k")))
+                    (l-fact "uh3" (l-atom 'parent (list "k" "l")))
+                    (l-fact "uh4" (l-atom 'parent (list "l" "m")))
+                    (l-fact "uh5" (l-atom 'parent (list "m" "n")))))
+(check "the stride-three program transfers and rejects the held negative"
+  (and (not (not (l-lookup (l-atom 'ancestor (list "h" "n"))
+         (p-close uheld (s-rec-rules uprog) 20000))))
+       (not (l-lookup (l-atom 'ancestor (list "h" "l"))
+         (p-close uheld (s-rec-rules uprog) 20000)))))
+
+;;; two-predicate block synthesis (0.0170)
+(define wf (list (l-fact "wp0" (l-atom 'up (list "a" "b")))
+                 (l-fact "wp1" (l-atom 'down (list "b" "c")))
+                 (l-fact "wp2" (l-atom 'up (list "c" "d")))
+                 (l-fact "wp3" (l-atom 'down (list "d" "e")))
+                 (l-fact "wp4" (l-atom 'up (list "e" "f")))
+                 (l-fact "wp5" (l-atom 'down (list "f" "g")))))
+(define wpos (list (l-atom 'reach (list "a" "g"))))
+(define wneg (list (l-atom 'reach (list "a" "d"))
+                   (l-atom 'reach (list "a" "f"))))
+(define wsingle (s-stride-synthesize wf wpos wneg 3 20000))
+(define wpair (s-pair-synthesize wf wpos wneg 20000))
+(check "alternating edges defeat single-predicate stride search"
+  (and (or (not (s-rec-program? wsingle))
+           (= 0 (s-coverage wf (s-rec-rules wsingle) wpos 20000)))
+       (s-rec-program? wpair)
+       (= 2 (l-len (s-rec-rules wpair)))
+       (= 1 (s-coverage wf (s-rec-rules wpair) wpos 20000))
+       (not (s-conflict? wf (s-rec-rules wpair) wneg 20000))))
+(define wheld (list (l-fact "wh0" (l-atom 'up (list "h" "i")))
+                    (l-fact "wh1" (l-atom 'down (list "i" "j")))
+                    (l-fact "wh2" (l-atom 'up (list "j" "k")))
+                    (l-fact "wh3" (l-atom 'down (list "k" "l")))
+                    (l-fact "wh4" (l-atom 'up (list "l" "m")))
+                    (l-fact "wh5" (l-atom 'down (list "m" "n")))))
+(check "the two-predicate program transfers and rejects the held negative"
+  (and (not (not (l-lookup (l-atom 'reach (list "h" "n"))
+         (p-close wheld (s-rec-rules wpair) 20000))))
+       (not (l-lookup (l-atom 'reach (list "h" "k"))
+         (p-close wheld (s-rec-rules wpair) 20000)))))
+
+;;; synthesis lowered through MLIR-shaped ops (0.0171)
+(define smod (ml-module "stride-mlir"
+  (list
+    (ml-op 'synth-seed (list "s3" 'parent 'ancestor 3 (list "u0")))
+    (ml-op 'synth-step (list "t3" 'parent 'ancestor 3 (list "u0")))
+    (ml-op 'synth-program (list "p3" "s3" "t3" uf upos uneg 20000)))))
+(define smr (ml-run smod))
+(define smp (ml-synth-result "p3"))
+(check "MLIR synthesis ops lower to the same stride program"
+  (and (equal (car smr) 'mlir-result)
+       (= 1 (l-nth smr 14))
+       (s-rec-program? (l-nth smp 1))
+       (equal (s-rec-rules (l-nth smp 1)) (s-rec-rules uprog))
+       (= 1 (l-nth smp 2))
+       (equal (l-nth smp 3) 'clean)))
+(define pmod (ml-module "pair-mlir"
+  (list
+    (ml-op 'synth-pair-seed (list "ps" 'up 'down 'reach (list "v0" "v1")))
+    (ml-op 'synth-pair-step (list "pt" 'up 'down 'reach (list "v0" "v1")))
+    (ml-op 'synth-program (list "pp" "ps" "pt" wf wpos wneg 20000)))))
+(define pmr (ml-run pmod))
+(define pmp (ml-synth-result "pp"))
+(check "MLIR synthesis ops lower to the same two-predicate program"
+  (and (equal (car pmr) 'mlir-result)
+       (= 1 (l-nth pmr 14))
+       (s-rec-program? (l-nth pmp 1))
+       (equal (s-rec-rules (l-nth pmp 1)) (s-rec-rules wpair))
+       (= 1 (l-nth pmp 2))
+       (equal (l-nth pmp 3) 'clean)))
+
+;;; MLIR search + proof pipeline (0.0172)
+(define umod (ml-module "stride-search"
+  (list
+    (ml-op 'synth-search (list "s3" 'stride uf upos uneg 4 20000))
+    (ml-op 'synth-proof (list "hp" "s3" uheld (l-atom 'ancestor (list "h" "n")) 20000))
+    (ml-op 'synth-proof (list "hn" "s3" uheld (l-atom 'ancestor (list "h" "l")) 20000)))))
+(define ur (ml-run umod))
+(define us (ml-synth-result "s3"))
+(check "MLIR search selects the stride program and gates held proofs"
+  (and (= 1 (l-nth ur 14))
+       (= 2 (l-nth ur 16))
+       (equal (s-rec-rules (l-nth us 1)) (s-rec-rules uprog))
+       (= 1 (l-nth us 2))
+       (equal (l-nth (ml-proof-result "hp") 1) 'proof)
+       (equal (l-nth (ml-proof-result "hn") 1) 'fail)))
+(define vmod (ml-module "pair-search"
+  (list
+    (ml-op 'synth-search (list "pp" 'pair wf wpos wneg 4 20000))
+    (ml-op 'synth-proof (list "vp" "pp" wheld (l-atom 'reach (list "h" "n")) 20000))
+    (ml-op 'synth-proof (list "vn" "pp" wheld (l-atom 'reach (list "h" "k")) 20000)))))
+(define vr (ml-run vmod))
+(define vs (ml-synth-result "pp"))
+(check "MLIR pair search and proof gate match the direct synthesizer"
+  (and (= 1 (l-nth vr 14))
+       (= 2 (l-nth vr 16))
+       (equal (s-rec-rules (l-nth vs 1)) (s-rec-rules wpair))
+       (= 1 (l-nth vs 2))
+       (equal (l-nth (ml-proof-result "vp") 1) 'proof)
+       (equal (l-nth (ml-proof-result "vn") 1) 'fail)))
+
+;;; MLIR auto mode selection (0.0173)
+(define amod (ml-module "auto-stride"
+  (list (ml-op 'synth-search (list "as" 'auto uf upos uneg 4 20000)))))
+(define ar (ml-run amod))
+(define as (ml-synth-result "as"))
+(check "MLIR auto selects stride for a single-predicate chain"
+  (and (equal (ml-synth-mode as) 'stride)
+       (= 1 (l-nth as 2))
+       (equal (s-rec-rules (l-nth as 1)) (s-rec-rules uprog))))
+(define amodv (ml-module "auto-pair"
+  (list (ml-op 'synth-search (list "ap" 'auto wf wpos wneg 4 20000)))))
+(define arv (ml-run amodv))
+(define asv (ml-synth-result "ap"))
+(check "MLIR auto selects pair for an alternating chain"
+  (and (equal (ml-synth-mode asv) 'pair)
+       (= 1 (l-nth asv 2))
+       (equal (s-rec-rules (l-nth asv 1)) (s-rec-rules wpair))))
+
+;;; goal-directed proof with rule index (0.0174)
+(define gchain (list
+  (l-fact "g0" (l-atom 'parent (list "a" "b")))
+  (l-fact "g1" (l-atom 'parent (list "b" "c")))
+  (l-fact "g2" (l-atom 'parent (list "c" "d")))
+  (l-fact "g3" (l-atom 'parent (list "d" "e")))))
+(define gnoise (list
+  (l-fact "n0" (l-atom 'parent (list "x" "y")))
+  (l-fact "n1" (l-atom 'parent (list "y" "z")))
+  (l-fact "n2" (l-atom 'parent (list "z" "w")))))
+(define grules (list
+  (l-rule (l-atom 'ancestor (list (l-var 'x) (l-var 'z)))
+          (list (l-atom 'parent (list (l-var 'x) (l-var 'z)))))
+  (l-rule (l-atom 'ancestor (list (l-var 'x) (l-var 'z)))
+          (list (l-atom 'parent (list (l-var 'x) (l-var 'y)))
+                (l-atom 'ancestor (list (l-var 'y) (l-var 'z)))))))
+(define ggoal (l-atom 'ancestor (list "a" "e")))
+(p-clear-proof-cache)
+(define gp1 (p-prove gchain grules ggoal 20000))
+(p-clear-proof-cache)
+(define gp2 (p-prove (l-append gchain gnoise) grules ggoal 20000))
+(check "goal-directed proof is found and certifies its tree"
+  (and (equal (l-nth gp1 1) 'proof)
+       (p-proof-check gchain grules ggoal (l-nth gp1 2))
+       (p-proof-check (l-append gchain gnoise) grules ggoal (l-nth gp2 2))))
+(check "unrelated facts do not increase goal-proof probes"
+  (and (= (l-nth gp1 3) (l-nth gp2 3))
+       (= (l-nth gp1 4) (l-nth gp2 4))
+       (> (l-nth (l-close (l-append gchain gnoise) grules 20000) 2)
+          (l-nth gp2 3))))
+
+;;; dependency-aware proof cache (0.0175)
+(p-clear-proof-cache)
+(define cp1 (p-prove gchain grules ggoal 20000))
+(define cp2 (p-prove gchain grules ggoal 20000))
+(define cextra (l-fact "cx" (l-atom 'parent (list "m" "n"))))
+(define cp3 (p-prove (l-append gchain (list cextra)) grules ggoal 20000))
+(define cmissing (l-filter (lambda (f) (not (equal "g2" (l-fact-id f)))) gchain))
+(define cp4 (p-prove cmissing grules ggoal 20000))
+(check "a repeated goal is served from the proof cache"
+  (and (equal (l-nth cp1 1) 'proof)
+       (equal (l-nth cp2 1) 'proof)
+       (= 0 (l-nth cp2 3))
+       (= 0 (l-nth cp2 4))
+       (p-proof-check gchain grules ggoal (l-nth cp2 2))))
+(check "unrelated additions hit, used-fact removal invalidates"
+  (and (= 0 (l-nth cp3 3))
+       (equal (l-nth cp4 1) 'fail)))
+
+;;; explicit graph IR (0.0176)
+(define gx (list 'var 'x)) (define gz (list 'var 'z))
+(define gh (l-atom 'R (list gx gz)))
+(define gs (l-atom 'P (list gx gz)))
+(define gmod (ml-module "graph-test"
+  (list
+    (ml-op 'fragment (list "fseed" gh (list gs)))
+    (ml-op 'template (list "seed" gh (list gs)))
+    (ml-op 'program (list "p" (list "seed")))
+    (ml-op 'task (list "t"
+      (list (l-atom 'parent (list "a" "b")))
+      (list (l-atom 'ancestor (list "a" "b")))
+      (list (l-atom 'ancestor (list "b" "a")))
+      (list (list 'R 'ancestor) (list 'P 'parent)))))))
+(define gg (mg-from-module gmod))
+(define gr (mg-to-module "graph-rebuilt" gg))
+(define gr1 (ml-run gmod))
+(define gr2 (ml-run gr))
+(check "explicit graph verifies, topo-sorts, and lowers to the same run"
+  (and (equal (mg-check gg) 'ok)
+       (equal (mg-topo gg) (list "fseed" "seed" "p" "t"))
+       (equal (l-nth gr1 12) (l-nth gr2 12))))
+(define gdup (mg-graph (mg-values gg) (cons (car (mg-nodes gg)) (mg-nodes gg)) (mg-edges gg)))
+(define gbad (mg-graph (mg-values gg) (mg-nodes gg)
+  (cons (mg-edge "v0" "p" 0) (mg-edges gg))))
+(check "graph verifier rejects duplicate nodes and bad input edges"
+  (and (equal (mg-check gdup) '(rejected107 mg-node-id))
+       (equal (mg-check gbad) '(rejected107 mg-edge-input))))
+
+;;; graph constraints (0.0177)
+(define gc1 (mc-constraint "gc-node" 'hard (list 'node-exists "p") 'graph 'active (list "test")))
+(define gc2 (mc-constraint "gc-kind" 'hard (list 'node-kind "t" 'task) 'node 'active (list "test")))
+(define gc3 (mc-constraint "gc-not" 'hard (list 'not (list 'node-exists "missing")) 'graph 'active (list "test")))
+(define gc4 (mc-constraint "gc-soft" 'soft (list 'node-exists "optional") 'graph 'active (list "test")))
+(define gcg (mg-attach gg (list gc1 gc2 gc3 gc4)))
+(check "hard graph constraints pass and soft failure is report-only"
+  (and (equal (mg-check-cgraph gcg) 'ok)
+       (equal (mg-constraint-report gcg)
+              (list (list "gc-node" 'hard 'active 'true)
+                    (list "gc-kind" 'hard 'active 'true)
+                    (list "gc-not" 'hard 'active 'true)
+                    (list "gc-soft" 'soft 'active 'false)))))
+(define gcbad (mg-attach gg (list (mc-constraint "gc-missing" 'hard (list 'node-exists "missing") 'graph 'active (list "test")))))
+(define gcexpr (mg-attach gg (list (mc-constraint "gc-expr" 'hard (list 'unknown-op "x") 'graph 'active (list "test")))))
+(check "hard false and unknown expressions are rejected"
+  (and (equal (mg-check-cgraph gcbad) '(rejected107 mg-constraint "gc-missing"))
+       (equal (mg-check-cgraph gcexpr) '(rejected107 mg-constraint-expr "gc-expr"))))
+
+;;; advisory graph embeddings (0.0178)
+(define ge1 (mg-embedding "fseed" 2 (list 100 0) "h1"))
+(define ge2 (mg-embedding "seed" 2 (list 80 60) "h2"))
+(define ge3 (mg-embedding "p" 2 (list 0 100) "h3"))
+(define ge4 (mg-embedding "t" 2 (list 50 50) "h4"))
+(check "embeddings attach to graph nodes and rank by dot product"
+  (and (equal (mg-check-embeddings gg (list ge1 ge2 ge3 ge4)) 'ok)
+       (equal (mg-rank-query gg (list ge1 ge2 ge3 ge4) "p")
+              (list (list "p" 10000) (list "seed" 6000)
+                    (list "t" 5000) (list "fseed" 0)))))
+(check "embedding dimension and missing-node checks reject"
+  (and (equal (mg-check-embeddings gg (list (mg-embedding "p" 2 (list 1) "hbad")))
+              '(rejected107 mg-embedding-dim))
+       (equal (mg-check-embeddings gg (list (mg-embedding "missing" 2 (list 1 2) "hbad")))
+              '(rejected107 mg-embedding-node))))
+
+;;; embedding-prioritized scheduling (0.0179)
+(define sgx (list 'var 'x)) (define sgz (list 'var 'z))
+(define sgh (l-atom 'R (list sgx sgz))) (define sgs (l-atom 'P (list sgx sgz)))
+(define sgmod (ml-module "schedule-test"
+  (list
+    (ml-op 'fragment (list "fseed" sgh (list sgs)))
+    (ml-op 'template (list "seed" sgh (list sgs)))
+    (ml-op 'program (list "p" (list "seed")))
+    (ml-op 'task (list "t1" (list (l-atom 'parent (list "a" "b"))) (list (l-atom 'ancestor (list "a" "b"))) () (list (list 'R 'ancestor) (list 'P 'parent))))
+    (ml-op 'task (list "t2" (list (l-atom 'parent (list "c" "d"))) (list (l-atom 'ancestor (list "c" "d"))) () (list (list 'R 'ancestor) (list 'P 'parent))))
+    (ml-op 'task (list "t3" (list (l-atom 'parent (list "e" "f"))) (list (l-atom 'ancestor (list "e" "f"))) () (list (list 'R 'ancestor) (list 'P 'parent)))))))
+(define sgg (mg-from-module sgmod))
+(define sge (list (mg-embedding "fseed" 2 (list 0 0) "h1")
+                  (mg-embedding "seed" 2 (list 0 50) "h2")
+                  (mg-embedding "p" 2 (list 0 100) "h3")
+                  (mg-embedding "t1" 2 (list 0 10) "h4")
+                  (mg-embedding "t2" 2 (list 0 20) "h5")
+                  (mg-embedding "t3" 2 (list 0 30) "h6")))
+(define sgb (mg-to-module "sched-base" sgg))
+(define sgr (mg-to-module-ranked "sched-rank" sgg sge "p"))
+(define sgr1 (ml-run sgb))
+(define sgr2 (ml-run sgr))
+(check "embedding changes ready-node order but preserves run"
+  (and (equal (mg-check-embeddings sgg sge) 'ok)
+       (not (equal (mg-topo sgg) (mg-topo-ranked sgg sge "p")))
+       (equal (l-nth sgr1 12) (l-nth sgr2 12))))
+
+;;; dead-node elimination (0.0180)
+(define dgx (list 'var 'x)) (define dgz (list 'var 'z))
+(define dgh (l-atom 'R (list dgx dgz))) (define dgs (l-atom 'P (list dgx dgz)))
+(define dgmod (ml-module "dce-test"
+  (list
+    (ml-op 'fragment (list "unused" dgh (list dgs)))
+    (ml-op 'fragment (list "fseed" dgh (list dgs)))
+    (ml-op 'template (list "seed" dgh (list dgs)))
+    (ml-op 'program (list "p" (list "seed")))
+    (ml-op 'task (list "t" (list (l-atom 'parent (list "a" "b"))) (list (l-atom 'ancestor (list "a" "b"))) () (list (list 'R 'ancestor) (list 'P 'parent)))))))
+(define dgg (mg-from-module dgmod))
+(define dgd (mg-dce dgg (list "p" "t")))
+(define dgr1 (ml-run (mg-to-module "dce-base" dgg)))
+(define dgr2 (ml-run (mg-to-module "dce-dce" dgd)))
+(check "dead-node elimination drops unused nodes and preserves run"
+  (and (= 5 (l-len (mg-nodes dgg)))
+       (= 3 (l-len (mg-nodes dgd)))
+       (= 1 (l-len (mg-edges dgd)))
+       (equal (mg-check dgd) 'ok)
+       (equal (l-nth dgr1 12) (l-nth dgr2 12))))
+
+;;; constraint-guided candidate selection (0.0181)
+(define schard (mc-constraint "sh" 'hard (list 'node-exists "p") 'graph 'active (list "test")))
+(define scsoft0 (mc-constraint "ss0" 'soft (list 'node-exists "extra") 'graph 'active (list "test")))
+(define scsoft1 (mc-constraint "ss1" 'soft (list 'node-exists "t") 'graph 'active (list "test")))
+(define sca (mg-candidate "base" (mg-attach gg (list schard scsoft0))))
+(define scb (mg-candidate "preferred" (mg-attach gg (list schard scsoft1))))
+(define scbad (mg-candidate "bad" (mg-attach gg (list (mc-constraint "sbad" 'hard (list 'node-exists "missing") 'graph 'active (list "test"))))))
+(define scsel (mg-select-candidates (list sca scb scbad)))
+(check "soft constraints rank hard-valid candidates"
+  (and (mg-candidate? scsel)
+       (equal (mg-candidate-id scsel) "preferred")
+       (= 1 (mg-soft-score (mg-candidate-cg scb)))
+       (= 0 (mg-soft-score (mg-candidate-cg sca)))
+       (equal (l-nth (ml-run (mg-to-module "sc" (mg-cgraph-graph (mg-candidate-cg scsel)))) 12)
+              (l-nth (ml-run (mg-to-module "scbase" gg)) 12))))
+
+;;; CSE for duplicate fragment/template nodes (0.0182)
+(define cgx (list 'var 'x)) (define cgz (list 'var 'z))
+(define cgh (l-atom 'R (list cgx cgz))) (define cgs (l-atom 'P (list cgx cgz)))
+(define cgmod (ml-module "cse-test"
+  (list
+    (ml-op 'fragment (list "cf1" cgh (list cgs)))
+    (ml-op 'fragment (list "cf2" cgh (list cgs)))
+    (ml-op 'template (list "cs1" cgh (list cgs)))
+    (ml-op 'template (list "cs2" cgh (list cgs)))
+    (ml-op 'program (list "cp" (list "cs1" "cs2")))
+    (ml-op 'task (list "ct" (list (l-atom 'parent (list "a" "b"))) (list (l-atom 'ancestor (list "a" "b"))) () (list (list 'R 'ancestor) (list 'P 'parent)))))))
+(define cgg (mg-from-module cgmod))
+(define cgc (mg-cse cgg))
+(define cgr1 (ml-run (mg-to-module "cse-base" cgg)))
+(define cgr2 (ml-run (mg-to-module "cse-cse" cgc)))
+(check "CSE merges duplicate fragments/templates and preserves run"
+  (and (= 6 (l-len (mg-nodes cgg)))
+       (= 4 (l-len (mg-nodes cgc)))
+       (= 4 (l-len (mg-values cgc)))
+       (equal (mg-check cgc) 'ok)
+       (equal (l-nth cgr1 12) (l-nth cgr2 12))))
+
+;;; controlled English NL → proof → answer (0.0184)
+(define nltexts (list
+  "A cat is a mammal."
+  "A dog is a mammal."
+  "All mammals are animals."
+  "All animals are living things."))
+(define nlr (nl-run nltexts "Is a cat a living thing?"))
+(define nlu (nl-run nltexts "Is a cat a plant?"))
+(check "NL facts/rules prove a query and realize an English answer"
+  (and (equal (l-nth nlr 1) 'proved)
+       (equal (l-nth nlr 3) "Yes, a cat is a living thing.")
+       (not (equal (l-nth nlr 4) ""))
+       (= 2 (l-len (b-active-rules (nl-basis (l-map nl-parse nltexts)))))
+       (equal (l-nth (nl-parse "All animals are living things.") 0) 'nl-rule)))
+(check "an unprovable NL query abstains instead of asserting false"
+  (and (equal (l-nth nlu 1) 'unknown)
+       (equal (l-nth nlu 3) "I cannot prove that a cat is a plant.")))
+
+;;; basis axiom accumulation/lifecycle (0.0185)
+(define brule (l-rule (l-atom 'r (list (l-var 'x) (l-var 'z)))
+                      (list (l-atom 'base (list (l-var 'x) (l-var 'z))))))
+(define basis0 (b-add () "BA" (list brule) (list "ev") (list "s")))
+(define basis1 (b-activate basis0 "BA"))
+(define basis2 (b-deactivate basis1 "BA"))
+(define basis3 (b-rollback basis2 "BA"))
+(check "basis axioms accumulate, deactivate, and rollback"
+  (and (= 1 (l-len (b-active-rules basis1)))
+       (= 0 (l-len (b-active-rules basis2)))
+       (= 1 (l-len (b-active-rules basis3)))
+       (equal (b-status (b-find "BA" basis3)) 'active)
+       (= 1 (b-version (b-find "BA" basis3)))))
+
+;;; teacher behavior → inverse deduction → basis → NL boundary (0.0187)
+(define tfacts (list
+  (l-fact "ts0" (l-atom 'subclass (list 'cat 'mammal)))
+  (l-fact "ts1" (l-atom 'subclass (list 'mammal 'animal)))
+  (l-fact "ts2" (l-atom 'subclass (list 'animal 'living-thing)))
+  (l-fact "ts3" (l-atom 'subclass (list 'sparrow 'bird)))
+  (l-fact "ts4" (l-atom 'subclass (list 'bird 'animal)))))
+(define tpos (list (l-atom 'isa (list 'cat 'living-thing))))
+(define tneg (list (l-atom 'isa (list 'living-thing 'cat))))
+(define tprog (s-template-synthesize tfacts tpos tneg 20000))
+(define tb (b-activate (b-add () "TT" (s-rec-rules tprog) (list "teacher") (s-rec-support tprog)) "TT"))
+(define trules (b-active-rules tb))
+(define tans (nl-answer-with tfacts trules "Is a sparrow a living thing?"))
+(check "teacher behavior induces a basis rule and the NL boundary answers"
+  (and (s-rec-program? tprog)
+       (equal (l-nth (p-prove tfacts trules (l-atom 'isa (list 'sparrow 'living-thing)) 20000) 1) 'proof)
+       (equal (l-nth tans 1) 'proved)
+       (equal (l-nth tans 3) "Yes, a sparrow is a living thing.")))
+
+;;; web observation boundary (0.0188)
+(define wo (w-observation "w0" "https://example.org" "Dogs are mammals" 'dog 'mammal))
+(define wkb (nl-build (w-to-records (list wo))))
+(define wans (nl-answer-with (car wkb) () "Is a dog a mammal?"))
+(check "a web observation answers an English query through the NL boundary"
+  (and (w-observation? wo)
+       (equal (w-url wo) "https://example.org")
+       (equal (l-nth wans 1) 'proved)
+       (equal (l-nth wans 3) "Yes, a dog is a mammal.")))
+
+;;; multi-page web observation accumulation (0.0189)
+(define wo2 (w-observation "w1" "https://example.org/cat" "Cats are mammals" 'cat 'mammal))
+(define wkb2 (nl-build (w-to-records (list wo wo2))))
+(define wa1 (nl-answer-with (car wkb2) () "Is a dog a mammal?"))
+(define wa2 (nl-answer-with (car wkb2) () "Is a cat a mammal?"))
+(check "two web observations answer two English queries"
+  (and (= 2 (l-len (w-to-records (list wo wo2))))
+       (equal (l-nth wa1 1) 'proved)
+       (equal (l-nth wa2 1) 'proved)
+       (equal (l-nth wa2 3) "Yes, a cat is a mammal.")))
+
+;;; web universal rule → basis (0.0190)
+(define wur (w-observation "wr" "https://example.org/rule" "All mammals are animals." 'mammal 'animal))
+(define wrecs (w-to-records (list wur)))
+(define wb (nl-basis wrecs))
+(check "a web universal sentence becomes a basis rule"
+  (and (= 1 (l-len wrecs))
+       (equal (l-nth (car wrecs) 0) 'nl-rule)
+       (= 1 (l-len (b-active-rules wb)))))
+
+;;; incremental web observation/basis store (0.0191)
+(w-clear)
+(define wst1 (w-ingest (list (w-observation "ws1" "https://example.org/1" "A dog is a mammal." 'dog 'mammal)
+                              (w-observation "ws2" "https://example.org/1" "All mammals are animals." 'mammal 'animal))))
+(define wst2 (w-ingest (list (w-observation "ws3" "https://example.org/2" "A cat is a mammal." 'cat 'mammal))))
+(define wsq (nl-answer-with (w-facts) (w-rules) "Is a cat an animal?"))
+(check "web observations/rules accumulate across ingest turns"
+  (and (= 2 (l-nth wst1 0))
+       (= 3 (l-nth wst2 0))
+       (= 1 (l-nth wst2 1))
+       (equal (l-nth wsq 1) 'proved)))
+
+;;; web subclass facts + teacher label → inverse deduction (0.0192)
+(define wifacts (list
+  (l-fact "wd0" (l-atom 'subclass (list 'dog 'mammal)))
+  (l-fact "wd1" (l-atom 'subclass (list 'mammal 'animal)))
+  (l-fact "wd2" (l-atom 'subclass (list 'cat 'mammal)))))
+(define wiprog (s-template-synthesize wifacts (list (l-atom 'isa (list 'dog 'animal))) (list (l-atom 'isa (list 'animal 'dog))) 20000))
+(define wib (b-activate (b-add () "WI" (s-rec-rules wiprog) (list "web") (s-rec-support wiprog)) "WI"))
+(define wiq (nl-answer-with wifacts (b-active-rules wib) "Is a cat an animal?"))
+(check "web subclass facts + teacher label induce a basis rule"
+  (and (s-rec-program? wiprog)
+       (equal (l-nth wiq 1) 'proved)
+       (equal (l-nth wiq 3) "Yes, a cat is an animal.")))
+
+;;; minimal atomic axioms + subset selection (0.0196)
+(define afacts (list
+  (l-fact "af0" (l-atom 'subclass (list 'dog 'mammal)))
+  (l-fact "af1" (l-atom 'subclass (list 'mammal 'animal)))
+  (l-fact "af2" (l-atom 'subclass (list 'cat 'mammal)))))
+(define aseed (l-rule (l-atom 'isa (list (l-var 'x) (l-var 'z)))
+                      (list (l-atom 'subclass (list (l-var 'x) (l-var 'z))))))
+(define astep (l-rule (l-atom 'isa (list (l-var 'x) (l-var 'z)))
+                      (list (l-atom 'subclass (list (l-var 'x) (l-var 'y)))
+                            (l-atom 'isa (list (l-var 'y) (l-var 'z))))))
+(define aax (a-from-program "AA" (s-rec-program (list aseed astep) (list "s")) (list "e") (list "s")))
+(define asel (a-select aax afacts (list (l-atom 'isa (list 'dog 'animal))) (list (l-atom 'isa (list 'animal 'dog))) 20000))
+(check "program decomposes into atomic axioms and subset search selects both"
+  (and (= 2 (l-len aax))
+       (= 1 (l-len (a-deps (a-find "AA-1" aax))))
+       (= 4 (l-len (a-subsets (l-map a-id aax))))
+       (equal (l-nth asel 1) (list "AA-0" "AA-1"))
+       (= 1 (l-nth asel 2))))
+
+;;; MLIR-shaped axiom graph (0.0197)
+(define agg (ag-from-axioms aax))
+(define ags2 (ag-select agg afacts (list (l-atom 'isa (list 'dog 'animal))) (list (l-atom 'isa (list 'animal 'dog))) 20000))
+(check "axiom graph verifies and selects the same minimal set"
+  (and (equal (ag-check agg) 'ok)
+       (equal (ag-check-deps agg) 'ok)
+       (equal (l-nth ags2 1) (list "AA-0" "AA-1"))
+       (equal (l-nth ags2 1) (l-nth asel 1))))
+
+;;; axiom graph DCE (0.0198)
+(define dax (a-add aax "Z" (l-rule (l-atom 'noise (list (l-var 'x))) (list (l-atom 'subclass (list (l-var 'x) (l-var 'y))))) (list "noise") (list "s") ()))
+(define dg (ag-dce (ag-from-axioms dax) (list "AA-1")))
+(check "axiom graph DCE keeps only dependency-reachable axioms"
+  (and (= 3 (l-len (ag-nodes (ag-from-axioms dax))))
+       (= 2 (l-len (ag-nodes dg)))
+       (equal (ag-check dg) 'ok)))
+
+;;; axiom graph CSE (0.0199)
+(define cgx (a-add aax "D" (a-rule (a-find "AA-0" aax)) (list "e") (list "s") ()))
+(define cgg (ag-cse (ag-from-axioms cgx)))
+(check "axiom graph CSE merges duplicate rules and rewrites deps"
+  (and (= 3 (l-len (ag-nodes (ag-from-axioms cgx))))
+       (= 2 (l-len (ag-nodes cgg)))
+       (equal (ag-check cgg) 'ok)
+       (equal (ag-deps (ag-find "AA-1" (ag-nodes cgg))) (list "AA-0"))))
+
+;;; multi-round self-supervision (0.0200)
+(define sst (ssl-round afacts (list (l-atom 'isa (list 'dog 'animal))) (list (l-atom 'isa (list 'animal 'dog))) () 1))
+(check "self-supervision round adds a basis axiom and self-labeled positives"
+  (and (>= (l-len (b-active-rules (car sst))) 1)
+       (>= (l-len (l-nth sst 1)) 1)))
+
+;;; basis CSE (0.0202)
+(define bd0 (b-add () "B0" (list brule) (list "e") (list "s")))
+(define bd1 (b-add bd0 "B1" (list brule) (list "e") (list "s")))
+(check "basis CSE removes duplicate axioms"
+  (and (= 2 (l-len bd1))
+       (= 1 (l-len (b-cse bd1)))))
+
+;;; DT proof-state dialect (0.0203)
+(define dtm (dt-module "dt-test"
+  (list (dt-op 'facts afacts) (dt-op 'axioms aax)
+        (dt-op 'pos (list (l-atom 'isa (list 'dog 'animal))))
+        (dt-op 'neg (list (l-atom 'isa (list 'animal 'dog))))
+        (dt-op 'query-facts afacts)
+        (dt-op 'goal (l-atom 'isa (list 'dog 'animal)))
+        (dt-op 'verify (list 'required)))))
+(define dtr (dt-run dtm))
+(define dtbad (dt-module "dt-bad" (list (dt-op 'facts afacts) (dt-op 'axioms aax) (dt-op 'goal (l-atom 'isa (list 'dog 'animal))))))
+(check "DT dialect selects atomic axioms, verifies a proof, and rejects missing verifier"
+  (and (equal (l-nth dtr 2) (list "AA-0" "AA-1"))
+       (equal (l-nth dtr 4) 'proof)
+       (equal (dt-check dtbad) '(rejected107 dt-verifier-missing))))
 
 (if (= *failures* 0) (print "ALL-CORE-TESTS-PASSED\n") (print "FAILURES " *failures* "\n"))

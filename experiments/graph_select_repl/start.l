@@ -1,0 +1,28 @@
+;;; Hard constraints filter candidates; soft constraints rank them.
+(define x (list 'var 'x)) (define z (list 'var 'z))
+(define head (l-atom 'R (list x z)))
+(define seed (l-atom 'P (list x z)))
+(define-function mkmodule (name extra)
+  (ml-module name
+    (list
+      (if extra (ml-op 'fragment (list "extra" head (list seed))) (ml-op 'fragment (list "extra0" head (list seed))))
+      (ml-op 'fragment (list "fseed" head (list seed)))
+      (ml-op 'template (list "seed" head (list seed)))
+      (ml-op 'program (list "p" (list "seed")))
+      (ml-op 'task (list "t"
+        (list (l-atom 'parent (list "a" "b")))
+        (list (l-atom 'ancestor (list "a" "b")))
+        (list (l-atom 'ancestor (list "b" "a")))
+        (list (list 'R 'ancestor) (list 'P 'parent)))))))
+(define a (mg-from-module (mkmodule "a" false)))
+(define b (mg-from-module (mkmodule "b" true)))
+(define chard (mc-constraint "h" 'hard (list 'node-exists "p") 'graph 'active (list "test")))
+(define csoft (mc-constraint "s" 'soft (list 'node-exists "extra") 'graph 'active (list "test")))
+(define ca (mg-candidate "base" (mg-attach a (list chard csoft))))
+(define cb (mg-candidate "extra" (mg-attach b (list chard csoft))))
+(define cbad (mg-candidate "bad" (mg-attach a (list (mc-constraint "bad" 'hard (list 'node-exists "missing") 'graph 'active (list "test"))))))
+(define sel (mg-select-candidates (list ca cb cbad)))
+(print "SOFT base=" (mg-soft-score (mg-candidate-cg ca)) " extra=" (mg-soft-score (mg-candidate-cg cb)) "\n")
+(print "SELECTED " (if (mg-candidate? sel) (mg-candidate-id sel) sel) "\n")
+(print "RUN " (l-nth (ml-run (mg-to-module "sel" (mg-cgraph-graph (mg-candidate-cg sel)))) 12) "\n")
+(print "done-select\n")

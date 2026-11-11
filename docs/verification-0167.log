@@ -1,0 +1,39 @@
+# 0.0167 verification — 2026-11-08
+
+## native
+checks: 25
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 25
+
+## template synthesis
+PROGRAM template rules=2 support=(t0)
+COVERAGE 1/1
+NEGATIVE clean
+HELD proof
+SEED ONLY HELD fail
+FROZEN fail
+done-template
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T081849Z-203
+$ ./scripts/compiler.sh verify 20261109T081849Z-203
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR 4/4
+- typed 4/4
+- proof credit/frontier
+- synthesis / ranked / chain3 / chain4 / recursive / template
+- next/third LLVM + stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Recursive template from one long positive; fixed rule shape, not general ILP.

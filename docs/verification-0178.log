@@ -1,0 +1,34 @@
+# 0.0178 verification — 2026-11-08
+
+## native
+checks: 48
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 48
+
+## NumPy embedding sidecar
+GRAPH ok
+EMBED ok
+EMBEDDINGS 4
+RANK ((p 1000000729790) (t 371270909353)
+      (seed 344082641939) (fseed 298811334744))
+BADDIM (rejected107 mg-embedding-dim)
+BADNODE (rejected107 mg-embedding-node)
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+RUN (summary tasks 1 solved 1 active (p))
+done-embed
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T113717Z-12722
+$ ./scripts/compiler.sh verify 20261109T113717Z-12722
+Verified
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Advisory offline embeddings; no truth/proof admission use.

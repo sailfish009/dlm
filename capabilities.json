@@ -1,273 +1,35 @@
 {
-  "version": "0.0120",
-  "note": "Continuity ledger: what this tree can actually demonstrate today.",
+  "version": "0.0205",
+  "note": "Minimal-core capability ledger. Research snapshots are separate.",
+  "removed_in_0_0205": [
+    "d107 contract layer (d107-*.l, contract/unit/surface/plan/session modules)",
+    "tests/test_d107.py and tests/oracle107.py"
+  ],
   "capabilities": {
-    "horn_closure": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "proof_term_and_checker": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "edb_negation": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "budget_unknown": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "scope_isolation": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "retraction": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "replay_snapshot": {
-      "status": "implemented",
-      "witness": "tests/test_d107.py"
-    },
-    "atomic_storage": {
-      "status": "implemented",
-      "witness": "tests/test_d107.py"
-    },
-    "code_reduction_adapter": {
-      "status": "implemented-untrusted",
-      "witness": "adapters/reduce.py"
-    },
-    "reading_n1_n3": {
-      "status": "implemented",
-      "witness": "experiments/northstar/run.l"
-    },
-    "definition_formation": {
-      "status": "implemented",
-      "witness": "experiments/learn/run.l"
-    },
-    "lemma_promotion": {
-      "status": "not-implemented",
-      "witness": null
-    },
-    "hypothesis_layer": {
-      "status": "not-implemented",
-      "witness": null
-    },
-    "revision_demotion": {
-      "status": "not-implemented",
-      "witness": null
-    },
-    "record_scoped_support": {
-      "status": "partial",
-      "witness": null,
-      "note": "observations carry record ids; support is not yet record-scoped"
-    },
-    "reading_n4_n9": {
-      "status": "not-implemented",
-      "witness": null
-    },
-    "native_reduction": {
-      "status": "not-implemented",
-      "witness": null
-    },
-    "cooperative_idle": {
-      "status": "not-implemented",
-      "witness": null
-    },
-    "well_founded_proof": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "edb_head_policy": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "durable_transitions": {
-      "status": "implemented",
-      "witness": "tests/test_d107.py"
-    },
-    "session_lock": {
-      "status": "implemented",
-      "witness": "tests/test_d107.py"
-    },
-    "stale_epoch_refusal": {
-      "status": "implemented",
-      "witness": "tests/test_d107.py"
-    },
-    "order_sensitive_rule_digest": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "malformed_input_guard": {
-      "status": "implemented",
-      "witness": "tests/test_d107.py"
-    },
-    "syntactically_invalid_file_guard": {
-      "status": "not-implemented",
-      "witness": null,
-      "note": "Maru reader aborts before our code runs"
-    },
-    "proof_dag_validation": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "order_sensitive_hash": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "proof_structure_guard": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "snapshot_content_digest": {
-      "status": "implemented",
-      "witness": "tests/test_d107.py"
-    },
-    "negation_order_independent": {
-      "status": "implemented",
-      "witness": "tests/oracle107.py"
-    },
-    "empty_body_rules": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "single_attachment": {
-      "status": "implemented",
-      "witness": "tests/test_d107.py"
-    },
-    "reduction_body_check": {
-      "status": "implemented",
-      "witness": "tests/test_d107.py"
-    },
-    "basis_growth_with_call": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "plan_replacement": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "conservation_check": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "support_from_records": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "retraction_deactivates_unit": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "revision_and_dependent_drop": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "utility_based_demotion": {
-      "status": "not-implemented",
-      "witness": null
-    },
-    "plan_execution_with_calls": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "role_preserving_calls": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "witness_check_on_answers": {
-      "status": "implemented",
-      "witness": "src/dlm/d107-plan.l"
-    },
-    "distinct_fact_per_row": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "resume_digest_consistency": {
-      "status": "implemented",
-      "witness": "tests/test_d107.py"
-    },
-    "alignment_sentinel_handling": {
-      "status": "implemented",
-      "witness": "experiments/learn/run.l"
-    },
-    "finite_contract_verification": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "contract_if_branches": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "contract_call_summary": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "checked_library_prefix": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "library_dependency_invalidation": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "explicit_library_context": {
-      "status": "implemented",
-      "witness": "src/dlm/d107-contract.l"
-    },
-    "contract_resource_budget": {
-      "status": "not-implemented",
-      "witness": null,
-      "note": "unknown is propagated but never produced; size limits reject over-limit input instead"
-    },
-    "bounded_contract_limits": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "contract_evidence_validation": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "surface_contract_notation": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "surface_unit_notation": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "surface_revalidates_canonical_ir": {
-      "status": "implemented",
-      "witness": "src/dlm/d107-surface.l"
-    },
-    "surface_definition_notation": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "definition_body_step_validation": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "total_query_pattern_validation": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "shared_exact_call_arity": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "contract_assert": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "surface_notation_expander": {
-      "status": "implemented",
-      "witness": "tests/core-tests.l"
-    },
-    "surface_notation_revalidates_canonical_ir": {
-      "status": "implemented",
-      "witness": "src/dlm/d107-surface.l"
-    }
+    "horn_closure": {"status": "implemented", "witness": "tests/core-tests.l"},
+    "proof_term_and_checker": {"status": "implemented", "witness": "tests/core-tests.l"},
+    "edb_negation": {"status": "implemented", "witness": "tests/core-tests.l"},
+    "budget_unknown": {"status": "implemented", "witness": "tests/core-tests.l"},
+    "scope_isolation": {"status": "implemented", "witness": "tests/core-tests.l"},
+    "retraction": {"status": "implemented", "witness": "tests/core-tests.l"},
+    "well_founded_proof": {"status": "implemented", "witness": "tests/core-tests.l"},
+    "proof_dag_validation": {"status": "implemented", "witness": "tests/core-tests.l"},
+    "fragment_composition": {"status": "implemented", "witness": "scripts/run.sh"},
+    "typed_admission": {"status": "implemented", "witness": "scripts/typed.sh"},
+    "checked_synthesis": {"status": "implemented", "witness": "scripts/synth.sh"},
+    "basis_activation_rollback": {"status": "implemented", "witness": "tests/core-tests.l"},
+    "axiom_subset_selection": {"status": "implemented", "witness": "scripts/axiom.sh"},
+    "axiom_graph_dce_cse": {"status": "implemented", "witness": "tests/core-tests.l"},
+    "dt_proof_state_dialect": {"status": "implemented", "witness": "scripts/dtir.sh"},
+    "mlir_shaped_internal_form": {"status": "implemented", "witness": "scripts/mlir.sh"},
+    "graph_ir": {"status": "implemented", "witness": "scripts/graph_ir.sh"},
+    "nl_boundary": {"status": "implemented", "witness": "scripts/nl.sh"},
+    "web_observation_boundary": {"status": "implemented-untrusted", "witness": "scripts/web_multi.sh"},
+    "recursive_self_supervision": {"status": "implemented", "witness": "scripts/selfssl.sh"},
+    "maru_q16_transformer_inference": {"status": "research", "witness": "experiments/tiny_transformer_maru/README.md"},
+    "maru_dt_mnist_learning": {"status": "research", "witness": "experiments/deductive_transformer_maru/README.md"},
+    "label_free_deductive_learning": {"status": "not-implemented", "witness": null},
+    "full_mnist_60k_training": {"status": "not-implemented", "witness": null},
+    "dense_tensor_attention_in_core": {"status": "not-implemented", "witness": null}
   }
 }

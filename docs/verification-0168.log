@@ -1,0 +1,41 @@
+# 0.0168 verification — 2026-11-08
+
+## native
+checks: 28
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 28
+
+## counterexample-driven revision
+ONE STEP program conflict=yes
+PROGRAM stride2 rules=2 support=(s0)
+COVERAGE 1/1
+NEGATIVE clean
+HELD proof
+HELD NEG fail
+SEED ONLY HELD fail
+FROZEN fail
+done-revise
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T082552Z-31747
+$ ./scripts/compiler.sh verify 20261109T082552Z-31747
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR 4/4
+- typed 4/4
+- proof credit/frontier
+- synthesis / ranked / chain3 / chain4 / recursive / template / revise
+- next/third LLVM + stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Fixed stride-1/stride-2 template revision, not general theory revision.

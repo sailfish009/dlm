@@ -1,0 +1,63 @@
+{
+  "pass": true,
+  "checks": [
+    {
+      "name": "baseline DT-MARU-LEARN-PASS",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "baseline 8/10",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "baseline proof 10/10",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "library K5 emitted",
+      "pass": true,
+      "detail": "('105', '9')"
+    },
+    {
+      "name": "library K5 accuracy 9/10",
+      "pass": true,
+      "detail": "9"
+    },
+    {
+      "name": "library K5 proof 10/10",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "taxonomy": {
+    "baseline_perceptron": {
+      "correct": 8,
+      "proof": 10,
+      "semantic_wrong_proof_valid": 2
+    },
+    "validated_library": {
+      "correct": 9,
+      "proof": 10,
+      "semantic_wrong_proof_valid": 1
+    },
+    "no_mask": {
+      "label": 9,
+      "proof_valid": 1
+    },
+    "centroid": {
+      "correct": 6,
+      "proof": 10
+    },
+    "label_free_gate": {
+      "correct": 8,
+      "proof": 10
+    }
+  },
+  "library_k5": {
+    "lib": 105,
+    "acc": 9
+  }
+}

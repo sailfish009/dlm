@@ -1,0 +1,5 @@
+step 0 ids ['A-0', 'A-1'] proof proof reward 1.0
+step 1 ids ['A-1'] proof fail reward -0.2
+step 2 ids [] proof fail reward -0.2
+step 3 ids ['A-0'] proof fail reward -0.2
+FINAL ['A-0', 'A-1']

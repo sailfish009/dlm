@@ -1,0 +1,21 @@
+# 0.0199 verification — 2026-11-10
+
+## native
+checks: 65
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 65
+
+## axiom graph CSE
+BEFORE 3 AFTER 2 check=ok deps=(A-0)
+SEL (A-0 A-1)
+done-axiom-cse
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T110341Z-16726
+$ ./scripts/compiler.sh verify 20261110T110341Z-16726
+Verified

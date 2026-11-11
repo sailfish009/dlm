@@ -1,0 +1,21 @@
+# 0.0198 verification — 2026-11-10
+
+## native
+checks: 64
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 64
+
+## axiom graph DCE
+BEFORE 3 AFTER 2 check=ok
+AG SEL (A-0 A-1)
+done-axiom-dce
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T105451Z-13270
+$ ./scripts/compiler.sh verify 20261110T105451Z-13270
+Verified

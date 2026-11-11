@@ -1,0 +1,204 @@
+{
+  "pass": true,
+  "checks": [
+    {
+      "name": "10 cases emitted",
+      "pass": true,
+      "detail": "10"
+    },
+    {
+      "name": "case ids 0..9",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "valid rule sets match PyTorch",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "selected rules match PyTorch",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "selected heads match PyTorch",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "selector max abs error < 0.01",
+      "pass": true,
+      "detail": "0.000327"
+    },
+    {
+      "name": "proof gate 10/10",
+      "pass": true,
+      "detail": "10"
+    },
+    {
+      "name": "held-out answer 8/10",
+      "pass": true,
+      "detail": "8/10"
+    },
+    {
+      "name": "failures are cases 0 and 6",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "rows": [
+    {
+      "case": 0,
+      "valid": [
+        102,
+        211
+      ],
+      "pick": 211,
+      "head": 7,
+      "label": 5,
+      "proof": 1,
+      "scores": [
+        3.37884521484375,
+        3.3790740966796875
+      ]
+    },
+    {
+      "case": 1,
+      "valid": [
+        45,
+        154
+      ],
+      "pick": 45,
+      "head": 9,
+      "label": 9,
+      "proof": 1,
+      "scores": [
+        2.8189697265625,
+        2.819549560546875
+      ]
+    },
+    {
+      "case": 2,
+      "valid": [
+        2,
+        111
+      ],
+      "pick": 2,
+      "head": 7,
+      "label": 7,
+      "proof": 1,
+      "scores": [
+        3.008087158203125,
+        3.007904052734375
+      ]
+    },
+    {
+      "case": 3,
+      "valid": [
+        22,
+        131
+      ],
+      "pick": 22,
+      "head": 4,
+      "label": 4,
+      "proof": 1,
+      "scores": [
+        3.0734405517578125,
+        3.0734100341796875
+      ]
+    },
+    {
+      "case": 4,
+      "valid": [
+        61,
+        170
+      ],
+      "pick": 61,
+      "head": 0,
+      "label": 0,
+      "proof": 1,
+      "scores": [
+        3.04498291015625,
+        3.04498291015625
+      ]
+    },
+    {
+      "case": 5,
+      "valid": [
+        61,
+        170
+      ],
+      "pick": 61,
+      "head": 0,
+      "label": 0,
+      "proof": 1,
+      "scores": [
+        2.916107177734375,
+        2.9160919189453125
+      ]
+    },
+    {
+      "case": 6,
+      "valid": [
+        34,
+        143
+      ],
+      "pick": 34,
+      "head": 5,
+      "label": 3,
+      "proof": 1,
+      "scores": [
+        3.3853912353515625,
+        3.385345458984375
+      ]
+    },
+    {
+      "case": 7,
+      "valid": [
+        76,
+        185
+      ],
+      "pick": 76,
+      "head": 5,
+      "label": 5,
+      "proof": 1,
+      "scores": [
+        3.0613555908203125,
+        3.061248779296875
+      ]
+    },
+    {
+      "case": 8,
+      "valid": [
+        16,
+        125
+      ],
+      "pick": 16,
+      "head": 1,
+      "label": 1,
+      "proof": 1,
+      "scores": [
+        3.0987396240234375,
+        3.0987548828125
+      ]
+    },
+    {
+      "case": 9,
+      "valid": [
+        5,
+        114
+      ],
+      "pick": 5,
+      "head": 7,
+      "label": 7,
+      "proof": 1,
+      "scores": [
+        3.171905517578125,
+        3.171844482421875
+      ]
+    }
+  ],
+  "correct": 8,
+  "selector_max_abs_error": 0.0003266334533691406
+}

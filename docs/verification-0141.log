@@ -1,0 +1,41 @@
+# 0.0141 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0141 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 340
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 340
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 141
+oracle107: 256/256 agree
+rc=0
+
+## schema-transfer experiment
+transfer:      9/9 positives, 5/5 negatives clean
+source-only:   0/9, 5/5
+single:        3/9, 5/5
+frozen:        0/9, 5/5
+oracle:        9/9, 5/5
+random/reverse:0/9, 4/5
+no-source:     0/9, 5/5
+
+## boundary
+The target relation has no labels. Transfer is relation-name substitution over a
+learned recursive shape, not semantic validation of the analogy.

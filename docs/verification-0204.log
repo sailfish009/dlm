@@ -1,0 +1,21 @@
+# 0.0204 verification — 2026-11-10
+
+## native
+checks: 68
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 68
+
+## DT verifier barrier
+DT name=dt1 selected=(A-0 A-1) cov=3 proof=proof
+BAD (rejected107 dt-verifier-missing) RUN (rejected107 dt-verifier-missing)
+done-dtir
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T122143Z-8395
+$ ./scripts/compiler.sh verify 20261110T122143Z-8395
+Verified

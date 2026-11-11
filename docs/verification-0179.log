@@ -1,0 +1,32 @@
+# 0.0179 verification — 2026-11-08
+
+## native
+checks: 49
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 49
+
+## embedding-prioritized scheduling
+GRAPH ok
+EMBED ok
+BASE (fseed seed p t1 t2 t3)
+RANKED (t3 seed p fseed t1 t2)
+BASE RUN (summary tasks 3 solved 3 active (p))
+RANK RUN (summary tasks 3 solved 3 active (p))
+SAME yes
+done-schedule
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T115310Z-11755
+$ ./scripts/compiler.sh verify 20261109T115310Z-11755
+Verified
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Advisory scheduling; proof/run results unchanged.

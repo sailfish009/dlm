@@ -1,0 +1,3 @@
+full exact=1.000 bits=1.000
+fixed exact=1.000 bits=1.000
+raw exact=0.000 bits=0.917

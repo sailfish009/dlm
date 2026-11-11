@@ -1,0 +1,56 @@
+# 0.0137 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0137 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 324
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 324
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 137
+oracle107: 256/256 agree
+rc=0
+
+## ground-web fixture
+sources=6 claims=23
+snapshots: 6 Wikipedia intro revisions with URL/fetched/sha256
+extraction: hand-annotated byte spans and exact quotes
+min-sources: 1 (no independent corroboration in this experiment)
+
+## recursive ground-web result (final round)
+self:      obs=7 defs=12 held_solved=8/8 held_grounded=8/8 plan_steps=22 plan_calls=1 gaps=0
+fixed:     obs=7 defs=12 held_solved=8/8 held_grounded=8/8 plan_steps=22 plan_calls=1 gaps=0
+random:    obs=7 defs=12 held_solved=8/8 held_grounded=8/8 plan_steps=22 plan_calls=1 gaps=0
+frozen:    obs=7 defs=0  held_solved=8/8 held_grounded=8/8 plan_steps=42 plan_calls=0 gaps=0
+no-web:    obs=0 defs=0  held_solved=0/8 held_grounded=0/8 plan_steps=0  plan_calls=0 gaps=8
+scrambled: obs=7 defs=12 held_solved=4/8 held_grounded=4/8 plan_steps=22 plan_calls=1 gaps=4
+
+## boundary
+A matching quote proves provenance, not truth. The scrambled arm keeps valid
+spans/quotes but changes country/subfield values; the kernel still verifies the
+proof structure, and the evidence chain exposes which source was used.
+
+
+## independent evidence controls
+$ python3 /research/review-0137-evidence/experiment-controls.py
+grounded two-witness counts=(0 1) grounded=true
+derived d0 evidence=(fact-evidence107 "d0" ? ?)
+join-order: frozen=42 learned=22 best-raw-permutation=22
+conclusion: 42 -> 22 is explained by join order; the any-witness grounded
+predicate and derived-fact evidence traversal are wrong/absent.

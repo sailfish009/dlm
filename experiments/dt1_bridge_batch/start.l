@@ -1,0 +1,16 @@
+;;; E24: arbitrary subset-list API over actual p-prove.
+(define p1 (s-template-synthesize *train-facts* *train-pos* *neg* 20000))
+(define t1 (p-close *train-facts* (s-rec-rules p1) 20000))
+(define self (l-filter (lambda (f) (equal (l-pred (l-fact-atom f)) 'isa)) t1))
+(define p2 (s-template-synthesize *train-facts* (l-append *train-pos* (l-map l-fact-atom self)) *neg* 20000))
+(define axs (a-from-program "A" p2 (list "web:selfsup") (s-rec-support p2)))
+(define goal (l-atom 'isa (list 'dog 'living-thing)))
+(define-function eval-subset (ids)
+  (let ((rules (a-rules-for ids axs)))
+    (list ids (l-len rules) (l-nth (p-prove *web-edges* rules goal 20000) 1))))
+(define-function eval-subsets (sets)
+  (list-do s sets
+    (let ((r (eval-subset s)))
+      (print "BATCH ids=" (l-nth r 0) " rules=" (l-nth r 1) " proof=" (l-nth r 2) "\n"))))
+(eval-subsets (list () (list "A-0") (list "A-1") (list "A-0" "A-1")))
+(print "done-batch-api\n")

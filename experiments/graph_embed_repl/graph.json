@@ -1,0 +1,12 @@
+{
+  "nodes": [
+    {"id": "fseed", "kind": "fragment", "features": [1,0,0,0,0,0,0,0]},
+    {"id": "seed",  "kind": "template", "features": [0,1,0,0,0,0,0,0]},
+    {"id": "p",     "kind": "program",  "features": [0,0,1,0,0,0,0,0]},
+    {"id": "t",     "kind": "task",      "features": [0,0,0,1,0,0,0,0]}
+  ],
+  "edges": [
+    {"from": "seed", "to": "p"},
+    {"from": "p", "to": "t"}
+  ]
+}

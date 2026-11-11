@@ -1,0 +1,41 @@
+# 0.0138 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0138 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 328
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 328
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 138
+oracle107: 256/256 agree
+rc=0
+
+## rule-composition experiment
+learned:    held positives 3/3, held negatives clean 4/4, TP=3 FP=0
+frozen:     0/3, 4/4
+oracle:     3/3, 4/4
+random:     0/3, 4/4
+definition: 0/3, 4/4 (4 definitions, no new held facts)
+scrambled:  0/3, 4/4 (learner none)
+
+## boundary
+This is a checked synthetic composition result. It is not full deductive
+learning: candidate generation is not yet driven by proof-DAG credit or a
+failure frontier, and the task has one binary relation and one rule.

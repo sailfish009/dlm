@@ -1,0 +1,7 @@
+SAVE /tmp/dlm-web-store.l obs=3 rules=2
+P1 proved
+done-persist-p1
+LOAD (3 2)
+P2 proved
+P3 unknown
+done-persist-p2

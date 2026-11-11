@@ -1,0 +1,37 @@
+# 0.0173 verification — 2026-11-08
+
+## native
+checks: 38
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 38
+
+## MLIR automatic mode selection
+AUTO parent mode=stride coverage=1/1 rules=2
+AUTO parent same-stride yes
+AUTO alt mode=pair coverage=1/1 rules=2
+AUTO alt same-pair yes
+done-mlir-auto
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T092340Z-21415
+$ ./scripts/compiler.sh verify 20261109T092340Z-21415
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR fragment tasks 4/4
+- MLIR synthesis lowering equality
+- MLIR search/proof pipeline
+- MLIR auto mode selection
+- next/third LLVM + stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Automatic selection among two fixed synthesis families, not family invention.

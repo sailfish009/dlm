@@ -1,0 +1,28 @@
+# 0.0181 verification — 2026-11-08
+
+## native
+checks: 51
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 51
+
+## constraint-guided selection
+SOFT base=0 extra=1
+SELECTED extra
+RUN (summary tasks 1 solved 1 active (p))
+done-select
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T121306Z-22772
+$ ./scripts/compiler.sh verify 20261109T121306Z-22772
+Verified
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Hard filter + soft count ranking; no proof admission use.

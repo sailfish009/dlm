@@ -1,0 +1,22 @@
+# 0.0196 verification — 2026-11-10
+
+## native
+checks: 62
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 62
+
+## atomic axioms + subset search
+AX 2 SUBSETS 4 CLOSED 3
+SEL (A-0 A-1) COV 3
+HELD 3/3
+done-axiom
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T103246Z-3815
+$ ./scripts/compiler.sh verify 20261110T103246Z-3815
+Verified

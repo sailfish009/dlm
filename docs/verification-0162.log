@@ -1,0 +1,41 @@
+# 0.0162 verification — 2026-11-08
+
+## native
+checks: 13
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 13
+
+## synthesis curriculum
+ROUND1 ancestor proof
+FRONTIER missing path(r,t)
+SYNTH synth107 support=(h0 h1)
+PATH proof negative=clean
+ESSENTIAL (2)
+HELD PATH proof
+RETAINED ANCESTOR proof
+FROZEN FRONTIER missing path(r,t)
+done-synth
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T075609Z-5928
+$ ./scripts/compiler.sh verify 20261109T075609Z-5928
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR 4/4
+- typed 4/4
+- proof credit/frontier
+- synthesis and held path
+- next/third LLVM + stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Endpoint/middle fact synthesis only; no general ILP/theory revision.

@@ -3,20 +3,15 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MARU="${MARU:-$ROOT/maru-compiler}"
 cd "$ROOT"
-files=(boot.l
-  "$ROOT/src/dlm/d107-util.l" "$ROOT/src/dlm/d107-form.l" "$ROOT/src/dlm/d107-close.l" "$ROOT/src/dlm/d107-match.l" "$ROOT/src/dlm/d107-contract.l"
-  "$ROOT/src/dlm/d107-def.l" "$ROOT/src/dlm/d107-surface.l"
-  "$ROOT/src/dlm/d107-session.l" "$ROOT/src/dlm/d107-plan.l" "$ROOT/src/dlm/d107-learn.l"
-  "$ROOT/src/dlm/d107-read.l" "$ROOT/src/dlm/d107-agenda.l"
-  "$ROOT/src/dlm/d107-command.l")
+files=("$ROOT/src/maru/boot.l" "$ROOT/src/dlm/logic.l" "$ROOT/src/dlm/infer.l" "$ROOT/src/dlm/deduce.l" "$ROOT/src/dlm/fragment.l" "$ROOT/src/dlm/assemble.l" "$ROOT/src/dlm/match.l" "$ROOT/src/dlm/typed.l" "$ROOT/src/dlm/proof.l" "$ROOT/src/dlm/synth.l" "$ROOT/src/dlm/basis.l" "$ROOT/src/dlm/axiom.l" "$ROOT/src/dlm/axiom-graph.l" "$ROOT/src/dlm/dtir.l" "$ROOT/src/dlm/mlir.l" "$ROOT/src/dlm/graph-ir.l" "$ROOT/src/dlm/nl.l" "$ROOT/src/dlm/web.l" "$ROOT/src/dlm/selfssl.l" "$ROOT/src/dlm/repl.l")
 case "${1:-repl}" in
   repl) exec "$MARU" "${files[@]}" - ;;
+  experiment) exec "$MARU" "${files[@]}" "$ROOT/experiments/fragment_repl/start.l" - ;;
+  mlir) exec "$MARU" "${files[@]}" "$ROOT/experiments/mlir_repl/start.l" - ;;
+  typed) exec "$MARU" "${files[@]}" "$ROOT/experiments/typed_repl/start.l" - ;;
+  synth) exec "$MARU" "${files[@]}" "$ROOT/experiments/synth_repl/start.l" - ;;
   proof) exec "$MARU" "${files[@]}" "${2:?driver required}" ;;
-  northstar) exec "$MARU" "${files[@]}" "$ROOT/experiments/northstar/run.l" ;;
-  test)
-    log="$(mktemp)"
-    "$MARU" "${files[@]}" "$ROOT/tests/core-tests.l" | tee "$log"
-    if grep -q ALL-CORE-TESTS-PASSED "$log" && ! grep -q FAIL "$log"; then rm -f "$log"; exit 0; fi
-    rm -f "$log"; exit 1 ;;
-  *) echo "usage: run.sh [repl|proof DRIVER|northstar|test]" >&2; exit 2 ;;
+  proof-extra) exec "$MARU" "${files[@]}" "${2:?extra file required}" "${3:?driver required}" ;;
+  test) exec "$MARU" "${files[@]}" "$ROOT/tests/core-tests.l" ;;
+  *) echo "usage: run.sh [repl|experiment|proof DRIVER|test]" >&2; exit 2 ;;
 esac

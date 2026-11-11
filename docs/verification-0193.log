@@ -1,0 +1,23 @@
+# 0.0193 verification — 2026-11-10
+
+## native
+checks: 61
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 61
+
+## actual web recursive self-supervision
+WEB pages=7 edges=7 train=5
+POS 3 SELF 8
+RULES1 2 RULES2 2
+HELD 3/3 NEG fail
+done-web-recursive
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T093509Z-1578
+$ ./scripts/compiler.sh verify 20261110T093509Z-1578
+Verified

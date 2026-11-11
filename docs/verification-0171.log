@@ -1,0 +1,40 @@
+# 0.0171 verification — 2026-11-08
+
+## native
+checks: 34
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 34
+
+## MLIR synthesis lowering
+MLIR stride result=1 program=yes
+MLIR stride rules=2 coverage=1/1 conflict=clean
+DIRECT stride rules=2 coverage=1/1
+SAME stride yes
+MLIR pair result=1 program=yes
+MLIR pair rules=2 coverage=1/1 conflict=clean
+DIRECT pair rules=2 coverage=1/1
+SAME pair yes
+done-mlir-synth
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T090532Z-18554
+$ ./scripts/compiler.sh verify 20261109T090532Z-18554
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR fragment tasks 4/4
+- synthesis / ranked / chain3 / chain4 / recursive / template / revise / stride / pair
+- MLIR stride/pair lowering equality
+- next/third LLVM + stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Explicit MLIR-shaped synthesis template ops, not a full MLIR pass pipeline.

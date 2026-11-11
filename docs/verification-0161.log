@@ -1,0 +1,40 @@
+# 0.0161 verification — 2026-11-08
+
+## native
+checks: 11
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 11
+
+## proof/frontier curriculum
+ROUND 1 active=1
+PROOF1 essential=(0 1)
+FRONTIER2 (missing107 path(r,t))
+ROUND 2 active=2
+PROOF2 essential=(2)
+PROOF3 essential=(0 1)
+FRONTIER_FROZEN (missing107 path(r,t))
+done-proof
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T074936Z-10091
+$ ./scripts/compiler.sh verify 20261109T074936Z-10091
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR 4/4
+- typed 4/4
+- proof credit/frontier
+- next/third LLVM and stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Counterfactual rule credit and frontier-driven program selection; not full
+SSA dominance, theory revision, or label-free self-supervision.

@@ -1,0 +1,48 @@
+;;; Synthesis expressed as MLIR-shaped ops and lowered to the synth core.
+(define ufacts (list
+  (l-fact "u0" (l-atom 'parent (list "a" "b")))
+  (l-fact "u1" (l-atom 'parent (list "b" "c")))
+  (l-fact "u2" (l-atom 'parent (list "c" "d")))
+  (l-fact "u3" (l-atom 'parent (list "d" "e")))
+  (l-fact "u4" (l-atom 'parent (list "e" "f")))
+  (l-fact "u5" (l-atom 'parent (list "f" "g")))))
+(define upos (list (l-atom 'ancestor (list "a" "g"))))
+(define uneg (list (l-atom 'ancestor (list "a" "c"))
+                   (l-atom 'ancestor (list "a" "e"))
+                   (l-atom 'ancestor (list "a" "f"))))
+(define smod (ml-module "stride3"
+  (list
+    (ml-op 'synth-seed (list "s3" 'parent 'ancestor 3 (list "u0")))
+    (ml-op 'synth-step (list "t3" 'parent 'ancestor 3 (list "u0")))
+    (ml-op 'synth-program (list "p3" "s3" "t3" ufacts upos uneg 20000)))))
+(define sr (ml-run smod))
+(define srp (ml-synth-result "p3"))
+(define direct (s-stride-synthesize ufacts upos uneg 4 20000))
+(print "MLIR stride result=" (l-nth sr 14) " program=" (if srp "yes" "no") "\n")
+(print "MLIR stride rules=" (if srp (l-len (s-rec-rules (l-nth srp 1))) 0) " coverage=" (if srp (l-nth srp 2) 0) "/1 conflict=" (if srp (l-nth srp 3) 'none) "\n")
+(print "DIRECT stride rules=" (l-len (s-rec-rules direct)) " coverage=" (s-coverage ufacts (s-rec-rules direct) upos 20000) "/1\n")
+(print "SAME stride " (if (and srp (equal (s-rec-rules (l-nth srp 1)) (s-rec-rules direct))) "yes" "no") "\n")
+
+(define vfacts (list
+  (l-fact "v0" (l-atom 'up (list "a" "b")))
+  (l-fact "v1" (l-atom 'down (list "b" "c")))
+  (l-fact "v2" (l-atom 'up (list "c" "d")))
+  (l-fact "v3" (l-atom 'down (list "d" "e")))
+  (l-fact "v4" (l-atom 'up (list "e" "f")))
+  (l-fact "v5" (l-atom 'down (list "f" "g")))))
+(define vpos (list (l-atom 'reach (list "a" "g"))))
+(define vneg (list (l-atom 'reach (list "a" "d"))
+                   (l-atom 'reach (list "a" "f"))))
+(define pmod (ml-module "pair"
+  (list
+    (ml-op 'synth-pair-seed (list "ps" 'up 'down 'reach (list "v0" "v1")))
+    (ml-op 'synth-pair-step (list "pt" 'up 'down 'reach (list "v0" "v1")))
+    (ml-op 'synth-program (list "pp" "ps" "pt" vfacts vpos vneg 20000)))))
+(define pr (ml-run pmod))
+(define prp (ml-synth-result "pp"))
+(define pdirect (s-pair-synthesize vfacts vpos vneg 20000))
+(print "MLIR pair result=" (l-nth pr 14) " program=" (if prp "yes" "no") "\n")
+(print "MLIR pair rules=" (if prp (l-len (s-rec-rules (l-nth prp 1))) 0) " coverage=" (if prp (l-nth prp 2) 0) "/1 conflict=" (if prp (l-nth prp 3) 'none) "\n")
+(print "DIRECT pair rules=" (l-len (s-rec-rules pdirect)) " coverage=" (s-coverage vfacts (s-rec-rules pdirect) vpos 20000) "/1\n")
+(print "SAME pair " (if (and prp (equal (s-rec-rules (l-nth prp 1)) (s-rec-rules pdirect))) "yes" "no") "\n")
+(print "done-mlir-synth\n")

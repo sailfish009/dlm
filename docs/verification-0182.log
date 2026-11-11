@@ -1,0 +1,30 @@
+# 0.0182 verification — 2026-11-08
+
+## native
+checks: 52
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 52
+
+## graph CSE
+BEFORE nodes=6 values=6
+AFTER nodes=4 values=4 check=ok
+BASE RUN (summary tasks 1 solved 1 active (p))
+CSE RUN (summary tasks 1 solved 1 active (p))
+SAME yes
+done-cse
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T230607Z-11295
+$ ./scripts/compiler.sh verify 20261109T230607Z-11295
+Verified
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Fragment/template CSE only; no fusion.

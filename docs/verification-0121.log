@@ -1,0 +1,74 @@
+# 0.0121 verification — 2026-11-07T08:24:11Z
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0121 is not promoted
+scope: resident definition-learning loop (bounded 2->3 grammar; no self-generated observations)
+
+## native suite
+$ ./scripts/run.sh test
+checks: 223
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ MARU=runtime/safety2/maru ./scripts/run.sh test
+checks: 223
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## python suite
+$ python3 -m unittest discover -s tests -p "test_d107.py"
+Ran 16 tests in 218.386s
+OK
+rc=0
+
+## independent review contract oracle (seed 116)
+256/256 PASS; verified 84 / refuted 95 / invalid 39 / inapplicable 38; 111 callers exercising calls
+
+## resident launcher transcript (delayed input, 9s wait)
+[dlm] demo observations seeded
+[dlm] interpreted demo-a
+[dlm] interpreted demo-b
+[dlm] learned b1
+[dlm] learned b2
+maru> (dlm107 epoch 6 observations 2 interpreted 2 events 6 rules 0 definitions 2 store /tmp/dlm121-demo3.sexp disk-digest 2215436823 last (waiting agenda-empty) mode waiting round 4 interval 1000 reason agenda-empty)
+maru> (dlm107 epoch 6 observations 2 interpreted 2 events 6 rules 0 definitions 2 store /tmp/dlm121-demo3.sexp disk-digest 2215436823 last (waiting agenda-empty) mode paused round 4 interval 1000 reason stopped)
+
+## pause/stop/evidence semantics (native checks)
+ok loop starts stopped
+ok start enters running
+ok pause enters paused
+ok an observation does not release an explicit pause
+ok an observation while running leaves it running
+ok tick interprets one observation
+ok tick advances the round
+ok the third tick learns a 2-atom unit
+ok the fourth tick learns a unit that calls the first
+ok saturation enters waiting
+ok waiting does not advance the round
+ok waiting returns the waiting marker
+ok new evidence reactivates a waiting loop
+ok explicit pause survives further evidence
+ok stop leaves the loop paused
+ok reset stops the loop and clears the round
+ok tick classifies waiting
+ok tick classifies event-limit as halted
+ok tick classifies checkpoint failure as halted
+ok tick classifies unknown distinctly
+ok halt reason distinguishes event-limit
+ok halt reason distinguishes checkpoint failure
+
+## 0.0110 F3 probes (previously SIGSEGV)
+malformed-answer: before (rejected107 pattern)survived 
+malformed-plan: before (rejected107 pattern)survived 
+malformed-revise: before (rejected107 pattern)survived 
+
+## manifests
+$ sha256sum -c docs/release.sources.sha256 && sha256sum -c docs/release.tests.sha256
+sources: OK (78 files)
+tests:   OK (30 files)
+
+## predecessor artifacts unchanged (review-0115-evidence)
+0.0114: 196 files OK
+0.0115: 177 files OK

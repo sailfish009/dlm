@@ -1,0 +1,12 @@
+;;; Actual web data → recursive self-supervision → save basis.
+(define p1 (s-template-synthesize *train-facts* *train-pos* *neg* 20000))
+(define b1 (b-activate (b-add () "R1" (s-rec-rules p1) (list "web:selfsup") (s-rec-support p1)) "R1"))
+(define t1 (p-close *train-facts* (b-active-rules b1) 20000))
+(define self (l-filter (lambda (f) (equal (l-pred (l-fact-atom f)) 'isa)) t1))
+(define selfpos (l-map l-fact-atom self))
+(define p2 (s-template-synthesize *train-facts* (l-append *train-pos* selfpos) *neg* 20000))
+(define b2 (b-activate (b-add () "R2" (s-rec-rules p2) (list "web:selfsup") (s-rec-support p2)) "R2"))
+(set *web-basis* b2)
+(set *web-store* ())
+(print "SAVE " (w-save "/tmp/dlm-web-recursive-basis.l") " rules=" (l-len (w-rules)) "\n")
+(print "done-rec-persist-p1\n")

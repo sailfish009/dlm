@@ -1,0 +1,39 @@
+# 0.0144 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0144 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 349
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 349
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 144
+oracle107: 256/256 agree
+rc=0
+
+## indexed-closure experiment
+noise 0:   exhaustive=1064 indexed=154 equal=true
+noise 8:   exhaustive=1512 indexed=154 equal=true
+noise 32:  exhaustive=2856 indexed=154 equal=true
+noise 128: exhaustive=8232 indexed=154 equal=true
+
+## boundary
+Same facts/proofs on the tested programs. The index selects candidates by
+predicate/arity and first bound argument; it is not yet a goal-directed prover
+or an incremental/cached closure.

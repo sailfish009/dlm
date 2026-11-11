@@ -1,0 +1,435 @@
+{
+  "w-source-embedding-embedding-weight": [
+    12,
+    32
+  ],
+  "w-source-embedding-position-pe": [
+    32,
+    32
+  ],
+  "w-target-embedding-embedding-weight": [
+    12,
+    32
+  ],
+  "w-target-embedding-position-pe": [
+    32,
+    32
+  ],
+  "w-encoder-layers-0-self-mha-heads-0-q-proj-weight": [
+    16,
+    32
+  ],
+  "w-encoder-layers-0-self-mha-heads-0-q-proj-bias": [
+    16
+  ],
+  "w-encoder-layers-0-self-mha-heads-0-k-proj-weight": [
+    16,
+    32
+  ],
+  "w-encoder-layers-0-self-mha-heads-0-k-proj-bias": [
+    16
+  ],
+  "w-encoder-layers-0-self-mha-heads-0-v-proj-weight": [
+    16,
+    32
+  ],
+  "w-encoder-layers-0-self-mha-heads-0-v-proj-bias": [
+    16
+  ],
+  "w-encoder-layers-0-self-mha-heads-1-q-proj-weight": [
+    16,
+    32
+  ],
+  "w-encoder-layers-0-self-mha-heads-1-q-proj-bias": [
+    16
+  ],
+  "w-encoder-layers-0-self-mha-heads-1-k-proj-weight": [
+    16,
+    32
+  ],
+  "w-encoder-layers-0-self-mha-heads-1-k-proj-bias": [
+    16
+  ],
+  "w-encoder-layers-0-self-mha-heads-1-v-proj-weight": [
+    16,
+    32
+  ],
+  "w-encoder-layers-0-self-mha-heads-1-v-proj-bias": [
+    16
+  ],
+  "w-encoder-layers-0-self-mha-out-proj-weight": [
+    32,
+    32
+  ],
+  "w-encoder-layers-0-self-mha-out-proj-bias": [
+    32
+  ],
+  "w-encoder-layers-0-ffn-network-0-weight": [
+    64,
+    32
+  ],
+  "w-encoder-layers-0-ffn-network-0-bias": [
+    64
+  ],
+  "w-encoder-layers-0-ffn-network-2-weight": [
+    32,
+    64
+  ],
+  "w-encoder-layers-0-ffn-network-2-bias": [
+    32
+  ],
+  "w-encoder-layers-0-norm1-weight": [
+    32
+  ],
+  "w-encoder-layers-0-norm1-bias": [
+    32
+  ],
+  "w-encoder-layers-0-norm2-weight": [
+    32
+  ],
+  "w-encoder-layers-0-norm2-bias": [
+    32
+  ],
+  "w-encoder-layers-1-self-mha-heads-0-q-proj-weight": [
+    16,
+    32
+  ],
+  "w-encoder-layers-1-self-mha-heads-0-q-proj-bias": [
+    16
+  ],
+  "w-encoder-layers-1-self-mha-heads-0-k-proj-weight": [
+    16,
+    32
+  ],
+  "w-encoder-layers-1-self-mha-heads-0-k-proj-bias": [
+    16
+  ],
+  "w-encoder-layers-1-self-mha-heads-0-v-proj-weight": [
+    16,
+    32
+  ],
+  "w-encoder-layers-1-self-mha-heads-0-v-proj-bias": [
+    16
+  ],
+  "w-encoder-layers-1-self-mha-heads-1-q-proj-weight": [
+    16,
+    32
+  ],
+  "w-encoder-layers-1-self-mha-heads-1-q-proj-bias": [
+    16
+  ],
+  "w-encoder-layers-1-self-mha-heads-1-k-proj-weight": [
+    16,
+    32
+  ],
+  "w-encoder-layers-1-self-mha-heads-1-k-proj-bias": [
+    16
+  ],
+  "w-encoder-layers-1-self-mha-heads-1-v-proj-weight": [
+    16,
+    32
+  ],
+  "w-encoder-layers-1-self-mha-heads-1-v-proj-bias": [
+    16
+  ],
+  "w-encoder-layers-1-self-mha-out-proj-weight": [
+    32,
+    32
+  ],
+  "w-encoder-layers-1-self-mha-out-proj-bias": [
+    32
+  ],
+  "w-encoder-layers-1-ffn-network-0-weight": [
+    64,
+    32
+  ],
+  "w-encoder-layers-1-ffn-network-0-bias": [
+    64
+  ],
+  "w-encoder-layers-1-ffn-network-2-weight": [
+    32,
+    64
+  ],
+  "w-encoder-layers-1-ffn-network-2-bias": [
+    32
+  ],
+  "w-encoder-layers-1-norm1-weight": [
+    32
+  ],
+  "w-encoder-layers-1-norm1-bias": [
+    32
+  ],
+  "w-encoder-layers-1-norm2-weight": [
+    32
+  ],
+  "w-encoder-layers-1-norm2-bias": [
+    32
+  ],
+  "w-decoder-layers-0-self-attn-heads-0-q-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-0-self-attn-heads-0-q-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-0-self-attn-heads-0-k-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-0-self-attn-heads-0-k-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-0-self-attn-heads-0-v-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-0-self-attn-heads-0-v-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-0-self-attn-heads-1-q-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-0-self-attn-heads-1-q-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-0-self-attn-heads-1-k-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-0-self-attn-heads-1-k-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-0-self-attn-heads-1-v-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-0-self-attn-heads-1-v-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-0-self-attn-out-proj-weight": [
+    32,
+    32
+  ],
+  "w-decoder-layers-0-self-attn-out-proj-bias": [
+    32
+  ],
+  "w-decoder-layers-0-cross-attn-heads-0-q-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-0-cross-attn-heads-0-q-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-0-cross-attn-heads-0-k-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-0-cross-attn-heads-0-k-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-0-cross-attn-heads-0-v-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-0-cross-attn-heads-0-v-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-0-cross-attn-heads-1-q-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-0-cross-attn-heads-1-q-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-0-cross-attn-heads-1-k-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-0-cross-attn-heads-1-k-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-0-cross-attn-heads-1-v-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-0-cross-attn-heads-1-v-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-0-cross-attn-out-proj-weight": [
+    32,
+    32
+  ],
+  "w-decoder-layers-0-cross-attn-out-proj-bias": [
+    32
+  ],
+  "w-decoder-layers-0-ffn-network-0-weight": [
+    64,
+    32
+  ],
+  "w-decoder-layers-0-ffn-network-0-bias": [
+    64
+  ],
+  "w-decoder-layers-0-ffn-network-2-weight": [
+    32,
+    64
+  ],
+  "w-decoder-layers-0-ffn-network-2-bias": [
+    32
+  ],
+  "w-decoder-layers-0-norm1-weight": [
+    32
+  ],
+  "w-decoder-layers-0-norm1-bias": [
+    32
+  ],
+  "w-decoder-layers-0-norm2-weight": [
+    32
+  ],
+  "w-decoder-layers-0-norm2-bias": [
+    32
+  ],
+  "w-decoder-layers-0-norm3-weight": [
+    32
+  ],
+  "w-decoder-layers-0-norm3-bias": [
+    32
+  ],
+  "w-decoder-layers-1-self-attn-heads-0-q-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-1-self-attn-heads-0-q-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-1-self-attn-heads-0-k-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-1-self-attn-heads-0-k-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-1-self-attn-heads-0-v-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-1-self-attn-heads-0-v-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-1-self-attn-heads-1-q-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-1-self-attn-heads-1-q-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-1-self-attn-heads-1-k-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-1-self-attn-heads-1-k-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-1-self-attn-heads-1-v-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-1-self-attn-heads-1-v-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-1-self-attn-out-proj-weight": [
+    32,
+    32
+  ],
+  "w-decoder-layers-1-self-attn-out-proj-bias": [
+    32
+  ],
+  "w-decoder-layers-1-cross-attn-heads-0-q-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-1-cross-attn-heads-0-q-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-1-cross-attn-heads-0-k-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-1-cross-attn-heads-0-k-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-1-cross-attn-heads-0-v-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-1-cross-attn-heads-0-v-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-1-cross-attn-heads-1-q-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-1-cross-attn-heads-1-q-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-1-cross-attn-heads-1-k-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-1-cross-attn-heads-1-k-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-1-cross-attn-heads-1-v-proj-weight": [
+    16,
+    32
+  ],
+  "w-decoder-layers-1-cross-attn-heads-1-v-proj-bias": [
+    16
+  ],
+  "w-decoder-layers-1-cross-attn-out-proj-weight": [
+    32,
+    32
+  ],
+  "w-decoder-layers-1-cross-attn-out-proj-bias": [
+    32
+  ],
+  "w-decoder-layers-1-ffn-network-0-weight": [
+    64,
+    32
+  ],
+  "w-decoder-layers-1-ffn-network-0-bias": [
+    64
+  ],
+  "w-decoder-layers-1-ffn-network-2-weight": [
+    32,
+    64
+  ],
+  "w-decoder-layers-1-ffn-network-2-bias": [
+    32
+  ],
+  "w-decoder-layers-1-norm1-weight": [
+    32
+  ],
+  "w-decoder-layers-1-norm1-bias": [
+    32
+  ],
+  "w-decoder-layers-1-norm2-weight": [
+    32
+  ],
+  "w-decoder-layers-1-norm2-bias": [
+    32
+  ],
+  "w-decoder-layers-1-norm3-weight": [
+    32
+  ],
+  "w-decoder-layers-1-norm3-bias": [
+    32
+  ],
+  "w-output-projection-weight": [
+    12,
+    32
+  ],
+  "w-output-projection-bias": [
+    12
+  ]
+}

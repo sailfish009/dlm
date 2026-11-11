@@ -1,0 +1,37 @@
+# 0.0146 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0146 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 355
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 355
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 146
+oracle107: 256/256 agree
+rc=0
+
+## goal-directed proof experiment
+chains 1:  full_probes=60   goal_probes=13 facts=14  proof_nodes=4
+chains 5:  full_probes=300  goal_probes=13 facts=70  proof_nodes=4
+chains 20: full_probes=1200 goal_probes=13 facts=280 proof_nodes=4
+
+## boundary
+Ground atomic goals only. Non-ground body atoms are resolved against
+extensional facts; the public query path is not switched in this candidate.

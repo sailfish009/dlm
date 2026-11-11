@@ -1,0 +1,66 @@
+# 0.0125 verification — 2026-11-08T00:02:34Z
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0125 is not promoted
+scope: trust-boundary recovery before EML-style formation (no numeric EML)
+
+## native suite
+$ ./scripts/run.sh test
+
+real	0m16.860s
+user	0m16.695s
+sys	0m0.064s
+checks: 260
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ MARU=runtime/safety2/maru ./scripts/run.sh test
+checks: 260
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## python suite
+$ python3 -m unittest discover -s tests -p "test_d107.py"
+Ran 16 tests in 29.038s
+OK
+rc=0
+
+## independent review contract oracle
+256/256 PASS
+
+## trust-boundary checks
+ok a valid witness proof passes
+ok a forged witness proof is rejected
+ok a missing witness proof is rejected
+ok symbol and string observation IDs cannot collide
+ok nested admitted calls preserve raw rows
+ok nested admitted calls preserve planned rows
+ok nested calls are actually executed
+ok oversized query patterns are rejected before canonicalization
+ok an 8-variable public answer is a clean rejection
+
+## 0.0110 drivers
+nested-admitted-calls: admit d3=applied expanded-call-d2=((atom d1 ((var x))) (atom r ((var x)))) raw-status=complete raw-rows=2 planned-status=complete planned-rows=2 calls=6 
+witness-membership-is-not-proof-check: table=((fact "same#0" (atom seed ("a")) (given "same#0")) (fact "d0" (atom answer ("a")) (pr 0 (((var x) "a")) ("same#0")))) query=(answer107 (atom answer ("a")) (pr 0 (((var x) "a")) ("same#0"))) answer=(answer107 ((atom answer ("a"))) complete () ((row107 () ("d0"))) 0 1 ()) 
+valid-eight-variable-answer: before (rejected107 pattern)survived 
+
+## resident launcher transcript (7s wait)
+(dlm107 epoch 0 observations 0 interpreted 0 events 0 rules 0 definitions 0 store "/tmp/dlm125-demo.sexp" disk-digest 1692728661 last (attached) mode stopped round 0 interval 1000 reason reset)
+[dlm] demo observations seeded
+[dlm] interpreted demo-a
+[dlm] interpreted demo-b
+[dlm] learned b1
+[dlm] learned b2
+maru> (dlm107 epoch 6 observations 2 interpreted 2 events 6 rules 0 definitions 2 store /tmp/dlm125-demo.sexp disk-digest 2215436823 last (waiting agenda-empty) mode waiting round 4 interval 1000 reason agenda-empty)
+maru> (dlm107 epoch 6 observations 2 interpreted 2 events 6 rules 0 definitions 2 store /tmp/dlm125-demo.sexp disk-digest 2215436823 last (waiting agenda-empty) mode paused round 4 interval 1000 reason stopped)
+
+## manifests
+$ sha256sum -c docs/release.sources.sha256 && sha256sum -c docs/release.tests.sha256
+sources: OK (79 files)
+tests:   OK (31 files)
+
+## predecessor artifacts unchanged (review-0115-evidence)
+0.0114: 196 files OK
+0.0115: 177 files OK

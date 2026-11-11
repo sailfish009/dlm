@@ -1,0 +1,41 @@
+# 0.0170 verification — 2026-11-08
+
+## native
+checks: 32
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 32
+
+## two-predicate block synthesis
+SINGLE coverage=0
+PROGRAM pair rules=2 support=(v0 v1)
+COVERAGE 1/1
+NEGATIVE clean
+HELD proof
+HELD NEG fail
+SEED ONLY HELD fail
+FROZEN fail
+done-pair
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T085126Z-29997
+$ ./scripts/compiler.sh verify 20261109T085126Z-29997
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR 4/4
+- typed 4/4
+- proof credit/frontier
+- synthesis / ranked / chain3 / chain4 / recursive / template / revise / stride / pair
+- next/third LLVM + stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Two-predicate block synthesis, not arbitrary predicate-sequence induction.

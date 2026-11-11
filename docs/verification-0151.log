@@ -1,0 +1,38 @@
+# 0.0151 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0151 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 366
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 366
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 151
+oracle107: 256/256 agree
+rc=0
+
+## constant-cache experiment (20 unrelated parent values)
+predicate: total probes=290, first=5, hits=0
+constant:  total probes=5,   first=5, hits=19
+false status: no107
+after parent(c,a): answer107
+
+## boundary
+Touched-constant negative cache for conservative positive rules. A fact sharing
+a touched constant invalidates; unrelated values of the same predicate do not.

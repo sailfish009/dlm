@@ -1,0 +1,36 @@
+# 0.0176 verification — 2026-11-08
+
+## native
+checks: 44
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 44
+
+## explicit graph IR
+GRAPH check=ok topo=(fseed seed p t) values=4 nodes=4 edges=1
+LINEAR run=(summary tasks 1 solved 1 active (p)) rebuilt=(summary tasks 1 solved 1 active (p)) same=yes
+DUP (rejected107 mg-node-id)
+BADEDGE (rejected107 mg-edge-input)
+done-graph-ir
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T105915Z-11199
+$ ./scripts/compiler.sh verify 20261109T105915Z-11199
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR fragment/synthesis/search/auto pipeline
+- goal-directed proof and proof cache
+- explicit graph verify/topo/lower equality
+- next/third LLVM + stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Explicit graph structure only; constraints and embedding attributes are next.

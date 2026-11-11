@@ -1,0 +1,34 @@
+# 0.0184 verification — 2026-11-08
+
+## native
+checks: 54
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 54
+
+## English NL deduction
+PARSED ((nl-fact cat mammal A cat is a mammal.)
+        (nl-fact dog mammal A dog is a mammal.)
+        (nl-rule mammal animal All mammals are animals.)
+        (nl-rule animal living-thing All animals are living things.))
+STATUS1 proved
+ANSWER1 Yes, a cat is a living thing.
+WHY1 A cat is a mammal. All animals are living things. All mammals are animals.
+STATUS2 unknown
+ANSWER2 I cannot prove that a cat is a plant.
+done-nl
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T000612Z-8955
+$ ./scripts/compiler.sh verify 20261110T000612Z-8955
+Verified
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Controlled English NL; proof checker remains truth gate.

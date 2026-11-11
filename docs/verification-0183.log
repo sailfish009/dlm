@@ -1,0 +1,33 @@
+# 0.0183 verification — 2026-11-08
+
+## native
+checks: 54
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 54
+
+## Korean NL deduction
+PARSED ((nl-fact cat mammal ...) (nl-fact dog mammal ...)
+        (nl-rule mammal animal ...) (nl-rule animal living ...))
+Q1 고양이는 생물인가?
+STATUS1 proved
+ANSWER1 네, 고양이는 생물입니다.
+WHY1 고양이는 포유류이다. 모든 동물은 생물이다. 모든 포유류는 동물이다.
+STATUS2 unknown
+ANSWER2 증명할 수 없습니다: 고양이는 식물입니다.
+done-nl
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T235727Z-26031
+$ ./scripts/compiler.sh verify 20261109T235727Z-26031
+Verified
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Controlled Korean NL; proof checker remains truth gate.

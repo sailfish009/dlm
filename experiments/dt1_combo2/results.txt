@@ -1,0 +1,2 @@
+loops 1 pool12_depth8_exact 1.0
+loops 3 pool12_depth8_exact 1.0

@@ -1,0 +1,20 @@
+;;; MLIR-shaped DT proof-state module over actual web atomic axioms.
+(define p1 (s-template-synthesize *train-facts* *train-pos* *neg* 20000))
+(define t1 (p-close *train-facts* (s-rec-rules p1) 20000))
+(define self (l-filter (lambda (f) (equal (l-pred (l-fact-atom f)) 'isa)) t1))
+(define p2 (s-template-synthesize *train-facts* (l-append *train-pos* (l-map l-fact-atom self)) *neg* 20000))
+(define axs (a-from-program "A" p2 (list "web:selfsup") (s-rec-support p2)))
+(define m (dt-module "dt1"
+  (list
+    (dt-op 'facts *train-facts*)
+    (dt-op 'axioms axs)
+    (dt-op 'pos *train-pos*)
+    (dt-op 'neg *neg*)
+    (dt-op 'query-facts *web-edges*)
+    (dt-op 'goal (l-atom 'isa (list 'dog 'living-thing)))
+    (dt-op 'verify (list 'required)))))
+(define r (dt-run m))
+(print "DT name=" (l-nth r 1) " selected=" (l-nth r 2) " cov=" (l-nth r 3) " proof=" (l-nth r 4) "\n")
+(define bad (dt-module "dt-bad" (list (dt-op 'facts *train-facts*) (dt-op 'axioms axs) (dt-op 'goal (l-atom 'isa (list 'dog 'living-thing))))))
+(print "BAD " (dt-check bad) " RUN " (dt-run bad) "\n")
+(print "done-dtir\n")

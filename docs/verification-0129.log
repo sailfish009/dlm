@@ -1,0 +1,65 @@
+# 0.0129 verification — 2026-11-08T03:37:55Z
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0129 is not promoted
+scope: explicit think-state, resumable branch data, bounded unit composition
+
+## native suite
+$ ./scripts/run.sh test
+
+real	1m43.568s
+user	1m42.567s
+sys	0m0.147s
+checks: 293
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ MARU=runtime/safety2/maru ./scripts/run.sh test
+checks: 293
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## python suite
+$ python3 -m unittest discover -s tests -p "test_d107.py"
+Ran 16 tests in 121.384s
+OK
+rc=0
+
+## independent review contract oracle
+256/256 PASS
+
+## think-state driver (yield/resume/exhaust)
+start=(think107 status running work 0 budget 64 branches 4 answers 0 failures 0)
+n1=yield state=(think107 status running work 1 budget 64 branches 3 answers 1 failures 0) ans=b3-1
+n2=yield state=(think107 status running work 2 budget 64 branches 2 answers 2 failures 0)
+n3=yield state=(think107 status running work 3 budget 64 branches 1 answers 3 failures 0)
+n4=yield state=(think107 status running work 4 budget 64 branches 0 answers 4 failures 0)
+n5=exhausted state=(think107 status exhausted work 4 budget 64 branches 0 answers 4 failures 0)
+roundtrip=true
+stale=()
+
+## F6/F7 drivers
+budget=1 status=unknown steps=1 rows=0
+closure=complete facts=10
+query=(answer107 (atom calls ("a" "b")) (pr 8 () ("d6" "d7")))
+answer=(answer107 ((atom calls ("a" "b"))) complete () ((row107 () ("d8"))) 0 1 ())
+read=(reading107 s complete 10 ((sentence107 1 "a calls b." (atom calls ("a" "b")) (pr 8 () ("d6" "d7")))) 0)
+
+## resident demo
+[dlm] demo observations seeded
+[dlm] interpreted demo-a
+[dlm] interpreted demo-b
+[dlm] learned b1
+[dlm] learned b2
+maru> (dlm107 epoch 6 observations 2 interpreted 2 events 6 rules 0 definitions 2 store /tmp/dlm129-demo.sexp disk-digest 1888082889 last (learned b2) mode running round 4 interval 1000 reason learned)
+maru> (dlm107 epoch 6 observations 2 interpreted 2 events 6 rules 0 definitions 2 store /tmp/dlm129-demo.sexp disk-digest 1888082889 last (learned b2) mode paused round 4 interval 1000 reason stopped)
+
+## manifests
+$ sha256sum -c docs/release.sources.sha256 && sha256sum -c docs/release.tests.sha256
+sources: OK (80 files)
+tests:   OK (32 files)
+
+## predecessor note
+0.0114 and 0.0115 directories are not present at verification time; no preservation claim.

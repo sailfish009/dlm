@@ -1,0 +1,11 @@
+;;; Web observation → NL boundary → proof → English answer.
+(define recs (w-to-records *web-observations*))
+(define kb (nl-build recs))
+(define facts (car kb))
+(define q1 (nl-answer-with facts () "Is a dog a mammal?"))
+(define q2 (nl-answer-with facts () "Is a dog a plant?"))
+(print "WEB OBS " (l-len *web-observations*) " url=" (w-url (car *web-observations*)) "\n")
+(print "WEB QUOTE " (w-quote (car *web-observations*)) "\n")
+(print "WEB1 " (l-nth q1 1) " " (l-nth q1 3) "\n")
+(print "WEB2 " (l-nth q2 1) " " (l-nth q2 3) "\n")
+(print "done-web\n")

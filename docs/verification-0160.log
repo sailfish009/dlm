@@ -1,0 +1,34 @@
+# 0.0160 verification — 2026-11-08
+
+## native
+$ ./scripts/run.sh test
+checks: 9
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 9
+
+## typed REPL experiment
+fragments ok=5
+BADPORT rejected107
+tasks 4 solved 4
+active p-rec, p-comp
+p-rec provenance claim:seed,left,right
+p-comp provenance claim:left,q
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T074007Z-16161
+$ ./scripts/compiler.sh verify 20261109T074007Z-16161
+Verified: 20261109T074007Z-16161
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR module 4/4
+- typed module 4/4 and provenance
+- next/third LLVM + stripped equality
+
+## warnings
+2 benign clang module target triple override warnings; no errors.

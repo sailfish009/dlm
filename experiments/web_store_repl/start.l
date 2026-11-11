@@ -1,0 +1,16 @@
+;;; Incremental web knowledge: page 1 rules/facts, page 2 new fact reuses them.
+(w-clear)
+(define p1 (list
+  (w-observation "p1-f" "https://example.org/1" "A dog is a mammal." 'dog 'mammal)
+  (w-observation "p1-r1" "https://example.org/1" "All mammals are animals." 'mammal 'animal)
+  (w-observation "p1-r2" "https://example.org/1" "All animals are living things." 'animal 'living-thing)))
+(define s1 (w-ingest p1))
+(define q1 (nl-answer-with (w-facts) (w-rules) "Is a dog a living thing?"))
+(define p2 (list (w-observation "p2-f" "https://example.org/2" "A cat is a mammal." 'cat 'mammal)))
+(define s2 (w-ingest p2))
+(define q2 (nl-answer-with (w-facts) (w-rules) "Is a cat a living thing?"))
+(define q3 (nl-answer-with (w-facts) (w-rules) "Is a dog a mammal?"))
+(print "STORE1 obs=" (l-nth s1 0) " rules=" (l-nth s1 1) " Q1=" (l-nth q1 1) "\n")
+(print "STORE2 obs=" (l-nth s2 0) " rules=" (l-nth s2 1) " Q2=" (l-nth q2 1) " Q3=" (l-nth q3 1) "\n")
+(print "A2 " (l-nth q2 3) "\n")
+(print "done-store\n")

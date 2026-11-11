@@ -1,0 +1,10 @@
+# 0.0135 verification — 2026-11-08
+
+$ ./scripts/run.sh test
+checks: 316
+ALL-CORE-TESTS-PASSED
+rc=0
+
+Scope checked: UTF-8 adapter, source snapshot, exact byte-span quote, fact
+evidence, ground store save/load, source retraction.
+Safety-2/oracle were run for 0.0137, not this intermediate candidate.

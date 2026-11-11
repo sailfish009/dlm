@@ -1,0 +1,87 @@
+# 0.0127 verification — 2026-11-08T01:57:42Z
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0127 is not promoted
+scope: bounded 4-atom unit composition, residual frontier, commit ordering
+
+## native suite
+$ ./scripts/run.sh test
+
+real	1m38.749s
+user	1m37.892s
+sys	0m0.126s
+checks: 279
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ MARU=runtime/safety2/maru ./scripts/run.sh test
+checks: 279
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## python suite
+$ python3 -m unittest discover -s tests -p "test_d107.py"
+Ran 16 tests in 108.765s
+OK
+rc=0
+
+## independent review contract oracle
+256/256 PASS
+
+## four-atom composition / residual driver
+defs=(b1 b2 b3)
+b3-pattern-atoms=4
+b3-body-call=(call107 b2 ((var v0) (var v2) (var v3) (var v4)))
+b3-ports=((var v0) (var v1) (var v2) (var v3) (var v4))
+plan=(plan107 ((atom calls ((var a) (var b))) (atom calls ((var a) (var c))) (atom calls ((var a) (var d))) (atom calls ((var a) (var e)))) 4 2 ((call107 b2 ((var v0) (var v2) (var v3) (var v4))) (atom calls ((var v0) (var v1)))) b3)
+answer-status=complete rows=48 calls=2 expansions=98
+residual=(residual107 grammar 4 inactive () max-record-facts 4 last-search complete last-proposal ((support 2) (atoms 4) (vars 5) (cost 82)))
+
+## resident 3-fact demo (4-atom candidate unavailable)
+maru> (dlm107 epoch 6 observations 2 interpreted 2 events 6 rules 0 definitions 2 store /tmp/dlm127-demo.sexp disk-digest 1888082889 last (waiting agenda-empty) mode waiting round 4 interval 1000 reason agenda-empty)
+maru> (residual107 grammar 4 inactive () max-record-facts 3 last-search complete last-proposal ())
+
+## review-0125 ordering/incomplete drivers
+--- route-updated-on-real-event-limit
+epoch=256 events=256
+result=(rejected107 event-limit)
+definitions=0 route=(route107 ((support 0) (atoms 0) (vars 0) (cost 0)) updates 0)
+--- resident-incomplete-misclassified
+tick=(p107-waiting)
+mode=waiting reason=unknown
+after-new-evidence mode=running reason=evidence
+
+## review-0125 hardening drivers (from 0.0126)
+--- small-query-active-oversized-definition
+admission=rejected107
+small-public-pattern-valid=true
+answer=(answer107 ((atom q ((var x)))) complete ((var x)) () 0 0 ())
+--- learning-valid-high-arity-record
+accepted-observations=2
+learn=(nothing107)
+--- admitted-chain-exceeds-runtime-depth
+admit d18=rejected107
+admit d19=rejected107
+raw-status=complete raw-rows=2
+planned-status=complete planned-rows=2 calls=0
+--- execution-vs-instantiation-counter
+raw-status=complete raw-rows=2
+planned-status=complete planned-rows=2 calls=2
+after-exec-calls=2 rows=2
+after-instantiation-calls=2
+--- exact-key-symbol-collision
+definition-valid=()
+admission=rejected107
+raw-status=complete raw-rows=2
+planned-status=complete planned-rows=2
+
+## manifests
+$ sha256sum -c docs/release.sources.sha256 && sha256sum -c docs/release.tests.sha256
+sources: OK (79 files)
+tests:   OK (31 files)
+
+## predecessor note
+0.0114 and 0.0115 directories are not present in /research at verification time;
+no preservation claim is made for them in this log. 0.0125/0.0126 remain untouched.

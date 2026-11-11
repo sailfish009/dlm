@@ -1,0 +1,38 @@
+;;; MLIR auto mode selection: stride for one base predicate, pair for alternating.
+(define ufacts (list
+  (l-fact "u0" (l-atom 'parent (list "a" "b")))
+  (l-fact "u1" (l-atom 'parent (list "b" "c")))
+  (l-fact "u2" (l-atom 'parent (list "c" "d")))
+  (l-fact "u3" (l-atom 'parent (list "d" "e")))
+  (l-fact "u4" (l-atom 'parent (list "e" "f")))
+  (l-fact "u5" (l-atom 'parent (list "f" "g")))))
+(define upos (list (l-atom 'ancestor (list "a" "g"))))
+(define uneg (list (l-atom 'ancestor (list "a" "c"))
+                   (l-atom 'ancestor (list "a" "e"))
+                   (l-atom 'ancestor (list "a" "f"))))
+(define umod (ml-module "auto-parent"
+  (list (ml-op 'synth-search (list "s" 'auto ufacts upos uneg 4 20000)))))
+(define ur (ml-run umod))
+(define us (ml-synth-result "s"))
+(define udirect (s-stride-synthesize ufacts upos uneg 4 20000))
+(print "AUTO parent mode=" (ml-synth-mode us) " coverage=" (l-nth us 2) "/1 rules=" (l-len (s-rec-rules (l-nth us 1))) "\n")
+(print "AUTO parent same-stride " (if (equal (s-rec-rules (l-nth us 1)) (s-rec-rules udirect)) "yes" "no") "\n")
+
+(define vfacts (list
+  (l-fact "v0" (l-atom 'up (list "a" "b")))
+  (l-fact "v1" (l-atom 'down (list "b" "c")))
+  (l-fact "v2" (l-atom 'up (list "c" "d")))
+  (l-fact "v3" (l-atom 'down (list "d" "e")))
+  (l-fact "v4" (l-atom 'up (list "e" "f")))
+  (l-fact "v5" (l-atom 'down (list "f" "g")))))
+(define vpos (list (l-atom 'reach (list "a" "g"))))
+(define vneg (list (l-atom 'reach (list "a" "d"))
+                   (l-atom 'reach (list "a" "f"))))
+(define vmod (ml-module "auto-alt"
+  (list (ml-op 'synth-search (list "p" 'auto vfacts vpos vneg 4 20000)))))
+(define vr (ml-run vmod))
+(define vs (ml-synth-result "p"))
+(define vdirect (s-pair-synthesize vfacts vpos vneg 20000))
+(print "AUTO alt mode=" (ml-synth-mode vs) " coverage=" (l-nth vs 2) "/1 rules=" (l-len (s-rec-rules (l-nth vs 1))) "\n")
+(print "AUTO alt same-pair " (if (equal (s-rec-rules (l-nth vs 1)) (s-rec-rules vdirect)) "yes" "no") "\n")
+(print "done-mlir-auto\n")

@@ -1,0 +1,77 @@
+# 0.0124 verification — 2026-11-07T12:16:19Z
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0124 is not promoted
+scope: sparse indexed routing, compiled definition views, discrete routing policy
+not: CPU attention, dense/softmax/gradient core, grammar extension, recursive self-supervision
+
+## native suite
+$ ./scripts/run.sh test
+
+real	0m17.712s
+user	0m17.575s
+sys	0m0.065s
+checks: 251
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ MARU=runtime/safety2/maru ./scripts/run.sh test
+checks: 251
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## python suite
+$ python3 -m unittest discover -s tests -p "test_d107.py"
+Ran 16 tests in 32.404s
+OK
+rc=0
+
+## independent review contract oracle (seed 116)
+256/256 PASS; verified 84 / refuted 95 / invalid 39 / inapplicable 38; 111 callers exercising calls
+
+## sparse routing / plan / routing-policy checks
+ok indexed pair candidates equal exhaustive
+ok indexed triple candidates equal exhaustive
+ok indexed support matches exhaustive for q2
+ok indexed support matches exhaustive for q3
+ok support is record-scoped
+ok indexed learning still produces a unit
+ok candidate cap returns incomplete107
+ok learning recovers after the cap is restored
+ok the agenda surfaces an incomplete search
+ok the step reports an incomplete search, not idle
+ok an incomplete search classifies as unknown
+ok ordered argument positions are not collapsed
+ok indexed support after retraction matches exhaustive
+ok retraction lowers indexed support to one
+ok compiled steps equal the stored definition body
+ok compiled plan keeps the same cover
+ok view compilation does not add facts
+ok definition plans are not evidence facts
+ok routing starts with zero weights
+ok routing prefers higher support at equal size
+ok routing prefers lower cost at equal support
+ok admission updates the routing policy
+ok routing does not bypass the definition checker
+ok the route command exposes the policy
+
+## resident launcher transcript (7s wait)
+[dlm] demo observations seeded
+[dlm] interpreted demo-a
+[dlm] interpreted demo-b
+[dlm] learned b1
+[dlm] learned b2
+maru> (dlm107 epoch 6 observations 2 interpreted 2 events 6 rules 0 definitions 2 store /tmp/dlm124-demo.sexp disk-digest 2215436823 last (waiting agenda-empty) mode waiting round 4 interval 1000 reason agenda-empty)
+maru> (route107 ((support 4) (atoms -4) (vars -4) (cost -4)) updates 4)
+maru> (dlm107 epoch 6 observations 2 interpreted 2 events 6 rules 0 definitions 2 store /tmp/dlm124-demo.sexp disk-digest 2215436823 last (waiting agenda-empty) mode paused round 4 interval 1000 reason stopped)
+
+## manifests
+$ sha256sum -c docs/release.sources.sha256 && sha256sum -c docs/release.tests.sha256
+sources: OK (79 files)
+tests:   OK (31 files)
+
+## predecessor artifacts unchanged (review-0115-evidence)
+0.0114: 196 files OK
+0.0115: 177 files OK

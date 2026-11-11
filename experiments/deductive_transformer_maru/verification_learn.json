@@ -1,0 +1,153 @@
+{
+  "pass": true,
+  "checks": [
+    {
+      "name": "10 cases emitted",
+      "pass": true,
+      "detail": "10"
+    },
+    {
+      "name": "all cases proof-valid",
+      "pass": true,
+      "detail": "10"
+    },
+    {
+      "name": "held-out answer 8/10",
+      "pass": true,
+      "detail": "8/10"
+    },
+    {
+      "name": "picks match PyTorch reference",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "valid rule sets match",
+      "pass": true,
+      "detail": ""
+    }
+  ],
+  "rows": [
+    {
+      "case": 0,
+      "img": 4,
+      "valid": [
+        102,
+        211
+      ],
+      "pick": 211,
+      "head": 7,
+      "label": 5,
+      "proof": 1
+    },
+    {
+      "case": 1,
+      "img": 9,
+      "valid": [
+        45,
+        154
+      ],
+      "pick": 45,
+      "head": 9,
+      "label": 9,
+      "proof": 1
+    },
+    {
+      "case": 2,
+      "img": 7,
+      "valid": [
+        2,
+        111
+      ],
+      "pick": 2,
+      "head": 7,
+      "label": 7,
+      "proof": 1
+    },
+    {
+      "case": 3,
+      "img": 4,
+      "valid": [
+        22,
+        131
+      ],
+      "pick": 22,
+      "head": 4,
+      "label": 4,
+      "proof": 1
+    },
+    {
+      "case": 4,
+      "img": 0,
+      "valid": [
+        61,
+        170
+      ],
+      "pick": 61,
+      "head": 0,
+      "label": 0,
+      "proof": 1
+    },
+    {
+      "case": 5,
+      "img": 0,
+      "valid": [
+        61,
+        170
+      ],
+      "pick": 61,
+      "head": 0,
+      "label": 0,
+      "proof": 1
+    },
+    {
+      "case": 6,
+      "img": 3,
+      "valid": [
+        34,
+        143
+      ],
+      "pick": 34,
+      "head": 5,
+      "label": 3,
+      "proof": 1
+    },
+    {
+      "case": 7,
+      "img": 5,
+      "valid": [
+        76,
+        185
+      ],
+      "pick": 76,
+      "head": 5,
+      "label": 5,
+      "proof": 1
+    },
+    {
+      "case": 8,
+      "img": 1,
+      "valid": [
+        16,
+        125
+      ],
+      "pick": 16,
+      "head": 1,
+      "label": 1,
+      "proof": 1
+    },
+    {
+      "case": 9,
+      "img": 7,
+      "valid": [
+        5,
+        114
+      ],
+      "pick": 5,
+      "head": 7,
+      "label": 7,
+      "proof": 1
+    }
+  ],
+  "correct": 8
+}

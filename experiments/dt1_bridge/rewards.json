@@ -1,0 +1,30 @@
+{
+  "rc": 0,
+  "rows": [
+    {
+      "name": "seed",
+      "ids": [
+        "A-0"
+      ],
+      "rules": 1,
+      "proof": "fail"
+    },
+    {
+      "name": "step",
+      "ids": [
+        "A-1"
+      ],
+      "rules": 1,
+      "proof": "fail"
+    },
+    {
+      "name": "pair",
+      "ids": [
+        "A-0",
+        "A-1"
+      ],
+      "rules": 2,
+      "proof": "proof"
+    }
+  ]
+}

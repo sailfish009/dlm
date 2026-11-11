@@ -1,0 +1,503 @@
+{
+  "dog": {
+    "rows": [
+      {
+        "ids": [],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-2"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-2"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-2"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-2"
+        ],
+        "proof": "proof"
+      },
+      {
+        "ids": [
+          "A-3"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-3"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-3"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-3"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-2",
+          "A-3"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-2",
+          "A-3"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-2",
+          "A-3"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-2",
+          "A-3"
+        ],
+        "proof": "proof"
+      },
+      {
+        "ids": [
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-2",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-2",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-2",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-2",
+          "A-4"
+        ],
+        "proof": "proof"
+      },
+      {
+        "ids": [
+          "A-3",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-2",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-2",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-2",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-2",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "proof"
+      }
+    ],
+    "minimal_proof": {
+      "ids": [
+        "A-0",
+        "A-1",
+        "A-2"
+      ],
+      "proof": "proof"
+    }
+  },
+  "sparrow": {
+    "rows": [
+      {
+        "ids": [],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-2"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-2"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-2"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-2"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-3"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-3"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-3"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-3"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-2",
+          "A-3"
+        ],
+        "proof": "proof"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-2",
+          "A-3"
+        ],
+        "proof": "proof"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-2",
+          "A-3"
+        ],
+        "proof": "proof"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-2",
+          "A-3"
+        ],
+        "proof": "proof"
+      },
+      {
+        "ids": [
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-2",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-2",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-2",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-2",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-3",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "fail"
+      },
+      {
+        "ids": [
+          "A-2",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "proof"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-2",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "proof"
+      },
+      {
+        "ids": [
+          "A-1",
+          "A-2",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "proof"
+      },
+      {
+        "ids": [
+          "A-0",
+          "A-1",
+          "A-2",
+          "A-3",
+          "A-4"
+        ],
+        "proof": "proof"
+      }
+    ],
+    "minimal_proof": {
+      "ids": [
+        "A-2",
+        "A-3"
+      ],
+      "proof": "proof"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+# 0.0195 verification — 2026-11-10
+
+## native
+checks: 61
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 61
+
+## persistent web recursive basis
+SAVE /tmp/dlm-web-recursive-basis.l rules=2
+done-rec-persist-p1
+LOAD (0 2)
+HELD 3/3 NEG fail RULES 2
+done-rec-persist-p2
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T101357Z-14054
+$ ./scripts/compiler.sh verify 20261110T101357Z-14054
+Verified

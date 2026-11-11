@@ -1,0 +1,1 @@
+selected ['A-0', 'A-1'] proof_reward 1.0 params [3.42, 3.82]

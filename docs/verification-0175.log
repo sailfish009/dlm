@@ -1,0 +1,44 @@
+# 0.0175 verification — 2026-11-08
+
+## native
+checks: 42
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 42
+
+## dependency-aware proof cache
+FIRST status=proof probes=13
+CACHED status=proof probes=0 scans=0
+UNRELATED status=proof probes=0
+REMOVED status=fail
+CHECK ok
+done-proof-cache
+
+## goal-directed proof (cache cleared per run)
+N=1 closure=42 prove=13 scans=7 status=proof
+N=5 closure=162 prove=13 scans=7 status=proof
+N=20 closure=612 prove=13 scans=7 status=proof
+CHECK20 ok
+done-goal-proof
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T100345Z-4062
+$ ./scripts/compiler.sh verify 20261109T100345Z-4062
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR fragment/synthesis/search/auto pipeline
+- goal-directed proof
+- proof cache reuse/invalidation
+- next/third LLVM + stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+In-memory positive proof cache; failed-goal cache and eviction are not included.

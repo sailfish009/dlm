@@ -1,0 +1,52 @@
+# 0.0128 verification — 2026-11-08T02:44:05Z
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0128 is not promoted
+scope: F6 exact budget, F7 memoized shared proof DAG
+
+## native suite
+$ ./scripts/run.sh test
+
+real	1m38.721s
+user	1m37.758s
+sys	0m0.151s
+checks: 282
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ MARU=runtime/safety2/maru ./scripts/run.sh test
+checks: 282
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## python suite
+$ python3 -m unittest discover -s tests -p "test_d107.py"
+Ran 16 tests in 115.747s
+OK
+rc=0
+
+## independent review contract oracle
+256/256 PASS
+
+## F6 budget driver
+budget=1 status=unknown steps=1 rows=0
+
+## F7 shared DAG driver
+closure=complete facts=10
+query=(answer107 (atom calls ("a" "b")) (pr 8 () ("d6" "d7")))
+answer=(answer107 ((atom calls ("a" "b"))) complete () ((row107 () ("d8"))) 0 1 ())
+read=(reading107 s complete 10 ((sentence107 1 "a calls b." (atom calls ("a" "b")) (pr 8 () ("d6" "d7")))) 0)
+
+## resident 3-fact demo
+maru> (dlm107 epoch 6 observations 2 interpreted 2 events 6 rules 0 definitions 2 store /tmp/dlm128-demo.sexp disk-digest 1888082889 last (waiting agenda-empty) mode waiting round 4 interval 1000 reason agenda-empty)
+maru> (residual107 grammar 4 inactive () max-record-facts 3 last-search complete last-proposal ())
+
+## manifests
+$ sha256sum -c docs/release.sources.sha256 && sha256sum -c docs/release.tests.sha256
+sources: OK (79 files)
+tests:   OK (31 files)
+
+## predecessor note
+0.0114 and 0.0115 directories are not present at verification time; no preservation claim.

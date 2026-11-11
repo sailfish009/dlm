@@ -1,0 +1,51 @@
+# 0.0155 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0155 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 377
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 377
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 155
+oracle107: 256/256 agree
+rc=0
+
+## body value index experiment
+noise 0:   indexed=1 scan=1
+noise 10:  indexed=1 scan=11
+noise 50:  indexed=1 scan=51
+noise 100: indexed=1 scan=101
+status=answer107, same=true
+
+## boundary
+First-bound-argument value bucket only; derived body relations and multi-position
+selectivity are not implemented.
+
+## recursive failure-triggered schema curriculum
+curriculum: A reaches 6/6, B path 2/2, axioms=2 rules=3
+a-only:     A 6/6, B 0/2, axioms=1 rules=2
+frozen:     A 0/6, B 0/2
+random-b:   A 6/6, B 0/2
+negative queries clean in all arms
+
+Interpretation: Round 1 recursive schema solves A; the unsolved hop1+hop2
+shape triggers a second composition schema in Round 2. B improves 0/2 -> 2/2
+while A remains 6/6. This is a failure-triggered curriculum, not label-free
+self-supervision; source labels are required.

@@ -1,0 +1,29 @@
+# 0.0180 verification — 2026-11-08
+
+## native
+checks: 50
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 50
+
+## dead-node elimination
+BEFORE nodes=5 edges=1
+AFTER nodes=3 edges=1 check=ok topo=(seed p t)
+DCE RUN (summary tasks 1 solved 1 active (p))
+SAME yes
+done-dce
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T120246Z-7578
+$ ./scripts/compiler.sh verify 20261109T120246Z-7578
+Verified
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Root-relative DCE only; no CSE/fusion.

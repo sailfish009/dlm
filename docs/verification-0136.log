@@ -1,0 +1,10 @@
+# 0.0136 verification — 2026-11-08
+
+$ ./scripts/run.sh test
+checks: 322
+ALL-CORE-TESTS-PASSED
+rc=0
+
+Scope checked: conditions/time projection, negative evidence, source revision,
+stale-record replacement, dependent definition deactivation.
+Safety-2/oracle were run for 0.0137, not this intermediate candidate.

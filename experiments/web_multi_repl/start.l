@@ -1,0 +1,10 @@
+;;; Multi-page web observations -> English questions -> proof -> answers.
+(define recs (w-to-records *web-observations*))
+(define kb (nl-build recs))
+(define facts (car kb))
+(define q1 (nl-answer-with facts () "Is a dog a mammal?"))
+(define q2 (nl-answer-with facts () "Is a cat a mammal?"))
+(print "OBS " (l-len *web-observations*) "\n")
+(print "DOG " (l-nth q1 1) " " (l-nth q1 3) "\n")
+(print "CAT " (l-nth q2 1) " " (l-nth q2 3) "\n")
+(print "done-web-multi\n")

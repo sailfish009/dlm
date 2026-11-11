@@ -1,0 +1,27 @@
+# 0.0158 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0158 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 5
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 5
+rc=0
+
+## fragment REPL experiment
+fragments 5, templates 4, programs 4
+selected: 4/4 tasks, active programs 2 (p-rec, p-comp), conflicts 0
+frozen:   0/4
+all:      4/4 with 4 programs
+
+## boundary
+Structural decomposition/recombination only; no provenance, qualifiers,
+automatic web extraction, or general assembly search.

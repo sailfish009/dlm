@@ -1,0 +1,26 @@
+# 0.0157 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0157 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 3
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 3
+rc=0
+
+## minimal Maru REPL experiment
+selected: 4/4 tasks, active axioms 4 (A,B,C,D), conflicts 0
+frozen:   0/4
+all:      4/4 with 6 axioms
+
+## boundary
+Fresh minimal CPU-only core. No Python/oracle port; no rule induction,
+schema alignment, or proof-DAG credit.

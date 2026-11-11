@@ -1,0 +1,6 @@
+semantic loops 1 selected ['A-0', 'A-1', 'A-2'] exact True reward 1.0
+semantic loops 3 selected ['A-0', 'A-1', 'A-2'] exact True reward 1.0
+rawpos loops 1 selected ['A-0', 'A-1', 'A-2'] exact True reward 1.0
+rawpos loops 3 selected ['A-0', 'A-1', 'A-2'] exact True reward 1.0
+PERMUTED semantic selected ['A-0', 'A-1', 'A-2'] exact True
+PERMUTED rawpos selected ['A-3', 'A-0', 'A-4'] exact False

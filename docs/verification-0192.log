@@ -1,0 +1,22 @@
+# 0.0192 verification — 2026-11-10
+
+## native
+checks: 61
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 61
+
+## web subclass + teacher → basis
+OBS 5 FACTS 5 RULES 2
+Q1 proved Yes, a cat is a living thing.
+Q2 unknown I cannot prove that a living thing is a cat.
+done-web-inverse
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T092218Z-1730
+$ ./scripts/compiler.sh verify 20261110T092218Z-1730
+Verified

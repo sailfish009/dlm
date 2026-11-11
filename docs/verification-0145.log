@@ -1,0 +1,37 @@
+# 0.0145 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0145 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 352
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 352
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 145
+oracle107: 256/256 agree
+rc=0
+
+## closure-cache experiment (20 repeated closures, 128 noise facts)
+no cache: total probes=3080, first=154, rows=155
+cache:    total probes=154,  first=154, hits=19, misses=1, rows=155
+
+## boundary
+In-memory whole-closure cache keyed by scope, facts digest, rules identity and
+budget. A rule/fact change invalidates by key; there is no incremental truth
+maintenance.

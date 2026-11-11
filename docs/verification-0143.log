@@ -1,0 +1,40 @@
+# 0.0143 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0143 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 346
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 346
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 143
+oracle107: 256/256 agree
+rc=0
+
+## deep evidence experiment
+deep:       grounded=true,  rows=1, evidence=2, missing=0
+partial:    grounded=false, rows=1, evidence=1, missing=1
+no-ground:  grounded=false, rows=1, evidence=0, missing=2
+mixed:      grounded=false, rows=1, evidence=1, missing=1
+direct:     grounded=true,  rows=1, evidence=1, missing=0
+frozen:     rows=0
+
+## boundary
+The derived answer is traced to given-leaf web claims. This fixes the
+any-witness false positive and the missing derived-fact evidence traversal.

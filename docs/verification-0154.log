@@ -1,0 +1,39 @@
+# 0.0154 verification — 2026-11-08
+
+## candidate status
+runtime: reused promoted 0.0116 release 20261107T064706Z-31624
+0.0154 is not promoted
+
+## native suite
+$ ./scripts/run.sh test
+checks: 375
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2 native suite
+$ ./scripts/safety-build.sh
+safety2-gate: PASS
+checks: 375
+rc=0
+
+## python suite
+$ python3 -m unittest tests.test_d107
+Ran 18 tests
+OK
+rc=0
+
+## independent contract oracle
+$ python3 tests/oracle107.py 256 154
+oracle107: 256/256 agree
+rc=0
+
+## rule-head index experiment
+extra 0:   indexed=3 scan=5
+extra 10:  indexed=3 scan=15
+extra 50:  indexed=3 scan=55
+extra 100: indexed=3 scan=105
+status=answer107, same=true
+
+## boundary
+Head predicate/arity index only. The index is rebuilt per proof; body
+selectivity and persistent indexing are not implemented.

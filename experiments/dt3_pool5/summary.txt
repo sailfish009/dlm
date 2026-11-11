@@ -1,0 +1,5 @@
+rows 32 proof 4
+minimal ['A-0', 'A-1', 'A-2']
+unseen ['cat', 'living-thing'] proof
+unseen ['sparrow', 'living-thing'] fail
+unseen ['plant', 'living-thing'] fail

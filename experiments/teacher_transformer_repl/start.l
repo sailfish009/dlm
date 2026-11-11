@@ -1,0 +1,10 @@
+;;; Transformer behavior → inverse deduction → basis → held-out proof.
+(define p (s-synthesize *teacher-facts* (car *teacher-pos*) () *teacher-neg* 20000))
+(define b (if (equal (car p) 'synth107)
+           (b-activate (b-add () "T" (list (s-rule p)) (list "transformer:behavior") (s-support p)) "T") ()))
+(define rules (b-active-rules b))
+(define held (let ((n 0)) (list-do q *held-pos* (if (equal (l-nth (p-prove *teacher-facts* rules q 20000) 1) 'proof) (set n (+ n 1)))) n))
+(define neg (let ((n 0)) (list-do q *held-neg* (if (equal (l-nth (p-prove *teacher-facts* rules q 20000) 1) 'proof) (set n (+ n 1)))) n))
+(print "TRAIN pos=" (l-len *teacher-pos*) " neg=" (l-len *teacher-neg*) " RULES " (l-len rules) "\n")
+(print "HELD " held "/" (l-len *held-pos*) " NEGPROOFS " neg "\n")
+(print "done-teacher-transformer\n")

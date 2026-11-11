@@ -1,0 +1,13 @@
+{
+  "nodes": [
+    {"id": "fseed", "kind": "fragment", "features": [1,0,0,0,0,0,0,0]},
+    {"id": "seed",  "kind": "template", "features": [0,1,0,0,0,0,0,0]},
+    {"id": "p",     "kind": "program",  "features": [0,0,1,0,0,0,0,0]},
+    {"id": "t1",    "kind": "task",     "features": [0,0,0,0,0,1,0,0]},
+    {"id": "t2",    "kind": "task",     "features": [0,0,0,0,0,0,1,0]},
+    {"id": "t3",    "kind": "task",     "features": [0,0,0,0,0,0,0,1]}
+  ],
+  "edges": [
+    {"from": "seed", "to": "p"}
+  ]
+}

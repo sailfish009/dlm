@@ -1,0 +1,42 @@
+# 0.0169 verification — 2026-11-08
+
+## native
+checks: 30
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 30
+
+## stride inference
+ONE none conflict=n/a
+TWO none conflict=n/a
+PROGRAM stride=3 rules=2 support=(u0)
+COVERAGE 1/1
+NEGATIVE clean
+HELD proof
+HELD NEG fail
+SEED ONLY HELD fail
+FROZEN fail
+done-stride
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261109T084331Z-25279
+$ ./scripts/compiler.sh verify 20261109T084331Z-25279
+Verified
+
+verify.log includes:
+- ALL-CORE-TESTS-PASSED
+- MLIR 4/4
+- typed 4/4
+- proof credit/frontier
+- synthesis / ranked / chain3 / chain4 / recursive / template / revise / stride
+- next/third LLVM + stripped equality
+
+## warnings
+2 benign clang module target triple override warnings.
+
+## boundary
+Bounded stride search; fixed single-base recursive shape, not general ILP.

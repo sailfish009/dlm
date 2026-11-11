@@ -1,0 +1,23 @@
+# 0.0200 verification — 2026-11-10
+
+## native
+checks: 66
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 66
+
+## multi-round self-supervision
+ROUND 1 pos=8 new=5 rules=2
+ROUND 2 pos=8 new=0 rules=2
+ROUND 3 pos=8 new=0 rules=2
+FINAL pos=8 rules=6 HELD 3/3 NEG fail
+done-selfssl
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T111647Z-29851
+$ ./scripts/compiler.sh verify 20261110T111647Z-29851
+Verified

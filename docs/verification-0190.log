@@ -1,0 +1,24 @@
+# 0.0190 verification — 2026-11-10
+
+## native
+checks: 59
+ALL-CORE-TESTS-PASSED
+rc=0
+
+## safety-2
+safety2-gate: PASS
+checks: 59
+
+## web universal rule → basis
+OBS 3
+BASIS 2 rules
+Q1 proved Yes, a dog is a living thing.
+Q2 unknown I cannot prove that a living thing is a dog.
+SOURCE http://127.0.0.1:.../index.html
+done-web-rule
+
+## self-host
+$ ./scripts/compiler.sh reproduce
+20261110T083153Z-15315
+$ ./scripts/compiler.sh verify 20261110T083153Z-15315
+Verified
