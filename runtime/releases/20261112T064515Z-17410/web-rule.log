@@ -1,0 +1,11 @@
+127.0.0.1 - - [12/Nov/2026 15:51:24] "GET /index.html HTTP/1.1" 200 -
+wrote /research/dlm_v0.0216/experiments/web_rule_repl/web_observations.l observations=3 url=http://127.0.0.1:43721/index.html
+  A dog is a mammal.
+  All mammals are animals.
+  All animals are living things.
+OBS 3
+BASIS 2 rules
+Q1 proved Yes, a dog is a living thing.
+Q2 unknown I cannot prove that a living thing is a dog.
+SOURCE http://127.0.0.1:43721/index.html
+done-web-rule

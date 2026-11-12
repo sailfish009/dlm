@@ -1,2 +1,2 @@
-CANDIDATE — 0.0205 minimal-core release candidate.
-D107 contract layer intentionally removed; see docs/release-0205.md.
+CANDIDATE — 0.0216 array-view C/LLVM release candidate.
+Minimal core plus reusable Maru array-view indexed join; see docs/release-0216.md.

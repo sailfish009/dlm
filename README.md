@@ -1,6 +1,7 @@
-# DLM 0.0205 — minimal deductive core
+# DLM 0.0216 — minimal deductive core + array-view backend
 
-This is the **minimal-core lineage** of DLM on Maru. It keeps the trusted
+This is the **minimal-core lineage** of DLM on Maru, extended with the v0.0216
+array-view C/LLVM backend. It keeps the trusted
 symbolic kernel, proof gate, basis/axiom layer, and the DT proof-state dialect.
 It intentionally removes the older `d107-*` contract layer (see below).
 
@@ -10,6 +11,7 @@ facts / observations
 → basis axioms / axiom graph / proof-credit frontier
 → DT proof-state dialect (mdmodule / mdop / verify)
 → optional web / NL / recursive self-supervision boundaries
+→ C/LLVM array-view backend (indexed join, v0.0216)
 ```
 
 ## Core modules
@@ -85,6 +87,20 @@ case 0 ceiling: perception + no head-5 valid rule
 
 Training uses MNIST labels as observations; it is observation-supervised and
 proof-gated, not label-free deductive learning.
+
+## Array-view backend (0.0216)
+
+The 0.0216 addition is a reusable C/LLVM primitive path:
+
+```text
+Maru memory-block
+→ array-view ABI (data, length, stride, elem-size)
+→ persistent index
+→ C indexed join / checksum
+→ VM primitive
+```
+
+See `experiments/array_view_join_maru/` and `docs/release-0216.md`.
 
 ## Removed in 0.0205
 

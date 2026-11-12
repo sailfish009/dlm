@@ -33,8 +33,9 @@ fi
  source/bootstrapping/early.l boot.l source/bootstrapping/late.l \
  source/platforms/load-platform.l image/eval.l \
  source/platforms/run-compiler.l "$WORK/compiler.ll"
+clang -O3 -c "$ROOT/source/c/array_view_join.c" -I"$ROOT/source/c" -o "$WORK/array_view_join.o"
 clang -O3 -fPIE -nostdlib -nostartfiles -ffreestanding \
- -Wl,-Bstatic,-no-pie -Qunused-arguments "$WORK/compiler.ll" -o "$WORK/compiler"
+ -Wl,-Bstatic,-no-pie -Qunused-arguments "$WORK/compiler.ll" "$WORK/array_view_join.o" -o "$WORK/compiler"
 cp "$WORK/compiler" "$OUT.new"
 mv "$OUT.new" "$OUT"
 cp "$WORK/compiler.ll" "$OUT.ll"

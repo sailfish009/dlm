@@ -1,0 +1,9 @@
+MLIR search stride program=yes rules=2 coverage=1/1 conflict=clean
+SAME stride yes
+PROOF stride pos=proof neg=fail
+MLIR result synth=1 proof=2
+MLIR search pair program=yes rules=2 coverage=1/1 conflict=clean
+SAME pair yes
+PROOF pair pos=proof neg=fail
+MLIR result synth=1 proof=2
+done-mlir-pipeline

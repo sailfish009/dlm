@@ -1,0 +1,6 @@
+N=1 closure=42 prove=13 scans=7 status=proof
+N=5 closure=162 prove=13 scans=7 status=proof
+N=20 closure=612 prove=13 scans=7 status=proof
+CHECK1 ok
+CHECK20 ok
+done-goal-proof

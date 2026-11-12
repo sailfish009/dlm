@@ -1,0 +1,9 @@
+BEFORE nodes=6 values=6
+AFTER nodes=4 values=4 check=ok
+OPS ((mlop fragment (f1 (atom R ((var x) (var z))) ((atom P ((var x) (var z)))))) (mlop template (s1 (atom R ((var x) (var z))) ((atom P ((var x) (var z)))))) (mlop program (p (s1 s1))) (mlop task (t ((atom parent (a b))) ((atom ancestor (a b))) ((atom ancestor (b a))) ((R ancestor) (P parent)))))
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+BASE RUN (summary tasks 1 solved 1 active (p))
+CSE RUN (summary tasks 1 solved 1 active (p))
+SAME yes
+done-cse

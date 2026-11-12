@@ -1,0 +1,93 @@
+VERSION=0.0216 RUNTIME=20261112T064515Z-17410
+runtime symlink: ok
+tree size: ok
+ok unification and closure
+ok recursive closure
+DEDUCE t active=1 covered=1/1 conflict=0 result=selected
+ok deductive matching selects the axiom
+ok fragments combine into a two-literal recursive template
+MATCH ancestor active=1 covered=1/1 conflict=0 result=selected
+MATCH path active=2 covered=1/1 conflict=0 result=selected
+ok assembled programs match two different task shapes
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+ok an MLIR-shaped module lowers to the fragment/match core
+ok typed fragments and a compatible combine are verified
+ok incompatible port roles are rejected before proving
+MATCH a active=1 covered=1/1 conflict=0 result=selected
+ok typed IR lowers to a verified matching program
+ok a proof carries both rules as essential
+ok failure frontier exposes the missing path relation
+ok frontier facts synthesize a composition rule with support
+ok synthesis rejects the reverse negative relation
+ok ranking selects the candidate with full training coverage
+ok first-fit synthesis covers only one of the positives
+ok ranked synthesis transfers to a held path
+ok a three-fact chain is synthesized when two-fact candidates are absent
+ok the three-fact rule transfers to a held chain
+ok bounded chain search synthesizes a four-fact rule
+ok the four-fact rule transfers to a held chain
+ok recursive seed+step program is synthesized
+ok the recursive program derives an arbitrary-length held chain
+ok the seed alone does not derive the held four-hop chain
+ok a recursive program is synthesized from one long positive
+ok the template program transfers without direct target examples
+ok the one-step template over-generalizes on the negative
+ok the stride-2 revision covers the positive and rejects the negative
+ok the revised program transfers but still rejects the held negative
+ok strides one and two conflict, so stride three is selected
+ok the stride-three program transfers and rejects the held negative
+ok alternating edges defeat single-predicate stride search
+ok the two-predicate program transfers and rejects the held negative
+ok MLIR synthesis ops lower to the same stride program
+ok MLIR synthesis ops lower to the same two-predicate program
+ok MLIR search selects the stride program and gates held proofs
+ok MLIR pair search and proof gate match the direct synthesizer
+ok MLIR auto selects stride for a single-predicate chain
+ok MLIR auto selects pair for an alternating chain
+ok goal-directed proof is found and certifies its tree
+ok unrelated facts do not increase goal-proof probes
+ok a repeated goal is served from the proof cache
+ok unrelated additions hit, used-fact removal invalidates
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+ok explicit graph verifies, topo-sorts, and lowers to the same run
+ok graph verifier rejects duplicate nodes and bad input edges
+ok hard graph constraints pass and soft failure is report-only
+ok hard false and unknown expressions are rejected
+ok embeddings attach to graph nodes and rank by dot product
+ok embedding dimension and missing-node checks reject
+MATCH t1 active=1 covered=1/1 conflict=0 result=selected
+MATCH t2 active=1 covered=1/1 conflict=0 result=kept
+MATCH t3 active=1 covered=1/1 conflict=0 result=kept
+MATCH t3 active=1 covered=1/1 conflict=0 result=selected
+MATCH t2 active=1 covered=1/1 conflict=0 result=kept
+MATCH t1 active=1 covered=1/1 conflict=0 result=kept
+ok embedding changes ready-node order but preserves run
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+ok dead-node elimination drops unused nodes and preserves run
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+ok soft constraints rank hard-valid candidates
+MATCH ct active=1 covered=1/1 conflict=0 result=selected
+MATCH ct active=1 covered=1/1 conflict=0 result=selected
+ok CSE merges duplicate fragments/templates and preserves run
+ok NL facts/rules prove a query and realize an English answer
+ok an unprovable NL query abstains instead of asserting false
+ok basis axioms accumulate, deactivate, and rollback
+ok teacher behavior induces a basis rule and the NL boundary answers
+ok a web observation answers an English query through the NL boundary
+ok two web observations answer two English queries
+ok a web universal sentence becomes a basis rule
+ok web observations/rules accumulate across ingest turns
+ok web subclass facts + teacher label induce a basis rule
+ok program decomposes into atomic axioms and subset search selects both
+ok axiom graph verifies and selects the same minimal set
+ok axiom graph DCE keeps only dependency-reachable axioms
+ok axiom graph CSE merges duplicate rules and rewrites deps
+ok self-supervision round adds a basis axiom and self-labeled positives
+ok basis CSE removes duplicate axioms
+ok DT dialect selects atomic axioms, verifies a proof, and rejects missing verifier
+ALL-CORE-TESTS-PASSED
+Verified: 20261112T064515Z-17410
+RELEASE-VERIFY-PASS version=0.0216 runtime=20261112T064515Z-17410

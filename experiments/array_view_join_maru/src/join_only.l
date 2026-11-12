@@ -1,0 +1,5 @@
+(define aj-h (mb-index-build aj-right 300 1 1 31))
+(print "SIZE " (mb-index-size aj-h) "\n")
+(print "JOIN4096 " (mb-join-many aj-h aj-left 300 1 1 4096) "\n")
+(print "CHECK4096 " (mb-join-checksum aj-h aj-left 300 1 1 4096) "\n")
+(mb-index-free)

@@ -242,3 +242,22 @@
     (if inserter
         (inserter array lo item)
       ())))
+
+
+;;; v0.0216 array-view indexed join
+(define-C-function c-index-build long maru_index_build (long long long long long))
+(define-C-function c-index-free void maru_index_free ())
+(define-C-function c-join-many long maru_join_many (long long long long long long))
+(define-C-function c-join-checksum long maru_join_checksum (long long long long long long))
+(define-C-function c-index-size long maru_index_size (long))
+(define-vm-function (mb-index-build ()) ((b <memory-block>) (n <long>) (stride <long>) (elem <long>) (maxkey <long>))
+  (box <long> (c-index-build (<memory-block>-elements b) n stride elem maxkey)))
+(define-vm-function (mb-join-many ()) ((h <long>) (left <memory-block>) (n <long>)
+                                      (stride <long>) (elem <long>) (reps <long>))
+  (box <long> (c-join-many h (<memory-block>-elements left) n stride elem reps)))
+(define-vm-function (mb-join-checksum ()) ((h <long>) (left <memory-block>) (n <long>)
+                                         (stride <long>) (elem <long>) (reps <long>))
+  (box <long> (c-join-checksum h (<memory-block>-elements left) n stride elem reps)))
+(define-vm-function (mb-index-size ()) ((h <long>))
+  (box <long> (c-index-size h)))
+(define-vm-function (mb-index-free ()) _ (c-index-free))

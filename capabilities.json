@@ -1,5 +1,5 @@
 {
-  "version": "0.0205",
+  "version": "0.0216",
   "note": "Minimal-core capability ledger. Research snapshots are separate.",
   "removed_in_0_0205": [
     "d107 contract layer (d107-*.l, contract/unit/surface/plan/session modules)",
@@ -26,6 +26,7 @@
     "nl_boundary": {"status": "implemented", "witness": "scripts/nl.sh"},
     "web_observation_boundary": {"status": "implemented-untrusted", "witness": "scripts/web_multi.sh"},
     "recursive_self_supervision": {"status": "implemented", "witness": "scripts/selfssl.sh"},
+    "maru_array_view_c_join": {"status": "implemented-research", "witness": "experiments/array_view_join_maru/README.md"},
     "maru_q16_transformer_inference": {"status": "research", "witness": "experiments/tiny_transformer_maru/README.md"},
     "maru_dt_mnist_learning": {"status": "research", "witness": "experiments/deductive_transformer_maru/README.md"},
     "label_free_deductive_learning": {"status": "not-implemented", "witness": null},
