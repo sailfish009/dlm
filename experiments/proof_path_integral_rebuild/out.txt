@@ -1,0 +1,6 @@
+DISTINCT-RULES true
+PATHS 2 OK1 1 OK2 1
+COSTS 2 3 WEIGHTS 21845 16384 Z 38229
+CREDITS 37448 28087 (not 1/count)
+SINGLE-RULE-INDEX 0 NEG 0 (want 0)
+done-proof-path-integral-rebuild

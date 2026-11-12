@@ -1,0 +1,5 @@
+(define rule-heads ())
+(define rule-bodies ())
+(define pool-bits ())
+(define pool-labels ())
+(define prior-log (list 0 0 0 0 0 0))

@@ -1,0 +1,1 @@
+{"name":"d32_adamw_cos","D":32,"F":64,"layers":6,"heads":1,"epochs":60,"lr":0.001,"posw":30.0,"prior_weight":4.0,"weight_decay":0.01,"scheduler":1}

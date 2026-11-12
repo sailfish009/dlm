@@ -1,0 +1,71 @@
+{
+  "tp": 0,
+  "n": 4,
+  "baseline": 4,
+  "rows": [
+    {
+      "id": "m5",
+      "pred": [
+        "are",
+        "image"
+      ],
+      "score": 0.03475753590464592,
+      "gold": [
+        "handwritten-digit",
+        "image"
+      ],
+      "ok": false,
+      "text": "a handwritten-digit is an image",
+      "url": "https://en.wikipedia.org/wiki/Handwriting",
+      "kind": "fact"
+    },
+    {
+      "id": "m6",
+      "pred": [
+        "image",
+        "a"
+      ],
+      "score": 0.03849949315190315,
+      "gold": [
+        "image",
+        "pixel-grid"
+      ],
+      "ok": false,
+      "text": "an image is a pixel-grid",
+      "url": "https://en.wikipedia.org/wiki/Pixel",
+      "kind": "fact"
+    },
+    {
+      "id": "m7",
+      "pred": [
+        "image-datasets",
+        "are"
+      ],
+      "score": 0.049623943865299225,
+      "gold": [
+        "image-datasets",
+        "data-collections"
+      ],
+      "ok": false,
+      "text": "all image-datasets are data-collections",
+      "url": "https://en.wikipedia.org/wiki/Data_set",
+      "kind": "rule"
+    },
+    {
+      "id": "m8",
+      "pred": [
+        "pixel-grids",
+        "mnist"
+      ],
+      "score": 0.05115820840001106,
+      "gold": [
+        "pixel-grids",
+        "data-structures"
+      ],
+      "ok": false,
+      "text": "all pixel-grids are data-structures",
+      "url": "https://en.wikipedia.org/wiki/Data_structure",
+      "kind": "rule"
+    }
+  ]
+}

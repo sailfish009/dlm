@@ -7,7 +7,7 @@ output.json
 
 # Publish only the promoted runtime, including its manifest-referenced LLVM files.
 /runtime/releases/*
-!/runtime/releases/20261112T064515Z-17410/
+!/runtime/releases/20261112T233118Z-6094/
 
 # Rebuildable diagnostics and machine-local rollback state.
 /runtime/safety2/

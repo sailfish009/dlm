@@ -1,0 +1,472 @@
+maru: OK
+maru.ll: OK
+sources.sha256: OK
+record: OK
+ok unification and closure
+ok recursive closure
+DEDUCE t active=1 covered=1/1 conflict=0 result=selected
+ok deductive matching selects the axiom
+ok fragments combine into a two-literal recursive template
+MATCH ancestor active=1 covered=1/1 conflict=0 result=selected
+MATCH path active=2 covered=1/1 conflict=0 result=selected
+ok assembled programs match two different task shapes
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+ok an MLIR-shaped module lowers to the fragment/match core
+ok typed fragments and a compatible combine are verified
+ok incompatible port roles are rejected before proving
+MATCH a active=1 covered=1/1 conflict=0 result=selected
+ok typed IR lowers to a verified matching program
+ok a proof carries both rules as essential
+ok failure frontier exposes the missing path relation
+ok frontier facts synthesize a composition rule with support
+ok synthesis rejects the reverse negative relation
+ok ranking selects the candidate with full training coverage
+ok first-fit synthesis covers only one of the positives
+ok ranked synthesis transfers to a held path
+ok a three-fact chain is synthesized when two-fact candidates are absent
+ok the three-fact rule transfers to a held chain
+ok bounded chain search synthesizes a four-fact rule
+ok the four-fact rule transfers to a held chain
+ok recursive seed+step program is synthesized
+ok the recursive program derives an arbitrary-length held chain
+ok the seed alone does not derive the held four-hop chain
+ok a recursive program is synthesized from one long positive
+ok the template program transfers without direct target examples
+ok the one-step template over-generalizes on the negative
+ok the stride-2 revision covers the positive and rejects the negative
+ok the revised program transfers but still rejects the held negative
+ok strides one and two conflict, so stride three is selected
+ok the stride-three program transfers and rejects the held negative
+ok alternating edges defeat single-predicate stride search
+ok the two-predicate program transfers and rejects the held negative
+ok MLIR synthesis ops lower to the same stride program
+ok MLIR synthesis ops lower to the same two-predicate program
+ok MLIR search selects the stride program and gates held proofs
+ok MLIR pair search and proof gate match the direct synthesizer
+ok MLIR auto selects stride for a single-predicate chain
+ok MLIR auto selects pair for an alternating chain
+ok goal-directed proof is found and certifies its tree
+ok unrelated facts do not increase goal-proof probes
+ok a repeated goal is served from the proof cache
+ok unrelated additions hit, used-fact removal invalidates
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+ok explicit graph verifies, topo-sorts, and lowers to the same run
+ok graph verifier rejects duplicate nodes and bad input edges
+ok hard graph constraints pass and soft failure is report-only
+ok hard false and unknown expressions are rejected
+ok embeddings attach to graph nodes and rank by dot product
+ok embedding dimension and missing-node checks reject
+MATCH t1 active=1 covered=1/1 conflict=0 result=selected
+MATCH t2 active=1 covered=1/1 conflict=0 result=kept
+MATCH t3 active=1 covered=1/1 conflict=0 result=kept
+MATCH t3 active=1 covered=1/1 conflict=0 result=selected
+MATCH t2 active=1 covered=1/1 conflict=0 result=kept
+MATCH t1 active=1 covered=1/1 conflict=0 result=kept
+ok embedding changes ready-node order but preserves run
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+ok dead-node elimination drops unused nodes and preserves run
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+ok soft constraints rank hard-valid candidates
+MATCH ct active=1 covered=1/1 conflict=0 result=selected
+MATCH ct active=1 covered=1/1 conflict=0 result=selected
+ok CSE merges duplicate fragments/templates and preserves run
+ok NL facts/rules prove a query and realize an English answer
+ok an unprovable NL query abstains instead of asserting false
+ok basis axioms accumulate, deactivate, and rollback
+ok teacher behavior induces a basis rule and the NL boundary answers
+ok a web observation answers an English query through the NL boundary
+ok two web observations answer two English queries
+ok a web universal sentence becomes a basis rule
+ok web observations/rules accumulate across ingest turns
+ok web subclass facts + teacher label induce a basis rule
+ok program decomposes into atomic axioms and subset search selects both
+ok axiom graph verifies and selects the same minimal set
+ok axiom graph DCE keeps only dependency-reachable axioms
+ok axiom graph CSE merges duplicate rules and rewrites deps
+ok self-supervision round adds a basis axiom and self-labeled positives
+ok basis CSE removes duplicate axioms
+ok DT dialect selects atomic axioms, verifies a proof, and rejects missing verifier
+ALL-CORE-TESTS-PASSED
+MLIR module fragment_match ops=16
+MATCH ancestor active=1 covered=1/1 conflict=0 result=selected
+MATCH reaches active=1 covered=1/1 conflict=0 result=kept
+MATCH inside active=1 covered=1/1 conflict=0 result=kept
+MATCH path active=2 covered=1/1 conflict=0 result=selected
+(mlir-result module "fragment_match" fragments 5 templates 4 programs 3 tasks 4 run (summary tasks 4 solved 4 active ("p-rec" "p-comp")) synth 0 proof 0)
+done-mlir
+maru> 
+morituri te salutant
+TYPED fragments ok=5
+BADPORT rejected107
+MATCH ancestor active=1 covered=1/1 conflict=0 result=selected
+MATCH reaches active=1 covered=1/1 conflict=0 result=kept
+MATCH inside active=1 covered=1/1 conflict=0 result=kept
+MATCH path active=2 covered=1/1 conflict=0 result=selected
+(typed-result module "typed" fragments 5 templates 4 programs 2 tasks 4 programs-list ("p-comp" "p-rec") run (summary tasks 4 solved 4 active ("p-rec" "p-comp")))
+PROV p-comp (claim:left claim:q)
+PROV p-rec (claim:seed claim:left claim:right)
+done-typed
+maru> 
+morituri te salutant
+ROUND 1 active=1
+PROOF1 nodes=1 essential=(0 1)
+FRONTIER2 (missing107 (atom path (r t)))
+ROUND 2 active=2
+PROOF2 nodes=1 essential=(2)
+PROOF3 nodes=1 essential=(0 1)
+FRONTIER_FROZEN (missing107 (atom path (r t)))
+done-proof
+ROUND1 ancestor proof
+FRONTIER (missing107 (atom path (r t)))
+SYNTH synth107 support=(h0 h1)
+PATH proof negative=clean
+ESSENTIAL (2)
+HELD PATH proof
+RETAINED ANCESTOR proof
+FROZEN FRONTIER (missing107 (atom path (r t)))
+done-synth
+maru> 
+morituri te salutant
+FIRST (atom alt2 ((var y) (var z)))
+RANKED (atom hop2 ((var y) (var z)))
+RANKED COVERAGE 2/2
+FIRST COVERAGE 1/2
+HELD RANKED proof
+FROZEN fail
+done-rank
+TWO_FACT_CANDIDATES 0
+THREE_FACT_CANDIDATES 1
+SYNTH rule support=(a0 a1 a2)
+COVERAGE 2/2
+NEGATIVE clean
+HELD proof
+FROZEN fail
+done-chain
+C2 0
+C3 0
+C4 1
+SYNTH rule body=4 support=(a0 a1 a2 a3)
+COVERAGE 2/2
+NEGATIVE clean
+HELD proof
+FROZEN fail
+done-long
+PROGRAM recursive rules=2 support=(p0 p1 r2)
+COVERAGE 2/2
+NEGATIVE clean
+HELD proof
+SEED ONLY HELD fail
+FROZEN fail
+done-recursive
+PROGRAM template rules=2 support=(t0)
+COVERAGE 1/1
+NEGATIVE clean
+HELD proof
+SEED ONLY HELD fail
+FROZEN fail
+done-template
+ONE STEP program conflict=yes
+PROGRAM stride2 rules=2 support=(s0)
+COVERAGE 1/1
+NEGATIVE clean
+HELD proof
+HELD NEG fail
+SEED ONLY HELD fail
+FROZEN fail
+done-revise
+ONE none conflict=n/a
+TWO none conflict=n/a
+PROGRAM stride=3 rules=2 support=(u0)
+RULES ((rule (atom ancestor ((var x) (var w))) ((atom parent ((var x) (var y))) (atom parent ((var y) (var z))) (atom parent ((var z) (var w))))) (rule (atom ancestor ((var x) (var v))) ((atom parent ((var x) (var y))) (atom parent ((var y) (var z))) (atom parent ((var z) (var w))) (atom ancestor ((var w) (var v))))))
+COVERAGE 1/1
+NEGATIVE clean
+HELD proof
+HELD NEG fail
+SEED ONLY HELD fail
+FROZEN fail
+done-stride
+SINGLE coverage=0
+PROGRAM pair rules=2 support=(v0 v1)
+COVERAGE 1/1
+NEGATIVE clean
+HELD proof
+HELD NEG fail
+SEED ONLY HELD fail
+FROZEN fail
+done-pair
+MLIR stride result=1 program=yes
+MLIR stride rules=2 coverage=1/1 conflict=clean
+DIRECT stride rules=2 coverage=1/1
+SAME stride yes
+MLIR pair result=1 program=yes
+MLIR pair rules=2 coverage=1/1 conflict=clean
+DIRECT pair rules=2 coverage=1/1
+SAME pair yes
+done-mlir-synth
+MLIR search stride program=yes rules=2 coverage=1/1 conflict=clean
+SAME stride yes
+PROOF stride pos=proof neg=fail
+MLIR result synth=1 proof=2
+MLIR search pair program=yes rules=2 coverage=1/1 conflict=clean
+SAME pair yes
+PROOF pair pos=proof neg=fail
+MLIR result synth=1 proof=2
+done-mlir-pipeline
+AUTO parent mode=stride coverage=1/1 rules=2
+AUTO parent same-stride yes
+AUTO alt mode=pair coverage=1/1 rules=2
+AUTO alt same-pair yes
+done-mlir-auto
+N=1 closure=42 prove=13 scans=7 status=proof
+N=5 closure=162 prove=13 scans=7 status=proof
+N=20 closure=612 prove=13 scans=7 status=proof
+CHECK1 ok
+CHECK20 ok
+done-goal-proof
+FIRST status=proof probes=13
+CACHED status=proof probes=0 scans=0
+UNRELATED status=proof probes=0
+REMOVED status=fail
+CHECK ok
+done-proof-cache
+GRAPH check=ok topo=(fseed seed p t) values=4 nodes=4 edges=1
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+LINEAR run=(summary tasks 1 solved 1 active (p)) rebuilt=(summary tasks 1 solved 1 active (p)) same=yes
+DUP (rejected107 mg-node-id)
+BADEDGE (rejected107 mg-edge-input)
+done-graph-ir
+HARD ok
+REPORT ((c-node hard active true) (c-kind hard active true) (c-not hard active true) (c-acyclic hard active true) (c-soft soft active false))
+BAD (rejected107 mg-constraint c-missing)
+BADEXPR (rejected107 mg-constraint-expr c-expr)
+done-constraints
+wrote /research/dlm_v0.0231/experiments/graph_embed_repl/embeddings.l nodes=4
+GRAPH ok
+EMBED ok
+EMBEDDINGS 4
+RANK ((p 1000000729790) (t 371270909353) (seed 344082641939) (fseed 298811334744))
+BADDIM (rejected107 mg-embedding-dim)
+BADNODE (rejected107 mg-embedding-node)
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+RUN (summary tasks 1 solved 1 active (p))
+done-embed
+wrote /research/dlm_v0.0231/experiments/graph_schedule_repl/embeddings.l nodes=6
+GRAPH ok
+EMBED ok
+BASE (fseed seed p t1 t2 t3)
+RANKED (t3 seed p fseed t1 t2)
+MATCH t1 active=1 covered=1/1 conflict=0 result=selected
+MATCH t2 active=1 covered=1/1 conflict=0 result=kept
+MATCH t3 active=1 covered=1/1 conflict=0 result=kept
+MATCH t3 active=1 covered=1/1 conflict=0 result=selected
+MATCH t1 active=1 covered=1/1 conflict=0 result=kept
+MATCH t2 active=1 covered=1/1 conflict=0 result=kept
+BASE RUN (summary tasks 3 solved 3 active (p))
+RANK RUN (summary tasks 3 solved 3 active (p))
+SAME yes
+done-schedule
+BEFORE nodes=5 edges=1
+AFTER nodes=3 edges=1 check=ok topo=(seed p t)
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+BASE RUN (summary tasks 1 solved 1 active (p))
+DCE RUN (summary tasks 1 solved 1 active (p))
+SAME yes
+done-dce
+SOFT base=0 extra=1
+SELECTED extra
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+RUN (summary tasks 1 solved 1 active (p))
+done-select
+BEFORE nodes=6 values=6
+AFTER nodes=4 values=4 check=ok
+OPS ((mlop fragment (f1 (atom R ((var x) (var z))) ((atom P ((var x) (var z)))))) (mlop template (s1 (atom R ((var x) (var z))) ((atom P ((var x) (var z)))))) (mlop program (p (s1 s1))) (mlop task (t ((atom parent (a b))) ((atom ancestor (a b))) ((atom ancestor (b a))) ((R ancestor) (P parent)))))
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+BASE RUN (summary tasks 1 solved 1 active (p))
+CSE RUN (summary tasks 1 solved 1 active (p))
+SAME yes
+done-cse
+PARSED ((nl-fact cat mammal A cat is a mammal.) (nl-fact dog mammal A dog is a mammal.) (nl-rule mammal animal All mammals are animals.) (nl-rule animal living-thing All animals are living things.))
+BASIS RULES 2
+STATUS1 proved
+ANSWER1 Yes, a cat is a living thing.
+WHY1 A cat is a mammal. All mammals are animals. All animals are living things.
+STATUS2 unknown
+ANSWER2 I cannot prove that a cat is a plant.
+done-nl
+A status=active rules=((rule (atom path ((var x) (var z))) ((atom hop1 ((var x) (var y))) (atom hop2 ((var y) (var z))))) (rule (atom path ((var x) (var z))) ((atom hop1 ((var x) (var y))) (atom hop2 ((var y) (var w))) (atom path ((var w) (var z))))) (rule (atom reach ((var x) (var z))) ((atom edge ((var x) (var z))))) (rule (atom reach ((var x) (var z))) ((atom edge ((var x) (var y))) (atom reach ((var y) (var z))))))
+A proof=proof
+B proof=proof
+B OFF path=fail reach=proof
+B ROLLBACK status=active path=proof
+done-basis
+PROGRAM rules=2 support=(s0)
+HELD cat=proof
+HELD sparrow=proof
+NL1 Yes, a sparrow is a living thing.
+NL2 I cannot prove that a living thing is a sparrow.
+done-teacher
+wrote /research/dlm_v0.0231/experiments/web_nl_repl/web_observations.l dog->mammal quote=Dogs are mammals
+WEB OBS 1 url=https://simple.wikipedia.org/api/rest_v1/page/summary/Dog
+WEB QUOTE Dogs are mammals
+WEB1 proved Yes, a dog is a mammal.
+WEB2 unknown I cannot prove that a dog is a plant.
+done-web
+wrote /research/dlm_v0.0231/experiments/web_multi_repl/web_observations.l observations=2
+  dog->mammal  Dogs are mammals, usually to be kept as pets, or work on farms or for the police
+  cat->mammal  Cats, also called domestic cats, are small, carnivorous mammals, of the family Felidae
+OBS 2
+DOG proved Yes, a dog is a mammal.
+CAT proved Yes, a cat is a mammal.
+done-web-multi
+127.0.0.1 - - [13/Nov/2026 08:36:03] "GET /index.html HTTP/1.1" 200 -
+wrote /research/dlm_v0.0231/experiments/web_rule_repl/web_observations.l observations=3 url=http://127.0.0.1:37101/index.html
+  A dog is a mammal.
+  All mammals are animals.
+  All animals are living things.
+OBS 3
+BASIS 2 rules
+Q1 proved Yes, a dog is a living thing.
+Q2 unknown I cannot prove that a living thing is a dog.
+SOURCE http://127.0.0.1:37101/index.html
+done-web-rule
+STORE1 obs=3 rules=2 Q1=proved
+STORE2 obs=4 rules=2 Q2=proved Q3=proved
+A2 Yes, a cat is a living thing.
+done-store
+127.0.0.1 - - [13/Nov/2026 08:36:04] "GET /index.html HTTP/1.1" 200 -
+wrote /research/dlm_v0.0231/experiments/web_inverse_repl/web_observations.l observations=5 url=http://127.0.0.1:34335/index.html
+  A dog is a kind of mammal.
+  A mammal is a kind of animal.
+  An animal is a kind of living thing.
+  A cat is a kind of mammal.
+  A dog is a living thing.
+OBS 5 FACTS 5 RULES 2
+Q1 proved Yes, a cat is a living thing.
+Q2 unknown I cannot prove that a living thing is a cat.
+done-web-inverse
+wrote /research/dlm_v0.0231/experiments/web_recursive_repl/web_data.l pages=7 edges=7 train=5 pos=3 neg=3
+  dog->mammal: Dogs are mammals, usually to be kept as pets, or work on farms or for the police.
+  cat->mammal: Cats, also called domestic cats, are small, carnivorous mammals, of the family Felidae.
+  bird->animal: Birds (Aves) are a group of animals with backbones.
+  sparrow->bird: They are small passerine birds which belong to the family Passeridae.
+  mammal->animal: They are a group of vertebrate animals.
+  animal->living-thing: Animals are living creatures with many cells that make up the kingdom Animalia.
+  plant->living-thing: Plants are one of six big groups (kingdoms) of living things.
+WEB pages=7 edges=7 train=5
+POS 3 SELF 8
+RULES1 2 RULES2 2
+HELD 3/3 NEG fail
+SOURCES dog->mammal: Dogs are mammals, usually to be kept as pets, or work on farms or for the police.
+done-web-recursive
+SAVE /tmp/dlm-web-store.l obs=3 rules=2
+P1 proved
+done-persist-p1
+LOAD (3 2)
+P2 proved
+P3 unknown
+done-persist-p2
+wrote /research/dlm_v0.0231/experiments/web_recursive_repl/web_data.l pages=7 edges=7 train=5 pos=3 neg=3
+  dog->mammal: Dogs are mammals, usually to be kept as pets, or work on farms or for the police.
+  cat->mammal: Cats, also called domestic cats, are small, carnivorous mammals, of the family Felidae.
+  bird->animal: Birds (Aves) are a group of animals with backbones.
+  sparrow->bird: They are small passerine birds which belong to the family Passeridae.
+  mammal->animal: They are a group of vertebrate animals.
+  animal->living-thing: Animals are living creatures with many cells that make up the kingdom Animalia.
+  plant->living-thing: Plants are one of six big groups (kingdoms) of living things.
+SAVE /tmp/dlm-web-recursive-basis.l rules=2
+done-rec-persist-p1
+LOAD (0 2)
+HELD 3/3 NEG fail RULES 2
+done-rec-persist-p2
+wrote /research/dlm_v0.0231/experiments/web_recursive_repl/web_data.l pages=7 edges=7 train=5 pos=3 neg=3
+  dog->mammal: Dogs are mammals, usually to be kept as pets, or work on farms or for the police.
+  cat->mammal: Cats, also called domestic cats, are small, carnivorous mammals, of the family Felidae.
+  bird->animal: Birds (Aves) are a group of animals with backbones.
+  sparrow->bird: They are small passerine birds which belong to the family Passeridae.
+  mammal->animal: They are a group of vertebrate animals.
+  animal->living-thing: Animals are living creatures with many cells that make up the kingdom Animalia.
+  plant->living-thing: Plants are one of six big groups (kingdoms) of living things.
+AX 2 SUBSETS 4 CLOSED 3
+SEL (A-0 A-1) COV 3
+HELD 3/3
+done-axiom
+wrote /research/dlm_v0.0231/experiments/web_recursive_repl/web_data.l pages=7 edges=7 train=5 pos=3 neg=3
+  dog->mammal: Dogs are mammals, usually to be kept as pets, or work on farms or for the police.
+  cat->mammal: Cats, also called domestic cats, are small, carnivorous mammals, of the family Felidae.
+  bird->animal: Birds (Aves) are a group of animals with backbones.
+  sparrow->bird: They are small passerine birds which belong to the family Passeridae.
+  mammal->animal: They are a group of vertebrate animals.
+  animal->living-thing: Animals are living creatures with many cells that make up the kingdom Animalia.
+  plant->living-thing: Plants are one of six big groups (kingdoms) of living things.
+AG nodes=2 check=ok deps=ok
+AG SEL (A-0 A-1) COV 3
+A SEL (A-0 A-1) SAME yes
+HELD 3/3
+done-axiom-graph
+wrote /research/dlm_v0.0231/experiments/web_recursive_repl/web_data.l pages=7 edges=7 train=5 pos=3 neg=3
+  dog->mammal: Dogs are mammals, usually to be kept as pets, or work on farms or for the police.
+  cat->mammal: Cats, also called domestic cats, are small, carnivorous mammals, of the family Felidae.
+  bird->animal: Birds (Aves) are a group of animals with backbones.
+  sparrow->bird: They are small passerine birds which belong to the family Passeridae.
+  mammal->animal: They are a group of vertebrate animals.
+  animal->living-thing: Animals are living creatures with many cells that make up the kingdom Animalia.
+  plant->living-thing: Plants are one of six big groups (kingdoms) of living things.
+BEFORE 3 AFTER 2 check=ok
+AG SEL (A-0 A-1)
+done-axiom-dce
+wrote /research/dlm_v0.0231/experiments/web_recursive_repl/web_data.l pages=7 edges=7 train=5 pos=3 neg=3
+  dog->mammal: Dogs are mammals, usually to be kept as pets, or work on farms or for the police.
+  cat->mammal: Cats, also called domestic cats, are small, carnivorous mammals, of the family Felidae.
+  bird->animal: Birds (Aves) are a group of animals with backbones.
+  sparrow->bird: They are small passerine birds which belong to the family Passeridae.
+  mammal->animal: They are a group of vertebrate animals.
+  animal->living-thing: Animals are living creatures with many cells that make up the kingdom Animalia.
+  plant->living-thing: Plants are one of six big groups (kingdoms) of living things.
+BEFORE 3 AFTER 2 check=ok deps=(A-0)
+SEL (A-0 A-1)
+done-axiom-cse
+wrote /research/dlm_v0.0231/experiments/web_recursive_repl/web_data.l pages=7 edges=7 train=5 pos=3 neg=3
+  dog->mammal: Dogs are mammals, usually to be kept as pets, or work on farms or for the police.
+  cat->mammal: Cats, also called domestic cats, are small, carnivorous mammals, of the family Felidae.
+  bird->animal: Birds (Aves) are a group of animals with backbones.
+  sparrow->bird: They are small passerine birds which belong to the family Passeridae.
+  mammal->animal: They are a group of vertebrate animals.
+  animal->living-thing: Animals are living creatures with many cells that make up the kingdom Animalia.
+  plant->living-thing: Plants are one of six big groups (kingdoms) of living things.
+ROUND 1 pos=8 new=5 rules=2
+ROUND 2 pos=8 new=0 rules=2
+ROUND 3 pos=8 new=0 rules=2
+FINAL pos=8 rules=2 HELD 3/3 NEG fail
+done-selfssl
+wrote /research/dlm_v0.0231/experiments/web_recursive_repl/web_data.l pages=7 edges=7 train=5 pos=3 neg=3
+  dog->mammal: Dogs are mammals, usually to be kept as pets, or work on farms or for the police.
+  cat->mammal: Cats, also called domestic cats, are small, carnivorous mammals, of the family Felidae.
+  bird->animal: Birds (Aves) are a group of animals with backbones.
+  sparrow->bird: They are small passerine birds which belong to the family Passeridae.
+  mammal->animal: They are a group of vertebrate animals.
+  animal->living-thing: Animals are living creatures with many cells that make up the kingdom Animalia.
+  plant->living-thing: Plants are one of six big groups (kingdoms) of living things.
+DT name=dt1 selected=(A-0 A-1) cov=3 proof=proof
+BAD (rejected107 dt-verifier-missing) RUN (rejected107 dt-verifier-missing)
+done-dtir
+teacher_train_acc=0.9989
+wrote /research/dlm_v0.0231/experiments/teacher_transformer_repl/teacher_data.l train_pos=3 train_neg=3
+TRAIN pos=3 neg=3 RULES 1
+HELD 2/2 NEGPROOFS 0
+done-teacher-transformer
+Generated candidate-vm.l from embedded sources using Maru
+warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
+1 warning generated.
+Built compiler-source image: /research/dlm_v0.0231/runtime/releases/20261112T233118Z-6094/next
+Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.
+Generated candidate-vm.l from embedded sources using Maru
+warning: overriding the module target triple with x86_64-pc-linux-gnu [-Woverride-module]
+1 warning generated.
+Built compiler-source image: /research/dlm_v0.0231/runtime/releases/20261112T233118Z-6094/third
+Self-reproducing compiler-source image; compiler Lisp executes through the evaluator.

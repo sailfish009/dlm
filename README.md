@@ -1,7 +1,7 @@
-# DLM 0.0216 — minimal deductive core + array-view backend
+# DLM 0.0231 — minimal deductive core + honest web-schema learning benchmark
 
 This is the **minimal-core lineage** of DLM on Maru, extended with the v0.0216
-array-view C/LLVM backend. It keeps the trusted
+array-view C/LLVM backend and the v0.0231 honest web-schema learning benchmark. It keeps the trusted
 symbolic kernel, proof gate, basis/axiom layer, and the DT proof-state dialect.
 It intentionally removes the older `d107-*` contract layer (see below).
 
@@ -87,6 +87,19 @@ case 0 ceiling: perception + no head-5 valid rule
 
 Training uses MNIST labels as observations; it is observation-supervised and
 proof-gated, not label-free deductive learning.
+
+## Configurable DT variant lab (0.0219)
+
+`experiments/dt_variant_lab/` generates variant-specific C/LLVM trainers from a
+config (`D`, `F`, `layers`, `heads`, optimizer/prior settings), compiles them,
+runs 10-fold training, and compares held-out picks against the v0.0218
+reference.
+
+```text
+baseline / d16_f32_l3 / d32_h2_l6 / d16_h2_l3  → 10/10
+```
+
+See `experiments/dt_variant_lab/README.md`.
 
 ## Array-view backend (0.0216)
 

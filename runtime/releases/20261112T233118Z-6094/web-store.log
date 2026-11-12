@@ -1,0 +1,4 @@
+STORE1 obs=3 rules=2 Q1=proved
+STORE2 obs=4 rules=2 Q2=proved Q3=proved
+A2 Yes, a cat is a living thing.
+done-store

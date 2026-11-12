@@ -1,0 +1,12 @@
+TYPED fragments ok=5
+BADPORT rejected107
+MATCH ancestor active=1 covered=1/1 conflict=0 result=selected
+MATCH reaches active=1 covered=1/1 conflict=0 result=kept
+MATCH inside active=1 covered=1/1 conflict=0 result=kept
+MATCH path active=2 covered=1/1 conflict=0 result=selected
+(typed-result module "typed" fragments 5 templates 4 programs 2 tasks 4 programs-list ("p-comp" "p-rec") run (summary tasks 4 solved 4 active ("p-rec" "p-comp")))
+PROV p-comp (claim:left claim:q)
+PROV p-rec (claim:seed claim:left claim:right)
+done-typed
+maru> 
+morituri te salutant

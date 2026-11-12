@@ -9,6 +9,9 @@ test -x maru-compiler
 test "$(readlink -f maru-compiler)" = "$ROOT/runtime/releases/$ID/maru"
 test -f "runtime/releases/$ID/artifacts.sha256"
 echo "runtime symlink: ok"
+sha256sum -c docs/release.sources.sha256 >/dev/null
+sha256sum -c docs/release.tests.sha256 >/dev/null
+echo "manifests: ok"
 # no unapproved large files outside runtime
 BAD="$(find . -path ./runtime -prune -o -type f -size +5M -print)"
 if [ -n "$BAD" ]; then echo "large files outside runtime:"; echo "$BAD"; exit 1; fi

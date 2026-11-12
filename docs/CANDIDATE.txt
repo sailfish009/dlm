@@ -1,2 +1,2 @@
-CANDIDATE — 0.0216 array-view C/LLVM release candidate.
-Minimal core plus reusable Maru array-view indexed join; see docs/release-0216.md.
+CANDIDATE — 0.0231 honest web-schema learning benchmark.
+See docs/release-0231.md.

@@ -1,0 +1,1 @@
+{"name":"baseline_seed62","D":32,"F":64,"layers":6,"heads":1,"epochs":50,"lr":0.001,"posw":30.0,"prior_weight":4.0,"seed":62}

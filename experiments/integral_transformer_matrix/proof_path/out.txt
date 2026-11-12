@@ -1,0 +1,5 @@
+PATHS 2 R1 1 R2 1
+SINGLE-RULE-INDEX 0
+INTEGRAL-R1 32768 INTEGRAL-R2 32768
+NEG 0 (want 0)
+done-proof-path-integral

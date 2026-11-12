@@ -1,0 +1,40 @@
+{
+  "name": "baseline",
+  "config": {
+    "name": "baseline",
+    "D": 32,
+    "F": 64,
+    "layers": 6,
+    "heads": 1,
+    "epochs": 50,
+    "lr": 0.001,
+    "posw": 30.0,
+    "prior_weight": 4.0
+  },
+  "picks": [
+    211,
+    45,
+    2,
+    22,
+    61,
+    61,
+    34,
+    76,
+    16,
+    5
+  ],
+  "reference": [
+    211,
+    45,
+    2,
+    22,
+    61,
+    61,
+    34,
+    76,
+    16,
+    5
+  ],
+  "matches": 10,
+  "accuracy": 8
+}

@@ -1,0 +1,1 @@
+{"name":"d32_f64_l6_noprior","D":32,"F":64,"layers":6,"heads":1,"epochs":50,"lr":0.001,"posw":30.0,"prior_weight":0.0}

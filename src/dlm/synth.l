@@ -499,3 +499,43 @@
                 (begin (set best (s-rec-program rules support))
                        (set best-c cov))))))))
     (if best best '(none))))
+
+;;; Same-predicate transitivity candidates. The original generators require
+;;; body predicates != head predicate; this is the missing single-predicate case.
+(define-function s-trans-candidates (facts goal)
+  (let ((a (l-nth (l-args goal) 0))
+        (c (l-nth (l-args goal) 1))
+        (p (l-pred goal))
+        (out ()) (keys ()))
+    (list-do f facts
+      (let ((fa (l-fact-atom f)))
+        (if (and (= 2 (l-len (l-args fa)))
+                 (equal p (l-pred fa))
+                 (equal a (l-nth (l-args fa) 0)))
+          (list-do g facts
+            (let ((ga (l-fact-atom g)))
+              (if (and (= 2 (l-len (l-args ga)))
+                       (equal p (l-pred ga))
+                       (equal (l-nth (l-args fa) 1) (l-nth (l-args ga) 0))
+                       (equal c (l-nth (l-args ga) 1)))
+                (let* ((x (l-var 'x)) (y (l-var 'y)) (z (l-var 'z))
+                       (r (l-rule (l-atom p (list x z))
+                            (list (l-atom p (list x y))
+                                  (l-atom p (list y z)))))
+                       (k (list p p)))
+                  (if (not (l-member? k keys))
+                    (begin (set keys (l-append keys (list k)))
+                           (set out (l-append out (list (s-synth r
+                             (list (l-fact-id f) (l-fact-id g)))))))))))))))
+    out))
+
+(define-function s-trans-synthesize (facts goal rules neg budget)
+  (let ((out ()))
+    (list-do c (s-trans-candidates facts goal)
+      (if (not out)
+        (let ((rules2 (l-append rules (list (s-rule c)))))
+          (let ((table (p-close facts rules2 budget)))
+            (if (and (l-lookup goal table)
+                     (not (s-conflict? facts rules2 neg budget)))
+              (set out c))))))
+    (if out out '(none))))
