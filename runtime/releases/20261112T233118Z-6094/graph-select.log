@@ -1,5 +1,0 @@
-SOFT base=0 extra=1
-SELECTED extra
-MATCH t active=1 covered=1/1 conflict=0 result=selected
-RUN (summary tasks 1 solved 1 active (p))
-done-select

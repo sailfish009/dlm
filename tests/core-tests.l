@@ -815,4 +815,10 @@
        (equal (l-nth dtr 4) 'proof)
        (equal (dt-check dtbad) '(rejected107 dt-verifier-missing))))
 
+;;; nl parser empty-object regression (0.0234)
+(check "nl-fact-parse returns nl-unknown for a missing object"
+  (and (equal (nl-kind (nl-parse "An image can be two-dimensional.")) 'nl-unknown)
+       (equal (nl-kind (nl-parse "a dataset")) 'nl-unknown)
+       (equal (nl-kind (nl-parse "a zorblax is a flimflam")) 'nl-fact)))
+
 (if (= *failures* 0) (print "ALL-CORE-TESTS-PASSED\n") (print "FAILURES " *failures* "\n"))

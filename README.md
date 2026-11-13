@@ -1,7 +1,9 @@
-# DLM 0.0231 — minimal deductive core + honest web-schema learning benchmark
+# DLM 0.0242 — minimal deductive core + native integral-credit composition
 
 This is the **minimal-core lineage** of DLM on Maru, extended with the v0.0216
-array-view C/LLVM backend and the v0.0231 honest web-schema learning benchmark. It keeps the trusted
+array-view C/LLVM backend, the v0.0237 transformer graph/LLVM variant matrix,
+the v0.0238 M0–M5 roadmap, and the v0.0239 structure-discovery lab (P0 fixture
+qualification + P1 direction-aware structural variants on proof-state worlds). It keeps the trusted
 symbolic kernel, proof gate, basis/axiom layer, and the DT proof-state dialect.
 It intentionally removes the older `d107-*` contract layer (see below).
 

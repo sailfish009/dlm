@@ -1,8 +1,0 @@
-ROUND 1 active=1
-PROOF1 nodes=1 essential=(0 1)
-FRONTIER2 (missing107 (atom path (r t)))
-ROUND 2 active=2
-PROOF2 nodes=1 essential=(2)
-PROOF3 nodes=1 essential=(0 1)
-FRONTIER_FROZEN (missing107 (atom path (r t)))
-done-proof

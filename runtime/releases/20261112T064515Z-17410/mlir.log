@@ -1,9 +1,0 @@
-MLIR module fragment_match ops=16
-MATCH ancestor active=1 covered=1/1 conflict=0 result=selected
-MATCH reaches active=1 covered=1/1 conflict=0 result=kept
-MATCH inside active=1 covered=1/1 conflict=0 result=kept
-MATCH path active=2 covered=1/1 conflict=0 result=selected
-(mlir-result module "fragment_match" fragments 5 templates 4 programs 3 tasks 4 run (summary tasks 4 solved 4 active ("p-rec" "p-comp")) synth 0 proof 0)
-done-mlir
-maru> 
-morituri te salutant

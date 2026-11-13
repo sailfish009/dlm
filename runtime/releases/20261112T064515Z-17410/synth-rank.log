@@ -1,7 +1,0 @@
-FIRST (atom alt2 ((var y) (var z)))
-RANKED (atom hop2 ((var y) (var z)))
-RANKED COVERAGE 2/2
-FIRST COVERAGE 1/2
-HELD RANKED proof
-FROZEN fail
-done-rank

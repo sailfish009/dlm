@@ -7,7 +7,7 @@ output.json
 
 # Publish only the promoted runtime, including its manifest-referenced LLVM files.
 /runtime/releases/*
-!/runtime/releases/20261112T233118Z-6094/
+!/runtime/releases/20261113T120607Z-976/
 
 # Rebuildable diagnostics and machine-local rollback state.
 /runtime/safety2/
@@ -29,3 +29,20 @@ experiments/**/iterations/
 # Large generated experiment outputs; keep only the final summary files.
 experiments/**/*.out
 experiments/**/*.log
+
+# structure_discovery generated artifacts
+experiments/structure_discovery/sd_*.json
+experiments/structure_discovery/qualify.json
+experiments/structure_discovery/direction_summary.json
+
+# integral_learning generated artifacts
+experiments/integral_learning/integrability.json
+experiments/integral_learning/integral_*.json
+experiments/integral_learning/summary.json
+experiments/integral_learning/repeat.out
+
+# native_integral generated artifacts
+experiments/native_integral/out/
+experiments/native_integral/llvm/
+experiments/native_integral/run.log
+experiments/native_integral/verify.log

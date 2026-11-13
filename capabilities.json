@@ -1,50 +1,190 @@
 {
-  "version": "0.0231",
+  "version": "0.0237",
   "note": "Minimal-core capability ledger. Research snapshots are separate.",
   "removed_in_0_0205": [
     "d107 contract layer (d107-*.l, contract/unit/surface/plan/session modules)",
     "tests/test_d107.py and tests/oracle107.py"
   ],
   "capabilities": {
-    "horn_closure": {"status": "implemented", "witness": "tests/core-tests.l"},
-    "proof_term_and_checker": {"status": "implemented", "witness": "tests/core-tests.l"},
-    "edb_negation": {"status": "implemented", "witness": "tests/core-tests.l"},
-    "budget_unknown": {"status": "implemented", "witness": "tests/core-tests.l"},
-    "scope_isolation": {"status": "implemented", "witness": "tests/core-tests.l"},
-    "retraction": {"status": "implemented", "witness": "tests/core-tests.l"},
-    "well_founded_proof": {"status": "implemented", "witness": "tests/core-tests.l"},
-    "proof_dag_validation": {"status": "implemented", "witness": "tests/core-tests.l"},
-    "fragment_composition": {"status": "implemented", "witness": "scripts/run.sh"},
-    "typed_admission": {"status": "implemented", "witness": "scripts/typed.sh"},
-    "checked_synthesis": {"status": "implemented", "witness": "scripts/synth.sh"},
-    "basis_activation_rollback": {"status": "implemented", "witness": "tests/core-tests.l"},
-    "axiom_subset_selection": {"status": "implemented", "witness": "scripts/axiom.sh"},
-    "axiom_graph_dce_cse": {"status": "implemented", "witness": "tests/core-tests.l"},
-    "dt_proof_state_dialect": {"status": "implemented", "witness": "scripts/dtir.sh"},
-    "mlir_shaped_internal_form": {"status": "implemented", "witness": "scripts/mlir.sh"},
-    "graph_ir": {"status": "implemented", "witness": "scripts/graph_ir.sh"},
-    "nl_boundary": {"status": "implemented", "witness": "scripts/nl.sh"},
-    "web_observation_boundary": {"status": "implemented-untrusted", "witness": "scripts/web_multi.sh"},
-    "recursive_self_supervision": {"status": "implemented", "witness": "scripts/selfssl.sh"},
-    "maru_array_view_c_join": {"status": "implemented-research", "witness": "experiments/array_view_join_maru/README.md"},
-    "dt_configurable_variant_lab": {"status": "implemented-research", "witness": "experiments/dt_variant_lab/README.md"},
-    "dt_variant_lab_hardened": {"status": "experimental", "witness": "experiments/dt_variant_lab/verify_lab.py"},
-    "mnist_web_axiom_accumulation": {"status": "experimental", "witness": "experiments/mnist_web_axiom_lab/pipeline.sh"},
-    "closed_loop_transitivity_acquisition": {"status": "experimental", "witness": "experiments/transitivity_acquisition_lab/pipeline.sh"},
-    "deductive_mechanism_discovery": {"status": "experimental", "witness": "experiments/deductive_mechanism_lab/pipeline.sh"},
-    "web_axiom_transformer_probe": {"status": "experimental-negative", "witness": "experiments/web_axiom_transformer_lab/pipeline.sh"},
-    "maru_native_dt_transformer_variants": {"status": "experimental", "witness": "experiments/maru_dt_variant_lab/verify.sh"},
-    "maru_native_web_axiom_transformer": {"status": "experimental-negative", "witness": "experiments/maru_web_axiom_transformer_lab/run_all.sh"},
-    "web_text_axiom_extraction_benchmark": {"status": "experimental", "witness": "experiments/web_text_extraction_benchmark/run_all.sh"},
-    "integral_transformer_variant_matrix": {"status": "experimental", "witness": "experiments/integral_transformer_matrix/verify.sh"},
-    "proof_path_integral_rebuild": {"status": "experimental", "witness": "experiments/proof_path_integral_rebuild/verify.sh"},
-    "prior_decorrelated_matrix": {"status": "experimental", "witness": "experiments/prior_decorrelated_matrix/verify.sh"},
-    "web_synthetic_deductive_lab": {"status": "experimental", "witness": "experiments/web_synthetic_deductive_lab/verify.sh"},
-    "web_schema_honest_lab": {"status": "experimental", "witness": "experiments/web_schema_honest_lab/verify.sh"},
-    "maru_q16_transformer_inference": {"status": "research", "witness": "experiments/tiny_transformer_maru/README.md"},
-    "maru_dt_mnist_learning": {"status": "research", "witness": "experiments/deductive_transformer_maru/README.md"},
-    "label_free_deductive_learning": {"status": "not-implemented", "witness": null},
-    "full_mnist_60k_training": {"status": "not-implemented", "witness": null},
-    "dense_tensor_attention_in_core": {"status": "not-implemented", "witness": null}
+    "horn_closure": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "proof_term_and_checker": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "edb_negation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "budget_unknown": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "scope_isolation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "retraction": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "well_founded_proof": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "proof_dag_validation": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "fragment_composition": {
+      "status": "implemented",
+      "witness": "scripts/run.sh"
+    },
+    "typed_admission": {
+      "status": "implemented",
+      "witness": "scripts/typed.sh"
+    },
+    "checked_synthesis": {
+      "status": "implemented",
+      "witness": "scripts/synth.sh"
+    },
+    "basis_activation_rollback": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "axiom_subset_selection": {
+      "status": "implemented",
+      "witness": "scripts/axiom.sh"
+    },
+    "axiom_graph_dce_cse": {
+      "status": "implemented",
+      "witness": "tests/core-tests.l"
+    },
+    "dt_proof_state_dialect": {
+      "status": "implemented",
+      "witness": "scripts/dtir.sh"
+    },
+    "mlir_shaped_internal_form": {
+      "status": "implemented",
+      "witness": "scripts/mlir.sh"
+    },
+    "graph_ir": {
+      "status": "implemented",
+      "witness": "scripts/graph_ir.sh"
+    },
+    "nl_boundary": {
+      "status": "implemented",
+      "witness": "scripts/nl.sh"
+    },
+    "web_observation_boundary": {
+      "status": "implemented-untrusted",
+      "witness": "scripts/web_multi.sh"
+    },
+    "recursive_self_supervision": {
+      "status": "implemented",
+      "witness": "scripts/selfssl.sh"
+    },
+    "maru_array_view_c_join": {
+      "status": "implemented-research",
+      "witness": "experiments/array_view_join_maru/README.md"
+    },
+    "dt_configurable_variant_lab": {
+      "status": "implemented-research",
+      "witness": "experiments/dt_variant_lab/README.md"
+    },
+    "dt_variant_lab_hardened": {
+      "status": "experimental",
+      "witness": "experiments/dt_variant_lab/verify_lab.py"
+    },
+    "mnist_web_axiom_accumulation": {
+      "status": "experimental",
+      "witness": "experiments/mnist_web_axiom_lab/pipeline.sh"
+    },
+    "closed_loop_transitivity_acquisition": {
+      "status": "experimental",
+      "witness": "experiments/transitivity_acquisition_lab/pipeline.sh"
+    },
+    "deductive_mechanism_discovery": {
+      "status": "experimental",
+      "witness": "experiments/deductive_mechanism_lab/pipeline.sh"
+    },
+    "web_axiom_transformer_probe": {
+      "status": "experimental-negative",
+      "witness": "experiments/web_axiom_transformer_lab/pipeline.sh"
+    },
+    "maru_native_dt_transformer_variants": {
+      "status": "experimental",
+      "witness": "experiments/maru_dt_variant_lab/verify.sh"
+    },
+    "maru_native_web_axiom_transformer": {
+      "status": "experimental-negative",
+      "witness": "experiments/maru_web_axiom_transformer_lab/run_all.sh"
+    },
+    "web_text_axiom_extraction_benchmark": {
+      "status": "experimental",
+      "witness": "experiments/web_text_extraction_benchmark/run_all.sh"
+    },
+    "integral_transformer_variant_matrix": {
+      "status": "experimental",
+      "witness": "experiments/integral_transformer_matrix/verify.sh"
+    },
+    "proof_path_integral_rebuild": {
+      "status": "experimental",
+      "witness": "experiments/proof_path_integral_rebuild/verify.sh"
+    },
+    "prior_decorrelated_matrix": {
+      "status": "experimental",
+      "witness": "experiments/prior_decorrelated_matrix/verify.sh"
+    },
+    "web_synthetic_deductive_lab": {
+      "status": "experimental",
+      "witness": "experiments/web_synthetic_deductive_lab/verify.sh"
+    },
+    "web_schema_honest_lab": {
+      "status": "experimental",
+      "witness": "experiments/web_schema_honest_lab/verify.sh"
+    },
+    "real_web_axiom_decomposition": {
+      "status": "experimental-negative",
+      "witness": "experiments/real_web_axiom_decomposition/run_all.sh"
+    },
+    "real_web_axiom_decomposition_schema_oracle": {
+      "status": "experimental",
+      "witness": "experiments/real_web_axiom_decomposition/run_all.sh"
+    },
+    "real_web_gate_alignment_checksum": {
+      "status": "experimental",
+      "witness": "experiments/real_web_axiom_decomposition/final_review.sh"
+    },
+    "decomposition_stage0": {
+      "status": "experimental",
+      "witness": "experiments/decomposition_stage0/verify.sh"
+    },
+    "transformer_graph_llvm_variant": {
+      "status": "experimental",
+      "witness": "experiments/transformer_graph_llvm/run_all.sh"
+    },
+    "maru_q16_transformer_inference": {
+      "status": "research",
+      "witness": "experiments/tiny_transformer_maru/README.md"
+    },
+    "maru_dt_mnist_learning": {
+      "status": "research",
+      "witness": "experiments/deductive_transformer_maru/README.md"
+    },
+    "label_free_deductive_learning": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "full_mnist_60k_training": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "dense_tensor_attention_in_core": {
+      "status": "not-implemented",
+      "witness": null
+    }
   }
 }

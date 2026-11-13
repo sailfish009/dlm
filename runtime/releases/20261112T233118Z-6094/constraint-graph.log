@@ -1,5 +1,0 @@
-HARD ok
-REPORT ((c-node hard active true) (c-kind hard active true) (c-not hard active true) (c-acyclic hard active true) (c-soft soft active false))
-BAD (rejected107 mg-constraint c-missing)
-BADEXPR (rejected107 mg-constraint-expr c-expr)
-done-constraints

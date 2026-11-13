@@ -1,9 +1,0 @@
-ONE STEP program conflict=yes
-PROGRAM stride2 rules=2 support=(s0)
-COVERAGE 1/1
-NEGATIVE clean
-HELD proof
-HELD NEG fail
-SEED ONLY HELD fail
-FROZEN fail
-done-revise

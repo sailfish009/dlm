@@ -1,0 +1,7 @@
+wrote /research/dlm_v0.0242/experiments/web_multi_repl/web_observations.l observations=2
+  dog->mammal  Dogs are mammals, usually to be kept as pets, or work on farms or for the police
+  cat->mammal  Cats, also called domestic cats, are small, carnivorous mammals, of the family Felidae
+OBS 2
+DOG proved Yes, a dog is a mammal.
+CAT proved Yes, a cat is a mammal.
+done-web-multi

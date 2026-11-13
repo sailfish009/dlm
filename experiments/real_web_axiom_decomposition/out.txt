@@ -1,0 +1,10 @@
+TEXT 15 EXTRACTED 3
+POS-TP 22/22 NEG-TP 0/1
+GOLD-EXPRESSIBLE 6/22 (isa-only parser cap)
+TP 0 FP 3 FN 22
+PRECISION 0/3 RECALL 0/22
+GATE FACTS 3 RULES 0 PROOF fail
+GATE-POS proof GATE-NEG fail
+GOLD-FIELDS-IN-INPUT false
+done-real-web-decomposition
+EMPTY-TEST nl-unknown (want nl-unknown)

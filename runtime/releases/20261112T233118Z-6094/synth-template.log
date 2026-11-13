@@ -1,7 +1,0 @@
-PROGRAM template rules=2 support=(t0)
-COVERAGE 1/1
-NEGATIVE clean
-HELD proof
-SEED ONLY HELD fail
-FROZEN fail
-done-template

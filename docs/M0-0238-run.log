@@ -1,0 +1,36 @@
+reference/dt_full_infer.c:25:1030: warning: format specifies type 'int' but the argument has type 'long' [-Wformat]
+   25 | int main(void){int total=0,ok=0;for(int c=0;c<10;c++){const long*m=models[c];const long*bits=case_bits[c];int valid[RULE_COUNT],nv=0;for(int k=0;k<RULE_COUNT;k++)if(body_ok(bits,rule_bodies[k],rule_lengths[k]))valid[nv++]=k;long t[MAXTOK][D];int nt=1;long img[196];for(int i=0;i<196;i++)img[i]=bits[i]*Q16;mv(m+OFF_IMG_W,D,196,img,m+OFF_IMG_B,t[0]);for(int vi=0;vi<nv;vi++){long f[16];feats(bits,valid[vi],f);mv(m+OFF_RULE_W,D,16,f,m+OFF_RULE_B,t[1+vi]);nt++;}for(int b=0;b<6;b++)blk(t,nt,m);long sel[RULE_COUNT];for(int vi=0;vi<nv;vi++)sel[vi]=dot(m+OFF_FINAL_W,t[1+vi],D)+m[OFF_FINAL_W+32];long td[5],tl[5];int tn=0;knn(bits,td,tl,&tn);long cnt[10]={0};for(int i=0;i<tn;i++)cnt[tl[i]]++;long best=-999999999;int bk=-1;printf("RESULT %d VALID",c);for(int vi=0;vi<nv;vi++)printf(" %d",valid[vi]);printf(" SEL");for(int vi=0;vi<nv;vi++)printf(" %.9f",(double)sel[vi]/Q16);printf(" PICK ");for(int vi=0;vi<nv;vi++){int k=valid[vi];long sc=sel[vi]+4*prior_log[cnt[rule_heads[k]]];if(sc>best){best=sc;bk=k;}}printf("%d HEAD %d\n",bk,bk>=0?rule_heads[bk]:-1);total++;}
+      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             ~~       ^~~~~~~~~~~~~~~~~~~~~~~
+      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             %ld
+1 warning generated.
+reference/dt_full_trace.c:45:571: warning: format specifies type 'int' but the argument has type 'long' [-Wformat]
+   45 | blk(t,nt,m);}long sel[RULE_COUNT];for(int vi=0;vi<nv;vi++)sel[vi]=dot(m+OFF_FINAL_W,t[1+vi],D)+m[OFF_FINAL_W+32];TRACE("SEL",sel,nv);long td[5],tl[5];int tn=0;knn(bits,td,tl,&tn);long cnt[10]={0};for(int i=0;i<tn;i++)cnt[tl[i]]++;long best=-999999999;int bk=-1;printf("RESULT %d VALID",c);for(int vi=0;vi<nv;vi++)printf(" %d",valid[vi]);printf(" SEL");for(int vi=0;vi<nv;vi++)printf(" %.9f",(double)sel[vi]/Q16);printf(" PICK ");for(int vi=0;vi<nv;vi++){int k=valid[vi];long sc=sel[vi]+4*prior_log[cnt[rule_heads[k]]];if(sc>best){best=sc;bk=k;}}printf("%d HEAD %d\n",bk,bk>=0?rule_heads[bk]:-1);total++;}
+      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  ~~       ^~~~~~~~~~~~~~~~~~~~~~~
+      |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  %ld
+1 warning generated.
+src/dt_m0_infer.c:235:32: warning: format specifies type 'int' but the argument has type 'long' [-Wformat]
+  235 |     printf("%d HEAD %d\n", bk, bk >= 0 ? rule_heads[bk] : -1);
+      |                     ~~         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                     %ld
+1 warning generated.
+src/dt_m0_infer.c:235:32: warning: format specifies type 'int' but the argument has type 'long' [-Wformat]
+  235 |     printf("%d HEAD %d\n", bk, bk >= 0 ? rule_heads[bk] : -1);
+      |                     ~~         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                     %ld
+1 warning generated.
+src/dt_m0_infer.c:235:32: warning: format specifies type 'int' but the argument has type 'long' [-Wformat]
+  235 |     printf("%d HEAD %d\n", bk, bk >= 0 ? rule_heads[bk] : -1);
+      |                     ~~         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                     %ld
+1 warning generated.
+src/dt_m0_infer.c:235:32: warning: format specifies type 'int' but the argument has type 'long' [-Wformat]
+  235 |     printf("%d HEAD %d\n", bk, bk >= 0 ? rule_heads[bk] : -1);
+      |                     ~~         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                     %ld
+1 warning generated.
+src/dt_m0_infer.c:235:32: warning: format specifies type 'int' but the argument has type 'long' [-Wformat]
+  235 |     printf("%d HEAD %d\n", bk, bk >= 0 ? rule_heads[bk] : -1);
+      |                     ~~         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      |                     %ld
+1 warning generated.
+M0-BUILD-PASS

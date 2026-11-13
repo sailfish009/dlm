@@ -1,0 +1,5 @@
+teacher_train_acc=0.9989
+wrote /research/dlm_v0.0242/experiments/teacher_transformer_repl/teacher_data.l train_pos=3 train_neg=3
+TRAIN pos=3 neg=3 RULES 1
+HELD 2/2 NEGPROOFS 0
+done-teacher-transformer

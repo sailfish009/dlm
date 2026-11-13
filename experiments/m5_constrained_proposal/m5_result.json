@@ -1,0 +1,47 @@
+{
+  "random_unconstrained": {
+    "recovery": 1,
+    "false": 201,
+    "n": 76,
+    "generated": 380,
+    "recovery_rate": 0.013157894736842105,
+    "false_rule_rate": 0.5289473684210526
+  },
+  "random_valid": {
+    "recovery": 6,
+    "false": 0,
+    "n": 76,
+    "generated": 380,
+    "recovery_rate": 0.07894736842105263,
+    "false_rule_rate": 0.0
+  },
+  "prior": {
+    "recovery": 0,
+    "false": 0,
+    "n": 76,
+    "generated": 380,
+    "recovery_rate": 0.0,
+    "false_rule_rate": 0.0
+  },
+  "kernel": {
+    "recovery": 31,
+    "false": 0,
+    "n": 76,
+    "generated": 380,
+    "recovery_rate": 0.40789473684210525,
+    "false_rule_rate": 0.0
+  },
+  "constrained": {
+    "recovery": 26,
+    "false": 0,
+    "n": 76,
+    "generated": 380,
+    "recovery_rate": 0.34210526315789475,
+    "false_rule_rate": 0.0
+  },
+  "split": {
+    "train_rules": 70,
+    "heldout_rules": 20,
+    "test_worlds": 80
+  }
+}

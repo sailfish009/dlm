@@ -1,6 +1,0 @@
-wrote /research/dlm_v0.0216/experiments/web_nl_repl/web_observations.l dog->mammal quote=Dogs are mammals
-WEB OBS 1 url=https://simple.wikipedia.org/api/rest_v1/page/summary/Dog
-WEB QUOTE Dogs are mammals
-WEB1 proved Yes, a dog is a mammal.
-WEB2 unknown I cannot prove that a dog is a plant.
-done-web

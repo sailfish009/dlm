@@ -1,0 +1,74 @@
+== M0 ==
+M0-SHAPE-PASS
+M0-PICKS 10/10
+M0-SEL-EXACT
+M0-PICK-PARITY-PASS
+M0-PROJ-PASS
+M0-ATTN-PASS
+M0-FFN-PASS
+M0-LOOP1-PASS
+M0-LOOP6-PASS
+M0-O0/O2/O3-IDENTICAL yes
+M0-NEGATIVE-PASS
+M0-NO-DOUBLE yes
+M0-INTEGER-ONLY yes
+M0-PARITY-PASS
+== M1 ==
+/opt/miniconda3/envs/py314/lib/python3.14/site-packages/torch/nn/modules/transformer.py:533: UserWarning: The PyTorch API of nested tensors is in prototype stage and will change in the near future. We recommend specifying layout=torch.jagged when constructing a nested tensor, as this layout receives active development, has better operator coverage, and works with torch.compile. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/NestedTensorImpl.cpp:177.)
+  output = torch._nested_tensor_from_mask(
+/opt/miniconda3/envs/py314/lib/python3.14/site-packages/torch/nn/modules/transformer.py:533: UserWarning: The PyTorch API of nested tensors is in prototype stage and will change in the near future. We recommend specifying layout=torch.jagged when constructing a nested tensor, as this layout receives active development, has better operator coverage, and works with torch.compile. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/NestedTensorImpl.cpp:177.)
+  output = torch._nested_tensor_from_mask(
+/opt/miniconda3/envs/py314/lib/python3.14/site-packages/torch/nn/modules/transformer.py:533: UserWarning: The PyTorch API of nested tensors is in prototype stage and will change in the near future. We recommend specifying layout=torch.jagged when constructing a nested tensor, as this layout receives active development, has better operator coverage, and works with torch.compile. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/NestedTensorImpl.cpp:177.)
+  output = torch._nested_tensor_from_mask(
+M1-SEED-11 model=2.5462 hit=0.474 support=2.0053 prior=0.6241 random=-1.2195 shuffled=-0.7639
+M1-SEED-12 model=2.8713 hit=0.537 support=2.2392 prior=-0.1257 random=-1.0034 shuffled=-0.7422
+M1-SEED-13 model=2.7326 hit=0.474 support=1.9541 prior=-0.0611 random=-0.9378 shuffled=-0.7078
+M1-MEAN model=2.7167 support=2.0662 prior=0.1457 random=-1.0536
+M1-SPLIT-PASS entities train/val/test disjoint by construction
+M1-NO-LEAKAGE-PASS candidate features use current proof state only
+M1-HELD-OUT-UTILITY-PASS
+M1-PARITY-CONTROL-PASS
+M1-PASS
+== M2 ==
+M2-SEED-21 top1=1.1496 hit=0.458 support=-0.7083 conflict_reject=0.935 hard_reject=0.847 f1=0.642
+M2-SEED-22 top1=0.3250 hit=0.246 support=-1.8201 conflict_reject=0.894 hard_reject=0.738 f1=0.518
+M2-SEED-23 top1=0.7865 hit=0.278 support=-1.1396 conflict_reject=0.912 hard_reject=0.778 f1=0.500
+M2-MEAN top1=0.7537 support=-1.2227 conflict_reject=0.914 f1=0.553
+M2-UTILITY-LABEL-PASS
+M2-PAIRWISE-RANK-CORR-PASS
+M2-CONFLICT-REJECT-PASS
+M2-HELD-OUT-ENTITY-PASS
+M2-ADMISSION-BCE-PASS
+M2-PASS
+== M3 ==
+M3-SEED-21 goal=0.504 closure=0.079 support_goal=0.450 support_closure=0.079 false=0.0 no_mask_false=0.05 invalid_accepted=0
+M3-SEED-22 goal=0.508 closure=0.066 support_goal=0.354 support_closure=0.050 false=0.0 no_mask_false=0.025 invalid_accepted=0
+M3-SEED-23 goal=0.562 closure=0.080 support_goal=0.433 support_closure=0.064 false=0.0 no_mask_false=0.05 invalid_accepted=0
+M3-MEAN goal=0.525 support=0.412 random=0.104
+M3-SELFSSL-SEAM-PASS
+M3-FALSE-INJECTION-0
+M3-CLOSURE-GAIN-OVER-CONTROLS-PASS
+M3-HELD-OUT-GOAL-RECOVERY-PASS
+M3-INVALID-HIGH-SCORE-BLOCKED-PASS
+M3-PASS
+== M4 (separate track) ==
+M4-SPAN-COVERAGE 11/22
+M4-CANDIDATE-RECALL 11/22 WEB 5/22
+M4-ORACLE-UPPER-BOUND 22/22
+M4-NO-RANKER-TRAINING-BEFORE-RECALL yes
+V0238-M4-GENERATION-PASS
+== M5 (conditional) ==
+M5-SEED-31 constrained=0.792 kernel=0.819 prior=0.125 random_valid=0.069 false_constrained=0.000 false_unconstrained=0.544
+M5-SEED-32 constrained=0.875 kernel=0.938 prior=0.188 random_valid=0.047 false_constrained=0.000 false_unconstrained=0.547
+M5-SEED-33 constrained=0.342 kernel=0.408 prior=0.000 random_valid=0.079 false_constrained=0.000 false_unconstrained=0.529
+M5-MEAN constrained=0.670 prior=0.104
+M5-CONSTRAINED-DECODE-PASS
+M5-KERNEL-REWARD-PASS
+M5-FALSE-RULE-RATE-PASS
+M5-HELD-OUT-RULE-PASS
+M5-PASS
+== tree release regression ==
+ALL-CORE-TESTS-PASSED
+Verified: 20261113T120607Z-976
+RELEASE-VERIFY-PASS version=0.0237 runtime=20261113T120607Z-976
+M0-M5-VERIFY-PASS

@@ -1,8 +1,0 @@
-BEFORE nodes=5 edges=1
-AFTER nodes=3 edges=1 check=ok topo=(seed p t)
-MATCH t active=1 covered=1/1 conflict=0 result=selected
-MATCH t active=1 covered=1/1 conflict=0 result=selected
-BASE RUN (summary tasks 1 solved 1 active (p))
-DCE RUN (summary tasks 1 solved 1 active (p))
-SAME yes
-done-dce

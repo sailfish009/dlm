@@ -1,6 +1,0 @@
-FIRST status=proof probes=13
-CACHED status=proof probes=0 scans=0
-UNRELATED status=proof probes=0
-REMOVED status=fail
-CHECK ok
-done-proof-cache

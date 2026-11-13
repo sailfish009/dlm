@@ -1,0 +1,52 @@
+{
+  "data": {
+    "train": 553,
+    "val": 120,
+    "test": 115
+  },
+  "model": {
+    "top1_utility": 0.7865217391304348,
+    "hit": 0.2782608695652174,
+    "regret": 2.5965217391304343,
+    "max_regret": 13.149999999999999
+  },
+  "model_conflict": {
+    "hard_neg_reject_rate": 0.7777777777777778,
+    "conflict_reject_rate": 0.9122137404580153,
+    "admission_precision": 0.5111940298507462,
+    "admission_recall": 0.48928571428571427,
+    "admission_f1": 0.5,
+    "hard_neg_count": 126,
+    "conflict_count": 524
+  },
+  "prior_only": {
+    "top1_utility": -1.4421739130434783,
+    "hit": 0.12173913043478261,
+    "regret": 4.825217391304347,
+    "max_regret": 15.75
+  },
+  "support_only": {
+    "top1_utility": -1.1395652173913045,
+    "hit": 0.23478260869565218,
+    "regret": 4.522608695652173,
+    "max_regret": 22.25
+  },
+  "random": {
+    "top1_utility": -3.1082608695652176,
+    "hit": 0.017391304347826087,
+    "regret": 6.491304347826087,
+    "max_regret": 23.6
+  },
+  "untrained": {
+    "top1_utility": -1.8808695652173915,
+    "hit": 0.008695652173913044,
+    "regret": 5.26391304347826,
+    "max_regret": 16.05
+  },
+  "shuffled_features": {
+    "top1_utility": -3.3282608695652174,
+    "hit": 0.043478260869565216,
+    "regret": 6.711304347826086,
+    "max_regret": 26.15
+  }
+}
