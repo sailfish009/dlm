@@ -1,0 +1,8 @@
+PARSED ((nl-fact cat mammal A cat is a mammal.) (nl-fact dog mammal A dog is a mammal.) (nl-rule mammal animal All mammals are animals.) (nl-rule animal living-thing All animals are living things.))
+BASIS RULES 2
+STATUS1 proved
+ANSWER1 Yes, a cat is a living thing.
+WHY1 A cat is a mammal. All mammals are animals. All animals are living things.
+STATUS2 unknown
+ANSWER2 I cannot prove that a cat is a plant.
+done-nl

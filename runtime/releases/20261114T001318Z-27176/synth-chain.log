@@ -1,0 +1,8 @@
+TWO_FACT_CANDIDATES 0
+THREE_FACT_CANDIDATES 1
+SYNTH rule support=(a0 a1 a2)
+COVERAGE 2/2
+NEGATIVE clean
+HELD proof
+FROZEN fail
+done-chain

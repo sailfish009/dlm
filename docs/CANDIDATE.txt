@@ -1,1 +1,1 @@
-CANDIDATE — 0.0242 native integral-credit composition (Maru + LLVM IR).
+CANDIDATE — 0.0243 native integral-credit protocol repair (Maru + LLVM IR).

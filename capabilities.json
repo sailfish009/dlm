@@ -1,6 +1,6 @@
 {
-  "version": "0.0237",
-  "note": "Minimal-core capability ledger. Research snapshots are separate.",
+  "version": "0.0246",
+  "note": "Minimal-core capability ledger. Research snapshots are separate; the native scope is docs/native-scope-0243.md.",
   "removed_in_0_0205": [
     "d107 contract layer (d107-*.l, contract/unit/surface/plan/session modules)",
     "tests/test_d107.py and tests/oracle107.py"
@@ -185,6 +185,82 @@
     "dense_tensor_attention_in_core": {
       "status": "not-implemented",
       "witness": null
+    },
+    "native_integral_credit_composition": {
+      "status": "research",
+      "witness": "experiments/native_integral/verify.sh"
+    },
+    "native_paired_statistics_gate": {
+      "status": "experimental",
+      "witness": "experiments/native_integral/verify.sh"
+    },
+    "maru_generated_world_parity": {
+      "status": "experimental",
+      "witness": "experiments/native_integral/verify.sh"
+    },
+    "torch_free_release_gate": {
+      "status": "implemented",
+      "witness": "scripts/verify_release.sh"
+    },
+    "integral_as_composition": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "native_proof_state_ranker": {
+      "status": "research",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "maru_q16_set_transformer_inference": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/maru_check.sh"
+    },
+    "proof_success_policy_metric": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "relational_binding_world": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "budget_exact_proof_bound": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "matched_search_controls": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "fixture_witness_reachability_audit": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "strict_metric_gate_validator": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/tools/gate_check.c"
+    },
+    "multi_step_plan_target": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "relational_goal_binding_features": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "full_budget_teacher_states": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "value_target_objective": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "teacher_state_exposure_control": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "feature_alias_audit": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/tools/alias_audit.c"
     }
   }
 }

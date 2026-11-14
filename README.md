@@ -1,11 +1,12 @@
-# DLM 0.0242 — minimal deductive core + native integral-credit composition
+# DLM 0.0246 — minimal deductive core + native proof-state transformer (validated repair)
 
 This is the **minimal-core lineage** of DLM on Maru, extended with the v0.0216
 array-view C/LLVM backend, the v0.0237 transformer graph/LLVM variant matrix,
-the v0.0238 M0–M5 roadmap, and the v0.0239 structure-discovery lab (P0 fixture
-qualification + P1 direction-aware structural variants on proof-state worlds). It keeps the trusted
-symbolic kernel, proof gate, basis/axiom layer, and the DT proof-state dialect.
-It intentionally removes the older `d107-*` contract layer (see below).
+the v0.0238 M0–M5 roadmap, the v0.0243 native integral-credit lab
+(`experiments/native_integral/`), and the v0.0244 native proof-state transformer
+lab (`experiments/proof_state_transformer_maru/`). It keeps the trusted symbolic kernel, proof
+gate, basis/axiom layer, and the DT proof-state dialect. It intentionally removes
+the older `d107-*` contract layer (see below).
 
 ```text
 facts / observations
@@ -61,9 +62,39 @@ src/dlm/repl.l           REPL / driver surface
 This checks:
 
 - `VERSION`, `docs/release.txt`, and the `maru-compiler` symlink agree;
+- `capabilities.json` version equals `VERSION`;
+- release sources and the release-gate path import no torch (`NATIVE-SCOPE-PASS`,
+  scope in `docs/native-scope-0243.md`, torch snapshots pinned in
+  `docs/research-snapshots.sha256`);
 - no unapproved file larger than 5 MB outside `runtime/`;
+- the headline lab gate (`experiments/native_integral/run_all.sh` →
+  `V0243-NATIVE-INTEGRAL-PASS`);
 - `./scripts/run.sh test` (`ALL-CORE-TESTS-PASSED`);
 - `./scripts/compiler.sh verify <release-id>` (self-host `Verified`).
+
+## Native integral-credit lab (0.0243)
+
+`experiments/native_integral/` is the native (C/LLVM IR + Maru oracle, no
+Python/torch) integral-credit composition lab. 0.0243 repairs the 0.0242
+protocol after review: data/compute-matched memoryless baseline, randomized
+tie-break (no hidden index prior), exact-credit control, measured estimation
+error, paired significance + bootstrap CI over 12 seeds, and Maru parity on
+generated 40-atom worlds.
+
+```text
+accumulated participation prior  40.81%   (12-seed mean)
+memoryless / no learning         12.13%
+single-episode policies (n=100)  13.45% mean, 23.39% max
+full-budget ("exact") credit     43.73%
+hand-written structural oracle   40.43%
+online composition feedback      40.28%  (unstable: -5.85pp on one seed)
+```
+
+Accumulation is the driver (+28.7pp, paired z ≥ 1900 and bootstrap CI excluding
+0 on all 12 seeds). 0.0242's "noise is what makes the integral work" framing is
+retracted: exact credit accumulates better. At this scale the integral is an
+empirical prior over rule participation, not a proof-path or order-non-integrable
+integral. See `docs/release-0243.md` and the lab README.
 
 ## Research snapshots
 
@@ -73,6 +104,13 @@ The release includes code-only snapshots of:
 experiments/tiny_transformer_maru/          Q16 transformer inference port
 experiments/deductive_transformer_maru/     DT × MNIST learning/eval
 ```
+
+Snapshots that import torch are outside the native release scope, are not in
+`docs/release.sources.sha256`, and are pinned in
+`docs/research-snapshots.sha256` (see `docs/native-scope-0243.md`). The 0.0239
+`structure_discovery` and 0.0241 `integral_learning` PyTorch labs were removed
+in 0.0243 as superseded by `native_integral`; they remain in their own
+worktrees.
 
 Large data (`mnist.npz`), checkpoints, generated weights, and per-run logs are
 intentionally excluded. Regenerate them with the READMEs/scripts in each

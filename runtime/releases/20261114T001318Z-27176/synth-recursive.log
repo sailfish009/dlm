@@ -1,0 +1,7 @@
+PROGRAM recursive rules=2 support=(p0 p1 r2)
+COVERAGE 2/2
+NEGATIVE clean
+HELD proof
+SEED ONLY HELD fail
+FROZEN fail
+done-recursive

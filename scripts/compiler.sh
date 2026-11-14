@@ -481,7 +481,7 @@ case "$MODE" in
     exit 1
   fi
   cat "$TTR_LOG" >> "$DIR/verify.log"
-  if ! grep -q 'done-teacher-transformer' "$TTR_LOG" || ! grep -q 'teacher_train_acc=' "$TTR_LOG" || ! grep -q 'TRAIN pos=3 neg=3 RULES 1' "$TTR_LOG" || ! grep -q 'HELD 2/2 NEGPROOFS 0' "$TTR_LOG"; then
+  if ! grep -q 'done-teacher-transformer' "$TTR_LOG" || ! grep -q 'TEACHER-DATA-FROZEN sha256=' "$TTR_LOG" || ! grep -q 'TRAIN pos=3 neg=3 RULES 1' "$TTR_LOG" || ! grep -q 'HELD 2/2 NEGPROOFS 0' "$TTR_LOG"; then
     echo 'transformer behavior/inverse deduction did not match expectations' >> "$DIR/verify.log"
     exit 1
   fi

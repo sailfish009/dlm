@@ -1,0 +1,9 @@
+SINGLE coverage=0
+PROGRAM pair rules=2 support=(v0 v1)
+COVERAGE 1/1
+NEGATIVE clean
+HELD proof
+HELD NEG fail
+SEED ONLY HELD fail
+FROZEN fail
+done-pair

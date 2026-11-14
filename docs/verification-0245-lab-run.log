@@ -1,0 +1,13 @@
+WORLDS-24 STEPS-83 SEED-11 DUMP-out/worlds.txt
+PARITY worlds=24
+PARITY steps=83 candidates=1887
+PARITY max_abs_err state=4.85e-07 cand=3.33e-07 util=4.44e-16
+PARITY-PASS
+LLVM-MATRIX PASS O0/O2/O3
+AUDIT worlds=100 goal_occurrences=300 unique_goals=275 witness_violations=0 unreachable_all_candidates=0
+AUDIT bound_goal_pm=1000000 bound_full_pm=1000000 states=1294600
+AUDIT worlds=100 goal_occurrences=271 unique_goals=271 witness_violations=271 unreachable_all_candidates=0
+AUDIT bound_goal_pm=955719 bound_full_pm=880000 states=1294600
+MEAN variant=base fixture=ref seeds=5 top1=2.5240 hit=0.4864 proof_model=0.9307 full_model=0.8220 proof_utility_greedy=1.0000 proof_support=0.8600 proof_prior=0.5200 proof_random=0.4033 proof_untrained=0.1600 proof_shuffled=0.3933 proof_beam=0.9473 full_beam=0.8640 beam_logp=0.9540 beam_support=0.9400 beam_prior=0.5567 beam_random=0.5600 beam_untrained=0.1900 beam_full_support=0.8400 bound_goal=1.0000 bound_full=1.0000 perm_maxdiff=1.799e-15 search_states=1000 search_cands=22200 search_closes=300 forwards_model=1000
+MEAN variant=base fixture=hard seeds=5 top1=-0.7871 hit=0.4098 proof_model=0.3247 full_model=0.1240 proof_utility_greedy=0.7565 proof_support=0.3579 proof_prior=0.1476 proof_random=0.0664 proof_untrained=0.0295 proof_shuffled=0.0694 proof_beam=0.4066 full_beam=0.1680 beam_logp=0.4103 beam_support=0.5535 beam_prior=0.1697 beam_random=0.1107 beam_untrained=0.0701 beam_full_support=0.3600 bound_goal=0.9557 bound_full=0.8800 perm_maxdiff=1.055e-15 search_states=1000 search_cands=22200 search_closes=300 forwards_model=1000
+RUN-DONE

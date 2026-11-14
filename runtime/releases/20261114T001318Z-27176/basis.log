@@ -1,0 +1,6 @@
+A status=active rules=((rule (atom path ((var x) (var z))) ((atom hop1 ((var x) (var y))) (atom hop2 ((var y) (var z))))) (rule (atom path ((var x) (var z))) ((atom hop1 ((var x) (var y))) (atom hop2 ((var y) (var w))) (atom path ((var w) (var z))))) (rule (atom reach ((var x) (var z))) ((atom edge ((var x) (var z))))) (rule (atom reach ((var x) (var z))) ((atom edge ((var x) (var y))) (atom reach ((var y) (var z))))))
+A proof=proof
+B proof=proof
+B OFF path=fail reach=proof
+B ROLLBACK status=active path=proof
+done-basis

@@ -1,0 +1,11 @@
+ROUND1 ancestor proof
+FRONTIER (missing107 (atom path (r t)))
+SYNTH synth107 support=(h0 h1)
+PATH proof negative=clean
+ESSENTIAL (2)
+HELD PATH proof
+RETAINED ANCESTOR proof
+FROZEN FRONTIER (missing107 (atom path (r t)))
+done-synth
+maru> 
+morituri te salutant

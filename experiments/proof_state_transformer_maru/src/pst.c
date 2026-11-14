@@ -1,0 +1,515 @@
+/* Proof-state transformer lab — native C/LLVM, no Python, no torch.
+ *
+ * Fixture port of experiments/m1_proof_state/world.py (0.0238, PyTorch):
+ *   finite propositional Horn theory over 6 unary predicates and disjoint
+ *   entity splits; candidate actions are Horn rules; utility is measured by
+ *   closure growth on a sandbox copy of the current theory:
+ *       utility = 5 * newly-derived goal atoms + 0.15 * all newly-derived
+ *                 atoms - rule cost
+ *   Features never see entity ids, so the task is entity-held-out.
+ *
+ * Stages in this file:
+ *   1. world generation + closure oracle + M1 features + proof-policy rollout
+ *   2. (next) set-transformer forward/backward, training, variants
+ *
+ * Parity: `./pst --dump out/worlds.txt` writes the generated worlds and the
+ * computed features/utilities; tools/check_parity.py recomputes them with the
+ * reference Python implementation (m1_proof_state/world.py) and compares.
+ */
+#include "array_view.h"
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <math.h>
+
+#ifndef HARD_GOALS
+#define HARD_GOALS 0             /* 0 = reference goal distribution, 1 = declared harder fixture */
+#endif
+#ifndef RELOB
+#define RELOB 0                  /* 1 = goal-binding/dependency preserving features */
+#endif
+
+#define P 6                      /* unary predicates */
+#define NSLOT 2
+#define MAXENT 12                /* largest split (train) */
+#define WENT 6                   /* entities per world */
+#define SEED_RULES 2
+#define POOL 24                  /* candidate rules per world */
+#define NSTEPS 4
+#define GOAL_COUNT 3
+#define NRULES_ALL 90            /* 30 unary + 60 binary */
+#define CAND_BASE (8 + P + NSLOT*P)     /* 26 */
+#define STATE_BASE 8
+#define GOAL_FEAT (P + WENT)            /* per goal: predicate one-hot + entity-slot one-hot */
+#define CAND_GOAL_FEAT 4                /* head match, head known, body supported, would derive */
+#define CAND_DIM (CAND_BASE + (RELOB ? GOAL_COUNT*CAND_GOAL_FEAT : 0))
+#define STATE_DIM (STATE_BASE + (RELOB ? GOAL_COUNT*GOAL_FEAT : 0))
+#define MAXLIVE POOL
+
+typedef struct { int head; int body[NSLOT]; int blen; } Rule;
+
+typedef struct {
+  int split;                     /* 0 train, 1 val, 2 test */
+  int idx;
+  int ents[WENT];
+  uint8_t facts[WENT];           /* 6-bit predicate mask per entity slot */
+  int theory[SEED_RULES];
+  int cands[POOL];
+  int ngoals;
+  int goal_pred[GOAL_COUNT];
+  int goal_ent[GOAL_COUNT];      /* entity slot, not entity id */
+} World;
+
+typedef struct {
+  int world;
+  int step;
+  int nlive;
+  int live[POOL];                /* rule ids */
+  int best;
+  double state[STATE_DIM];
+  double cf[POOL][CAND_DIM];
+  double util[POOL];
+} Step;
+
+static Rule all_rules[NRULES_ALL];
+
+static void build_all_rules(void){
+  /* Order must match the reference ALL_RULES (m1_proof_state/world.py):
+   * per head predicate, the unary rules first, then the binary rules. */
+  int k = 0;
+  for (int h = 0; h < P; h++){
+    for (int b = 0; b < P; b++)
+      if (b != h){ all_rules[k].head = h; all_rules[k].body[0] = b; all_rules[k].blen = 1; k++; }
+    for (int b1 = 0; b1 < P; b1++)
+      for (int b2 = b1+1; b2 < P; b2++)
+        if (h != b1 && h != b2){
+          all_rules[k].head = h; all_rules[k].body[0] = b1; all_rules[k].body[1] = b2;
+          all_rules[k].blen = 2; k++;
+        }
+  }
+  if (k != NRULES_ALL){ fprintf(stderr, "rule table %d\n", k); exit(2); }
+}
+
+/* ---------------- deterministic integer PRNG (xorshift64*) ---------------- */
+static uint64_t rng_state;
+static uint64_t nextrand(void){
+  uint64_t x = rng_state;
+  x ^= x >> 12; x ^= x << 25; x ^= x >> 27;
+  rng_state = x;
+  return x * 2685821657736338717ULL;
+}
+static int randbelow(int n){ return (int)(nextrand() % (uint64_t)n); }
+static int chance_pct(int pct){ return randbelow(100) < pct; }
+static uint64_t mix64(uint64_t x){ x ^= x>>12; x ^= x<<25; x ^= x>>27; return x*2685821657736338717ULL; }
+
+/* ---------------- closure over 6-bit masks ---------------- */
+static void closure(const uint8_t facts[WENT], const int *rules, int nrules, uint8_t out[WENT]){
+  for (int e = 0; e < WENT; e++) out[e] = facts[e];
+  int changed = 1;
+  while (changed){
+    changed = 0;
+    for (int k = 0; k < nrules; k++){
+      const Rule *r = &all_rules[rules[k]];
+      uint8_t bm = 0;
+      for (int s = 0; s < r->blen; s++) bm |= (uint8_t)(1u << r->body[s]);
+      uint8_t hm = (uint8_t)(1u << r->head);
+      for (int e = 0; e < WENT; e++)
+        if ((out[e] & bm) == bm && !(out[e] & hm)){ out[e] |= hm; changed = 1; }
+    }
+  }
+}
+static int popcount6(uint8_t x){ return __builtin_popcount((unsigned)x); }
+
+static double rule_cost(const Rule *r){ return 0.5 + 0.75 * (double)r->blen; }
+
+/* utility = 5*new_goals + 0.15*new_atoms - cost */
+static double utility(const World *w, const int *rules, int nrules, int cand){
+  uint8_t before[WENT], after[WENT];
+  closure(w->facts, rules, nrules, before);
+  int extra[1] = {cand};
+  int tmp[SEED_RULES + NSTEPS + 1];
+  for (int i = 0; i < nrules; i++) tmp[i] = rules[i];
+  tmp[nrules] = extra[0];
+  closure(w->facts, tmp, nrules + 1, after);
+  int goal_new = 0;
+  for (int g = 0; g < w->ngoals; g++){
+    int e = w->goal_ent[g], p = w->goal_pred[g];
+    uint8_t bit = (uint8_t)(1u << p);
+    if ((after[e] & bit) && !(before[e] & bit)) goal_new++;
+  }
+  int new_atoms = 0;
+  for (int e = 0; e < WENT; e++) new_atoms += popcount6((uint8_t)(after[e] & ~before[e]));
+  return 5.0*goal_new + 0.15*(double)new_atoms - rule_cost(&all_rules[cand]);
+}
+
+/* ---------------- features (M1 formulas) ---------------- */
+static int support(const Rule *r, const uint8_t known[WENT]){
+  uint8_t bm = 0;
+  for (int s = 0; s < r->blen; s++) bm |= (uint8_t)(1u << r->body[s]);
+  int c = 0;
+  for (int e = 0; e < WENT; e++) if ((known[e] & bm) == bm) c++;
+  return c;
+}
+
+static void state_features(const World *w, const int *rules, int nrules,
+                           const int *live, int nlive, double out[STATE_DIM]){
+  uint8_t known[WENT];
+  closure(w->facts, rules, nrules, known);
+  int known_n = 0;
+  for (int e = 0; e < WENT; e++) known_n += popcount6(known[e]);
+  double total = (double)(P * WENT);
+  int goal_known = 0;
+  for (int g = 0; g < w->ngoals; g++)
+    if (known[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) goal_known++;
+  double smin = 1e9, smax = -1e9, ssum = 0;
+  for (int i = 0; i < nlive; i++){
+    double s = (double)support(&all_rules[live[i]], known) / (double)WENT;
+    if (s < smin) smin = s;
+    if (s > smax) smax = s;
+    ssum += s;
+  }
+  out[0] = (double)known_n / total;
+  out[1] = (double)goal_known / (double)(w->ngoals > 0 ? w->ngoals : 1);
+  out[2] = 1.0 - (double)known_n / total;
+  out[3] = (double)nlive / (double)POOL;
+  out[4] = nlive ? ssum / (double)nlive : 0.0;
+  out[5] = nlive ? smax : 0.0;
+  out[6] = nlive ? smin : 0.0;
+  out[7] = (double)nrules / 8.0;
+#if RELOB
+  {
+    int k = STATE_BASE;
+    for (int i = 0; i < STATE_DIM - STATE_BASE; i++) out[i + STATE_BASE] = 0.0;
+    for (int g = 0; g < w->ngoals; g++){
+      for (int p = 0; p < P; p++) out[k++] = (w->goal_pred[g] == p) ? 1.0 : 0.0;
+      for (int e = 0; e < WENT; e++) out[k++] = (w->goal_ent[g] == e) ? 1.0 : 0.0;
+    }
+  }
+#endif
+}
+
+static void cand_features(const World *w, const int *rules, int nrules,
+                          int cand, double out[CAND_DIM]){
+  uint8_t known[WENT];
+  closure(w->facts, rules, nrules, known);
+  const Rule *r = &all_rules[cand];
+  int sup = support(r, known);
+  int goal_count = 0;
+  for (int g = 0; g < w->ngoals; g++) if (w->goal_pred[g] == r->head) goal_count++;
+  int head_known = 0, body_known = 0;
+  uint8_t bm = 0;
+  for (int s = 0; s < r->blen; s++) bm |= (uint8_t)(1u << r->body[s]);
+  for (int e = 0; e < WENT; e++){
+    if (known[e] & (uint8_t)(1u << r->head)) head_known++;
+    if ((known[e] & bm) == bm) body_known++;
+  }
+  double body_known_r = (double)body_known / (double)WENT;
+  out[0] = (double)r->blen / 2.0;
+  out[1] = rule_cost(r) / 2.0;
+  out[2] = (double)sup / (double)WENT;
+  out[3] = body_known_r;
+  out[4] = (double)head_known / (double)WENT;
+  out[5] = (double)goal_count / (double)(w->ngoals > 0 ? w->ngoals : 1);
+  out[6] = (sup > 0) ? 1.0 : 0.0;
+  out[7] = (goal_count > 0) ? 1.0 : 0.0;
+  for (int p = 0; p < P; p++) out[8+p] = (r->head == p) ? 1.0 : 0.0;
+  for (int s = 0; s < NSLOT; s++)
+    for (int p = 0; p < P; p++)
+      out[8+P + s*P + p] = (s < r->blen && r->body[s] == p) ? 1.0 : 0.0;
+#if RELOB
+  {
+    int k = CAND_BASE;
+    for (int g = 0; g < GOAL_COUNT; g++){
+      if (g >= w->ngoals){ k += CAND_GOAL_FEAT; continue; }
+      int e = w->goal_ent[g], gp = w->goal_pred[g];
+      uint8_t hm = (uint8_t)(1u << r->head);
+      int body_at = (int)((known[e] & bm) == bm);
+      int head_at = (known[e] & hm) ? 1 : 0;
+      out[k++] = (r->head == gp) ? 1.0 : 0.0;
+      out[k++] = (double)head_at;
+      out[k++] = (double)body_at;
+      out[k++] = (r->head == gp && body_at) ? 1.0 : 0.0;
+    }
+  }
+#endif
+}
+
+/* ---------------- world + rollout generation ---------------- */
+static void sample_ents(int split, int ents[WENT]){
+  int lo = (split == 0) ? 0 : (split == 1) ? 12 : 18;
+  int hi = (split == 0) ? 12 : (split == 1) ? 18 : 26;
+  int pool[MAXENT], n = hi - lo;
+  for (int i = 0; i < n; i++) pool[i] = lo + i;
+  for (int i = 0; i < WENT; i++){
+    int j = i + randbelow(n - i);
+    int t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    ents[i] = pool[i];
+  }
+}
+static void shuffle_ints(int *v, int n){
+  for (int i = n-1; i > 0; i--){
+    int j = randbelow(i+1);
+    int t = v[i]; v[i] = v[j]; v[j] = t;
+  }
+}
+
+/* returns 0 if the world had to be retried */
+static int make_world(World *w, int split, int idx){
+  w->split = split; w->idx = idx;
+  sample_ents(split, w->ents);
+  for (int e = 0; e < WENT; e++){
+    uint8_t m = 0;
+    for (int p = 0; p < P; p++) if (chance_pct(26)) m |= (uint8_t)(1u << p);
+    w->facts[e] = m;
+  }
+  for (int p = 0; p < P; p++)
+    w->facts[randbelow(WENT)] |= (uint8_t)(1u << p);
+
+  int order[NRULES_ALL];
+  for (int i = 0; i < NRULES_ALL; i++) order[i] = i;
+  shuffle_ints(order, NRULES_ALL);
+  for (int i = 0; i < SEED_RULES; i++) w->theory[i] = order[i];
+  for (int i = 0; i < POOL; i++) w->cands[i] = order[SEED_RULES + i];
+
+  uint8_t base[WENT];
+  closure(w->facts, w->theory, SEED_RULES, base);
+
+#if HARD_GOALS
+  /* Declared harder fixture (not the reference distribution): goals that need
+   * >=2 candidate steps. K1 = closure(base + every candidate); K0 = union over
+   * single candidates. Goals are K1 \ (K0 union base). Used because the
+   * reference distribution (below) has a 100% greedy ceiling on this budget. */
+  /* R245-4: the kernel keeps the seed rules active together with the chosen
+   * candidates, so the goal pool and the one-candidate control must use
+   * closure(facts, seed + candidates) and closure(facts, seed + {r}). */
+  int gp[POOL*WENT], ge[POOL*WENT], ng = 0;
+  uint8_t k1[WENT], k0[WENT];
+  {
+    int all[SEED_RULES+POOL];
+    for (int t = 0; t < SEED_RULES; t++) all[t] = w->theory[t];
+    for (int i = 0; i < POOL; i++) all[SEED_RULES+i] = w->cands[i];
+    closure(w->facts, all, SEED_RULES+POOL, k1);
+    for (int e = 0; e < WENT; e++) k0[e] = base[e];
+    for (int i = 0; i < POOL; i++){
+      uint8_t tmp[WENT];
+      int rules2[SEED_RULES+1];
+      for (int t = 0; t < SEED_RULES; t++) rules2[t] = w->theory[t];
+      rules2[SEED_RULES] = w->cands[i];
+      closure(w->facts, rules2, SEED_RULES+1, tmp);
+      for (int e = 0; e < WENT; e++) k0[e] |= tmp[e];
+    }
+  }
+  for (int p = 0; p < P; p++)
+    for (int e = 0; e < WENT; e++){
+      uint8_t bit = (uint8_t)(1u << p);
+      if ((k1[e] & bit) && !(k0[e] & bit)){ gp[ng] = p; ge[ng] = e; ng++; }
+    }
+#else
+  /* F1 (0.0245): the reference adds (head,e) only when the candidate body
+   * holds AT THAT ENTITY e (m1_proof_state/world.py:97-101). The 0.0244 port
+   * checked support anywhere in the world, which produced goals with no
+   * per-entity witness (and goals unreachable even with every candidate). */
+  int gp[POOL*WENT], ge[POOL*WENT], ng = 0;
+  for (int i = 0; i < POOL; i++){
+    const Rule *r = &all_rules[w->cands[i]];
+    uint8_t hm = (uint8_t)(1u << r->head);
+    uint8_t bm = 0;
+    for (int k = 0; k < r->blen; k++) bm |= (uint8_t)(1u << r->body[k]);
+    for (int e = 0; e < WENT; e++)
+      if ((base[e] & bm) == bm && !(base[e] & hm)){ gp[ng] = r->head; ge[ng] = e; ng++; }
+  }
+#endif
+  if (ng == 0) return 0;
+  /* shuffle goal list */
+  for (int i = ng-1; i > 0; i--){
+    int j = randbelow(i+1);
+    int t = gp[i]; gp[i] = gp[j]; gp[j] = t;
+    t = ge[i]; ge[i] = ge[j]; ge[j] = t;
+  }
+  w->ngoals = (ng < GOAL_COUNT) ? ng : GOAL_COUNT;
+  for (int g = 0; g < w->ngoals; g++){ w->goal_pred[g] = gp[g]; w->goal_ent[g] = ge[g]; }
+  return 1;
+}
+
+/* Roll out up to NSTEPS proof steps, oracles choosing the best candidate.
+ * Fills steps[] and returns the number of steps. `used` marks applied rules. */
+static int rollout(const World *w, Step *steps){
+  int rules[SEED_RULES + NSTEPS];
+  int nrules = SEED_RULES;
+  for (int i = 0; i < SEED_RULES; i++) rules[i] = w->theory[i];
+  int nsteps = 0;
+  for (int s = 0; s < NSTEPS; s++){
+    int live[POOL], nlive = 0;
+    for (int i = 0; i < POOL; i++){
+      int c = w->cands[i], used = 0;
+      for (int k = 0; k < nrules; k++) if (rules[k] == c) used = 1;
+      if (!used) live[nlive++] = c;
+    }
+    if (!nlive) break;
+    Step *st = &steps[nsteps];
+    st->world = w->idx; st->step = s; st->nlive = nlive;
+    for (int i = 0; i < nlive; i++) st->live[i] = live[i];
+    state_features(w, rules, nrules, live, nlive, st->state);
+    int best = 0;
+    for (int i = 0; i < nlive; i++){
+      cand_features(w, rules, nrules, live[i], st->cf[i]);
+      st->util[i] = utility(w, rules, nrules, live[i]);
+      if (st->util[i] > st->util[best]) best = i;
+    }
+    st->best = best;
+    nsteps++;
+    if (st->util[best] <= 0) break;
+    rules[nrules++] = live[best];
+  }
+  return nsteps;
+}
+
+/* ---------------- dump mode (parity evidence) ---------------- */
+static void dump_world(const World *w, const Step *steps, int nsteps, FILE *f){
+  fprintf(f, "W %d %d %d\n", w->split, w->idx, w->ngoals);
+  fprintf(f, "E");
+  for (int e = 0; e < WENT; e++) fprintf(f, " %d", w->ents[e]);
+  fprintf(f, "\n");
+  fprintf(f, "F");
+  for (int e = 0; e < WENT; e++) fprintf(f, " %d", (int)w->facts[e]);
+  fprintf(f, "\n");
+  fprintf(f, "T");
+  for (int i = 0; i < SEED_RULES; i++) fprintf(f, " %d", w->theory[i]);
+  fprintf(f, "\n");
+  fprintf(f, "C");
+  for (int i = 0; i < POOL; i++) fprintf(f, " %d", w->cands[i]);
+  fprintf(f, "\n");
+  fprintf(f, "G");
+  for (int g = 0; g < w->ngoals; g++) fprintf(f, " %d:%d", w->goal_pred[g], w->goal_ent[g]);
+  fprintf(f, "\n");
+  int nrules = SEED_RULES;
+  int rules[SEED_RULES + NSTEPS];
+  for (int i = 0; i < SEED_RULES; i++) rules[i] = w->theory[i];
+  for (int s = 0; s < nsteps; s++){
+    const Step *st = &steps[s];
+    fprintf(f, "STEP %d %d %d", s, st->nlive, st->best);
+    for (int i = 0; i < st->nlive; i++) fprintf(f, " %d", st->live[i]);
+    fprintf(f, "\n");
+    fprintf(f, "STATE");
+    for (int i = 0; i < STATE_DIM; i++) fprintf(f, " %.6f", st->state[i]);
+    fprintf(f, "\n");
+    for (int i = 0; i < st->nlive; i++){
+      fprintf(f, "CF %d", st->live[i]);
+      for (int d = 0; d < CAND_DIM; d++) fprintf(f, " %.6f", st->cf[i][d]);
+      fprintf(f, " U %.6f\n", st->util[i]);
+    }
+    if (st->util[st->best] <= 0) break;
+    rules[nrules++] = st->live[st->best];
+  }
+}
+
+/* ---------------- main (stage 1: dump/self-check) ---------------- */
+static Step g_steps[NSTEPS];
+static World g_world;
+
+static int build_split(int split, int nworlds, uint64_t seed, FILE *dump, long *out_steps){
+  rng_state = seed;
+  long nsteps_total = 0;
+  for (int i = 0; i < nworlds; i++){
+    int ok = 0;
+    while (!ok) ok = make_world(&g_world, split, i);
+    int ns = rollout(&g_world, g_steps);
+    nsteps_total += ns;
+    if (dump) dump_world(&g_world, g_steps, ns, dump);
+  }
+  *out_steps = nsteps_total;
+  return 0;
+}
+
+
+#include "model.inc"
+#include "train.inc"
+
+/* ---------------- main ---------------- */
+static void alloc_globals(void){
+  g_p = (Params*)calloc(1, sizeof(Params));
+  g_g = (Params*)calloc(1, sizeof(Params));
+  g_m = (Params*)calloc(1, sizeof(Params));
+  g_v = (Params*)calloc(1, sizeof(Params));
+  g_c = (Cache*)calloc(1, sizeof(Cache));
+  if (!g_p || !g_g || !g_m || !g_v || !g_c){ fprintf(stderr, "alloc\n"); exit(2); }
+}
+
+int main(int argc, char **argv){
+  build_all_rules();
+  const char *mode = "train";
+  const char *dump = NULL;
+  uint64_t seed = 11;
+  int nworlds = 4, seeds = 3, epochs = EPOCHS;
+  for (int i = 1; i < argc; i++){
+    if (!strcmp(argv[i], "--dump") && i+1 < argc) dump = argv[++i];
+    else if (!strcmp(argv[i], "--dump-test") && i+1 < argc){ mode = "dumptest"; dump = argv[++i]; }
+    else if (!strcmp(argv[i], "--seed") && i+1 < argc) seed = strtoull(argv[++i], 0, 10);
+    else if (!strcmp(argv[i], "--worlds") && i+1 < argc) nworlds = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--seeds") && i+1 < argc) seeds = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--epochs") && i+1 < argc) epochs = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--train-n") && i+1 < argc) g_nw[0] = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--val-n") && i+1 < argc) g_nw[1] = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--test-n") && i+1 < argc) g_nw[2] = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--beam") && i+1 < argc) g_beam = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--collect") && i+1 < argc) g_collect = !strcmp(argv[++i], "full");
+    else if (!strcmp(argv[i], "--sample") && i+1 < argc){
+      const char *sm = argv[++i];
+      g_sample = !strcmp(sm, "root") ? 1 : (!strcmp(sm, "sub") ? 2 : 0);
+    }
+    else if (!strcmp(argv[i], "--dataset-stats")) mode = "dsstats";
+    else if (!strcmp(argv[i], "--emit-worlds")) g_emit_worlds = 1;
+    else if (!strcmp(argv[i], "--export-maru") && i+1 < argc){ mode = "export"; dump = argv[++i]; }
+    else if (!strcmp(argv[i], "--cases") && i+1 < argc) nworlds = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--dump-forward") && i+1 < argc){ mode = "dumph"; dump = argv[++i]; }
+    else if (!strcmp(argv[i], "--case") && i+1 < argc) nworlds = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--gradcheck")) mode = "gradcheck";
+    else if (!strcmp(argv[i], "--train")) mode = "train";
+  }
+  if (mode && !strcmp(mode, "dumph")){
+    alloc_globals();
+    dump_forward(dump, (int)seed, epochs, nworlds);
+    return 0;
+  }
+  if (mode && !strcmp(mode, "dumptest")){
+    FILE *f = fopen(dump, "w");
+    if (!f){ fprintf(stderr, "cannot open %s\n", dump); return 2; }
+    long st = 0;
+    build_split(2, g_nw[2], seed + 2, f, &st);
+    fclose(f);
+    printf("DUMP-TEST worlds=%d steps=%ld seed=%llu path=%s\n", g_nw[2], st,
+           (unsigned long long)(seed+2), dump);
+    return 0;
+  }
+  if (mode && !strcmp(mode, "export")){
+    alloc_globals();
+    export_maru(dump, (int)seed, epochs, nworlds);
+    return 0;
+  }
+  if (dump && (!mode || strcmp(mode, "export"))){
+    FILE *f = fopen(dump, "w");
+    if (!f){ fprintf(stderr, "cannot open %s\n", dump); return 2; }
+    long total = 0, st = 0;
+    build_split(0, nworlds, seed, f, &st); total += st;
+    build_split(1, nworlds, seed + 1, f, &st); total += st;
+    build_split(2, nworlds, seed + 2, f, &st); total += st;
+    fclose(f);
+    printf("WORLDS-%d STEPS-%ld SEED-%llu DUMP-%s\n", 3*nworlds, total,
+           (unsigned long long)seed, dump);
+    return 0;
+  }
+  alloc_globals();
+  if (!strcmp(mode, "dsstats")){
+    build_dataset();
+    dataset_stats();
+    return 0;
+  }
+  if (!strcmp(mode, "gradcheck")){
+    double rel = gradcheck();
+    printf(rel < 1e-5 ? "GRADCHECK-PASS\n" : "GRADCHECK-FAIL\n");
+    return rel < 1e-5 ? 0 : 1;
+  }
+  run_variant(seeds, epochs, 1);
+  return 0;
+}

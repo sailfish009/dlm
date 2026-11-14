@@ -1,0 +1,7 @@
+GRAPH check=ok topo=(fseed seed p t) values=4 nodes=4 edges=1
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+MATCH t active=1 covered=1/1 conflict=0 result=selected
+LINEAR run=(summary tasks 1 solved 1 active (p)) rebuilt=(summary tasks 1 solved 1 active (p)) same=yes
+DUP (rejected107 mg-node-id)
+BADEDGE (rejected107 mg-edge-input)
+done-graph-ir

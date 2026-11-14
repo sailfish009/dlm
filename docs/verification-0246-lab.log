@@ -1,0 +1,49 @@
+PARITY world/features/kernel-utility/rollout vs reference implementation
+GRADCHECK six aggregate variants (GRADCHECK params=18403 loss=3.368020 max_abs=1.847e-10 max_grad=1.641e+00 rel_to_max_grad=1.125e-10 max_rel_small=1.975e-05)
+LLVM O0/O2/O3 byte-identical; training re-run byte-identical
+F1/R245-4-INVARIANTS ref witness=0 unreachable=0 bound=100%; hard unreachable=0 pool_mismatch=0 pool=507
+  ALIAS worlds=100 counted=100 variants=200 pairs=39439
+  ALIAS base feature_equal=5906 alias_pairs=0 optimal_differs=1
+  ALIAS relob feature_equal=0 alias_pairs=0 optimal_differs=0
+R245-3-ALIAS aggregate feature collisions alias=1, relation features collide on 0 pairs
+  DATASET fixture=hard collect=rootstop split=0(train) worlds=180 steps=180 hist1=180 hist2=0 hist3=0 hist4=0 label_reward_steps=0 candidate_labels=4320
+  DATASET fixture=hard collect=rootstop split=1(val) worlds=60 steps=63 hist1=59 hist2=0 hist3=0 hist4=1 label_reward_steps=3 candidate_labels=1506
+  DATASET fixture=hard collect=rootstop split=2(test) worlds=100 steps=102 hist1=99 hist2=0 hist3=1 hist4=0 label_reward_steps=2 candidate_labels=2445
+  DATASET fixture=hard collect=full split=0(train) worlds=180 steps=720 hist1=0 hist2=0 hist3=0 hist4=180 label_reward_steps=320 candidate_labels=16200
+  DATASET fixture=hard collect=full split=1(val) worlds=60 steps=240 hist1=0 hist2=0 hist3=0 hist4=60 label_reward_steps=105 candidate_labels=5400
+  DATASET fixture=hard collect=full split=2(test) worlds=100 steps=400 hist1=0 hist2=0 hist3=0 hist4=100 label_reward_steps=169 candidate_labels=9000
+R245-2-DATASET root arm 180 states / 0 reward labels; full arm 720 states / 320 reward labels
+  A_root_agg GATE-PASS fixture=hard seeds=5 model=0.2958 beam_model=0.3774 beam_support=0.6000 (model-minus-support -0.2226, reported) bound_goal=0.9434 bound_full=0.8500 search states=1000 cands=22200 closes=300 forwards=1000
+  B_full_agg GATE-PASS fixture=hard seeds=5 model=0.5147 beam_model=0.6294 beam_support=0.6000 (model-minus-support +0.0294, reported) bound_goal=0.9434 bound_full=0.8500 search states=1000 cands=22200 closes=300 forwards=1000
+  C_root_relob GATE-PASS fixture=hard seeds=5 model=0.3147 beam_model=0.3955 beam_support=0.6000 (model-minus-support -0.2045, reported) bound_goal=0.9434 bound_full=0.8500 search states=1000 cands=22200 closes=300 forwards=1000
+  D_full_relob GATE-PASS fixture=hard seeds=5 model=0.7653 beam_model=0.8498 beam_support=0.6000 (model-minus-support +0.2498, reported) bound_goal=0.9434 bound_full=0.8500 search states=1000 cands=22200 closes=300 forwards=1000
+  E_full_all GATE-PASS fixture=hard seeds=5 model=0.7442 beam_model=0.8309 beam_support=0.6000 (model-minus-support +0.2309, reported) bound_goal=0.9434 bound_full=0.8500 search states=1000 cands=22200 closes=300 forwards=1000
+  empty                  want=fail got=exit1
+  no_seed_rows           want=fail got=exit1
+  one_seed_only          want=fail got=exit1
+  model_below_prior      want=fail got=exit1
+  support_stronger_is_data want=pass got=exit0
+  missing_shuffled       want=fail got=exit1
+  shuffled_099           want=fail got=exit1
+  mean_tampered          want=fail got=exit1
+  beam_prior_high        want=fail got=exit1
+  duplicate_seed         want=fail got=exit1
+  perm_not_invariant     want=fail got=exit1
+  proof_rate_101         want=fail got=exit1
+  mean_beam_full_tamper  want=fail got=exit1
+  seed_budget_zero       want=fail got=exit1
+  mean_budget_inf        want=fail got=exit1
+  mean_seeds_mismatch    want=fail got=exit1
+  token_garbage          want=fail got=exit1
+  duplicate_field        want=fail got=exit1
+GATE-REGRESSION-PASS out/gate_probes (17 mutations rejected, baseline accepted)
+2x2 greedy: A=0.2958 B=0.5147 C=0.3147 D=0.7653 E=0.7442 (state +0.2189, features +0.2506)
+2x2 beam:   D=0.8498 support=0.6000
+R245-2/3-2X2-PASS state collection and relation features both required
+  BOOT beam_model_raw_minus_support goal_ratio_lo=0.1762 goal_ratio_hi=0.3235 goal_macro_lo=0.1943 goal_macro_hi=0.3443 full_lo=0.1900 full_hi=0.3660
+R245-5-ESTIMAND headline goal CI uses the total-goal ratio; macro CI reported separately
+R245-5-CI headline goal estimator = total-goal ratio per resample (see BOOT line)
+  EXPORT-CONFIG variant=base fixture=hard seed=11 epochs=40 train=180 val=60 test=100 cases=100 params=19939 weights_checksum=8427.441487
+  MARU-PST picks=100/100 maxerr_q16=535
+F5-MARU matched checkpoint (best arm) exported, 100 initial states reproduced in Maru Q16
+V0246-PROOF-STATE-TRANSFORMER-PASS

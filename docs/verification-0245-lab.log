@@ -1,0 +1,35 @@
+PARITY world/features/kernel-utility/rollout vs reference implementation
+GRADCHECK all six variants (shared masked objective), e.g. GRADCHECK params=18403 loss=3.368020 max_abs=1.847e-10 max_grad=1.641e+00 rel_to_max_grad=1.125e-10 max_rel_small=1.975e-05
+LLVM O0/O2/O3 byte-identical; training re-run byte-identical
+  ref  AUDIT worlds=100 goal_occurrences=300 unique_goals=275 witness_violations=0 unreachable_all_candidates=0
+  hard AUDIT worlds=100 goal_occurrences=271 unique_goals=271 witness_violations=271 unreachable_all_candidates=0
+F1-INVARIANTS ref witness=0 unreachable=0 bound=100%; hard unreachable=0
+  bound ref lab=1.0000 audit=1.0000
+  bound hard lab=0.9557 audit=0.9557
+  BOUND-ASSERT ok=1 pairs=500 violations=0 bound_goal=0.9557 bound_full=0.8800
+F4-BOUND budget-exact subset bound admitted (all 500 seed-world pairs), model<=bound
+GATE-PASS fixture=ref seeds=5 model=0.9307 beam_model=0.9473 beam_support=0.9400 (model-minus-support +0.0073, reported) bound_goal=1.0000 bound_full=1.0000 search states=1000 cands=22200 closes=300 forwards=1000
+GATE-PASS fixture=hard seeds=5 model=0.3247 beam_model=0.4066 beam_support=0.5535 (model-minus-support -0.1469, reported) bound_goal=0.9557 bound_full=0.8800 search states=1000 cands=22200 closes=300 forwards=1000
+  empty                  want=fail got=exit1
+  no_seed_rows           want=fail got=exit1
+  one_seed_only          want=fail got=exit1
+  model_below_prior      want=fail got=exit1
+  support_stronger_is_data want=pass got=exit0
+  missing_shuffled       want=fail got=exit1
+  shuffled_099           want=fail got=exit1
+  mean_tampered          want=fail got=exit1
+  beam_prior_high        want=fail got=exit1
+  duplicate_seed         want=fail got=exit1
+  perm_not_invariant     want=fail got=exit1
+GATE-REGRESSION-PASS out/gate_probes (10 mutations rejected, baseline accepted)
+F2/F3-VALIDATION row counts, unique seeds, required fields, recomputed MEAN, controls
+  BOOT beam_model_raw_minus_support goal_lo=-0.0180 goal_hi=0.0360 full_lo=-0.0400 full_hi=0.0960
+  BOOT beam_model_raw_minus_logp goal_lo=-0.0147 goal_hi=0.0007 full_lo=-0.0380 full_hi=0.0040
+  SEARCH-BUDGET states=5000 cands=111000 closes=1500 forwards_model=5000 (identical across the six beam arms)
+  BOOT beam_model_raw_minus_support goal_lo=-0.2267 goal_hi=-0.0590 full_lo=-0.2800 full_hi=-0.1060
+  BOOT beam_model_raw_minus_logp goal_lo=-0.0140 goal_hi=0.0053 full_lo=-0.0100 full_hi=0.0140
+  SEARCH-BUDGET states=5000 cands=111000 closes=1500 forwards_model=5000 (identical across the six beam arms)
+  EXPORT-CONFIG variant=base fixture=hard seed=11 epochs=40 train=180 val=60 test=100 cases=100 params=18403 weights_checksum=8974.224931
+  MARU-PST picks=100/100 maxerr_q16=271
+F5-MARU matched checkpoint (main protocol) exported, 100 initial states reproduced in Maru Q16
+V0245-PROOF-STATE-TRANSFORMER-PASS
