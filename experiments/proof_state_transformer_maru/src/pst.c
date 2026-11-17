@@ -23,12 +23,25 @@
 #include <string.h>
 #include <math.h>
 
+#ifndef MAXBUDGET
+#define MAXBUDGET 6              /* R250-1: rule-sequence arrays must cover eval budget 6 */
+#endif
 #ifndef HARD_GOALS
 #define HARD_GOALS 0             /* 0 = reference goal distribution, 1 = declared harder fixture */
 #endif
 #ifndef RELOB
 #define RELOB 0                  /* 1 = goal-binding/dependency preserving features */
 #endif
+#ifndef BINDTOK
+#define BINDTOK 0                /* 0 off, 1 aligned binding tokens, 2 entity-shifted (control) */
+#endif
+#define BIND_FEAT (NSLOT*WENT + WENT)   /* body slot x entity support + head-atom known */
+static int g_goaldepth = 0;      /* 0 = default (HARD_GOALS compile flag), k>=1 = goals need k candidate steps */
+static int g_eval_budget = 4;
+static int g_seed_base = 11;
+static const char *g_save_weights = (const char*)0;
+static const char *g_load_weights = (const char*)0;
+static int g_no_bound = 0;    /* policy/bound step budget; equals NSTEPS by default */
 
 #define P 6                      /* unary predicates */
 #define NSLOT 2
@@ -43,7 +56,7 @@
 #define STATE_BASE 8
 #define GOAL_FEAT (P + WENT)            /* per goal: predicate one-hot + entity-slot one-hot */
 #define CAND_GOAL_FEAT 4                /* head match, head known, body supported, would derive */
-#define CAND_DIM (CAND_BASE + (RELOB ? GOAL_COUNT*CAND_GOAL_FEAT : 0))
+#define CAND_DIM (CAND_BASE + (RELOB ? GOAL_COUNT*CAND_GOAL_FEAT : 0) + (BINDTOK ? BIND_FEAT : 0))
 #define STATE_DIM (STATE_BASE + (RELOB ? GOAL_COUNT*GOAL_FEAT : 0))
 #define MAXLIVE POOL
 
@@ -128,7 +141,7 @@ static double utility(const World *w, const int *rules, int nrules, int cand){
   uint8_t before[WENT], after[WENT];
   closure(w->facts, rules, nrules, before);
   int extra[1] = {cand};
-  int tmp[SEED_RULES + NSTEPS + 1];
+  int tmp[SEED_RULES + MAXBUDGET + 1];
   for (int i = 0; i < nrules; i++) tmp[i] = rules[i];
   tmp[nrules] = extra[0];
   closure(w->facts, tmp, nrules + 1, after);
@@ -217,6 +230,38 @@ static void cand_features(const World *w, const int *rules, int nrules,
   for (int s = 0; s < NSLOT; s++)
     for (int p = 0; p < P; p++)
       out[8+P + s*P + p] = (s < r->blen && r->body[s] == p) ? 1.0 : 0.0;
+#if BINDTOK
+  {
+    /* the exact input of a binding+AND cell: which premise is satisfied at
+     * which entity, and where the head atom already holds. */
+    int k = CAND_BASE
+#if RELOB
+            + GOAL_COUNT*CAND_GOAL_FEAT
+#endif
+            ;
+    /* BINDTOK=2 is the matched-width control: the same block with a per-rule
+     * entity shift, so row sums and marginal statistics are preserved while the
+     * correspondence to the actual premise/goal entities is destroyed. */
+    int src_cand = cand;
+    if (BINDTOK == 2){
+      int ci = 0;
+      for (int i2 = 0; i2 < POOL; i2++) if (w->cands[i2] == cand){ ci = i2; break; }
+      src_cand = w->cands[(ci + 7) % POOL];   /* another candidate's binding rows */
+    }
+    const Rule *rsrc = (BINDTOK == 2) ? &all_rules[src_cand] : r;
+    int shift = 0;
+    for (int sl = 0; sl < NSLOT; sl++)
+      for (int e0 = 0; e0 < WENT; e0++){
+        int e = (e0 + shift) % WENT;
+        if (sl >= rsrc->blen){ out[k++] = 0.0; continue; }
+        out[k++] = (known[e] & (uint8_t)(1u << rsrc->body[sl])) ? 1.0 : 0.0;
+      }
+    for (int e0 = 0; e0 < WENT; e0++){
+      int e = (e0 + shift) % WENT;
+      out[k++] = (known[e] & (uint8_t)(1u << rsrc->head)) ? 1.0 : 0.0;
+    }
+  }
+#endif
 #if RELOB
   {
     int k = CAND_BASE;
@@ -255,8 +300,16 @@ static void shuffle_ints(int *v, int n){
 }
 
 /* returns 0 if the world had to be retried */
+static int g_goal_fallback = 0;   /* 1 = exact-depth pool was empty, shallower used */
+static int g_goal_scan = 0;       /* 1 = scan structures until the exact depth is genuine */
+static int g_goal_depth_used = 0;
+
 static int make_world(World *w, int split, int idx){
   w->split = split; w->idx = idx;
+  g_goal_fallback = 0;
+  /* R250-2: world structure comes from a stream seeded ONLY by (split, idx), so
+   * facts/seed-rules/candidates are identical at every goal depth. */
+  rng_state = mix64((uint64_t)(split*7919u + (uint64_t)idx*104729u) ^ 0x5DEECE66DULL) | 1ULL;
   sample_ents(split, w->ents);
   for (int e = 0; e < WENT; e++){
     uint8_t m = 0;
@@ -276,28 +329,36 @@ static int make_world(World *w, int split, int idx){
   closure(w->facts, w->theory, SEED_RULES, base);
 
 #if HARD_GOALS
-  /* Declared harder fixture (not the reference distribution): goals that need
-   * >=2 candidate steps. K1 = closure(base + every candidate); K0 = union over
-   * single candidates. Goals are K1 \ (K0 union base). Used because the
-   * reference distribution (below) has a 100% greedy ceiling on this budget. */
-  /* R245-4: the kernel keeps the seed rules active together with the chosen
-   * candidates, so the goal pool and the one-candidate control must use
-   * closure(facts, seed + candidates) and closure(facts, seed + {r}). */
+  /* depth-parameterised goal pool: goals = closure(seed + all) \ union over
+   * candidate subsets of size <= k-1 of closure(seed + subset), i.e. goals that
+   * need at least k candidate steps. k=2 is the 0.0245 hard fixture. */
   int gp[POOL*WENT], ge[POOL*WENT], ng = 0;
   uint8_t k1[WENT], k0[WENT];
   {
+    int depth = (g_goaldepth > 0) ? g_goaldepth : 2;
     int all[SEED_RULES+POOL];
     for (int t = 0; t < SEED_RULES; t++) all[t] = w->theory[t];
     for (int i = 0; i < POOL; i++) all[SEED_RULES+i] = w->cands[i];
     closure(w->facts, all, SEED_RULES+POOL, k1);
     for (int e = 0; e < WENT; e++) k0[e] = base[e];
-    for (int i = 0; i < POOL; i++){
-      uint8_t tmp[WENT];
-      int rules2[SEED_RULES+1];
-      for (int t = 0; t < SEED_RULES; t++) rules2[t] = w->theory[t];
-      rules2[SEED_RULES] = w->cands[i];
-      closure(w->facts, rules2, SEED_RULES+1, tmp);
-      for (int e = 0; e < WENT; e++) k0[e] |= tmp[e];
+    /* union over subsets of size <= depth-1 */
+    int maxk = depth - 1;
+    int comb[4];
+    for (int k = 1; k <= maxk && k <= 3; k++){
+      for (int i = 0; i < k; i++) comb[i] = i;
+      while (1){
+        uint8_t tmp[WENT];
+        int rules2[SEED_RULES+3];
+        for (int t = 0; t < SEED_RULES; t++) rules2[t] = w->theory[t];
+        for (int q = 0; q < k; q++) rules2[SEED_RULES+q] = w->cands[comb[q]];
+        closure(w->facts, rules2, SEED_RULES+k, tmp);
+        for (int e = 0; e < WENT; e++) k0[e] |= tmp[e];
+        int pos = k-1;
+        while (pos >= 0 && comb[pos] == POOL - k + pos) pos--;
+        if (pos < 0) break;
+        comb[pos]++;
+        for (int q = pos+1; q < k; q++) comb[q] = comb[q-1]+1;
+      }
     }
   }
   for (int p = 0; p < P; p++)
@@ -320,12 +381,53 @@ static int make_world(World *w, int split, int idx){
       if ((base[e] & bm) == bm && !(base[e] & hm)){ gp[ng] = r->head; ge[ng] = e; ng++; }
   }
 #endif
-  if (ng == 0) return 0;
-  /* shuffle goal list */
-  for (int i = ng-1; i > 0; i--){
-    int j = randbelow(i+1);
-    int t = gp[i]; gp[i] = gp[j]; gp[j] = t;
-    t = ge[i]; ge[i] = ge[j]; ge[j] = t;
+  if (ng == 0 && g_goal_scan) return 0;   /* scan mode: try the next structure */
+  if (ng == 0){
+    /* fallback: shallowest non-empty pool <= requested depth (recorded) */
+    int want = (g_goaldepth > 0) ? g_goaldepth : 2;
+    for (int d2 = want - 1; d2 >= 1 && ng == 0; d2--){
+      uint8_t kk[WENT], k0b[WENT];
+      int all2[SEED_RULES+POOL];
+      for (int t = 0; t < SEED_RULES; t++) all2[t] = w->theory[t];
+      for (int i2 = 0; i2 < POOL; i2++) all2[SEED_RULES+i2] = w->cands[i2];
+      closure(w->facts, all2, SEED_RULES+POOL, kk);
+      for (int e = 0; e < WENT; e++) k0b[e] = base[e];
+      int comb2[4];
+      for (int k2 = 1; k2 <= d2-1 && k2 <= 3; k2++){
+        for (int i2 = 0; i2 < k2; i2++) comb2[i2] = i2;
+        while (1){
+          uint8_t tmp2[WENT]; int rr[SEED_RULES+3]; int mm = 0;
+          for (int t = 0; t < SEED_RULES; t++) rr[mm++] = w->theory[t];
+          for (int q = 0; q < k2; q++) rr[mm++] = w->cands[comb2[q]];
+          closure(w->facts, rr, mm, tmp2);
+          for (int e = 0; e < WENT; e++) k0b[e] |= tmp2[e];
+          int pos2 = k2-1;
+          while (pos2 >= 0 && comb2[pos2] == POOL - k2 + pos2) pos2--;
+          if (pos2 < 0) break;
+          comb2[pos2]++;
+          for (int q = pos2+1; q < k2; q++) comb2[q] = comb2[q-1]+1;
+        }
+      }
+      for (int p2 = 0; p2 < P; p2++)
+        for (int e = 0; e < WENT; e++){
+          uint8_t bit = (uint8_t)(1u << p2);
+          if ((kk[e] & bit) && !(k0b[e] & bit)){ gp[ng] = p2; ge[ng] = e; ng++; }
+        }
+      if (ng > 0){ g_goal_fallback = 1; g_goal_depth_used = d2; }
+    }
+  }
+  if (ng == 0) return 0;   /* no pool even at depth 1: reject the world (rare) */
+  /* shuffle goal list with a LOCAL stream seeded by (split, idx, depth) */
+  {
+    int want = (g_goaldepth > 0) ? g_goaldepth : 2;
+    uint64_t gs = mix64((uint64_t)(split*131 + idx*2654435761u
+                        + (uint64_t)want*2654435761u) ^ 0xA5A5A5A55A5A5A5AULL);
+    for (int i = ng-1; i > 0; i--){
+      gs = mix64(gs);
+      int j = (int)(gs % (uint64_t)(i+1));
+      int t = gp[i]; gp[i] = gp[j]; gp[j] = t;
+      t = ge[i]; ge[i] = ge[j]; ge[j] = t;
+    }
   }
   w->ngoals = (ng < GOAL_COUNT) ? ng : GOAL_COUNT;
   for (int g = 0; g < w->ngoals; g++){ w->goal_pred[g] = gp[g]; w->goal_ent[g] = ge[g]; }
@@ -335,7 +437,7 @@ static int make_world(World *w, int split, int idx){
 /* Roll out up to NSTEPS proof steps, oracles choosing the best candidate.
  * Fills steps[] and returns the number of steps. `used` marks applied rules. */
 static int rollout(const World *w, Step *steps){
-  int rules[SEED_RULES + NSTEPS];
+  int rules[SEED_RULES + MAXBUDGET];
   int nrules = SEED_RULES;
   for (int i = 0; i < SEED_RULES; i++) rules[i] = w->theory[i];
   int nsteps = 0;
@@ -367,7 +469,8 @@ static int rollout(const World *w, Step *steps){
 
 /* ---------------- dump mode (parity evidence) ---------------- */
 static void dump_world(const World *w, const Step *steps, int nsteps, FILE *f){
-  fprintf(f, "W %d %d %d\n", w->split, w->idx, w->ngoals);
+  fprintf(f, "W %d %d %d %d %d\n", w->split, w->idx, w->ngoals,
+          g_goal_fallback, g_goal_depth_used ? g_goal_depth_used : (g_goaldepth > 0 ? g_goaldepth : 2));
   fprintf(f, "E");
   for (int e = 0; e < WENT; e++) fprintf(f, " %d", w->ents[e]);
   fprintf(f, "\n");
@@ -384,7 +487,7 @@ static void dump_world(const World *w, const Step *steps, int nsteps, FILE *f){
   for (int g = 0; g < w->ngoals; g++) fprintf(f, " %d:%d", w->goal_pred[g], w->goal_ent[g]);
   fprintf(f, "\n");
   int nrules = SEED_RULES;
-  int rules[SEED_RULES + NSTEPS];
+  int rules[SEED_RULES + MAXBUDGET];
   for (int i = 0; i < SEED_RULES; i++) rules[i] = w->theory[i];
   for (int s = 0; s < nsteps; s++){
     const Step *st = &steps[s];
@@ -410,15 +513,28 @@ static World g_world;
 
 static int build_split(int split, int nworlds, uint64_t seed, FILE *dump, long *out_steps){
   rng_state = seed;
-  long nsteps_total = 0;
+  long nsteps_total = 0, n_genuine = 0, n_fallback = 0, scans = 0;
+  int src = 0;
   for (int i = 0; i < nworlds; i++){
     int ok = 0;
-    while (!ok) ok = make_world(&g_world, split, i);
+    if (g_goal_scan){
+      /* genuine depth: advance the structure index until the exact-depth pool is
+       * non-empty (each structure is keyed by its own (split, index) stream) */
+      int guard = 0;
+      while (!ok && guard++ < 20000){ ok = make_world(&g_world, split, src++); scans++; }
+      if (!ok){ fprintf(stderr, "SCAN-FAIL split=%d world=%d general=%d\n", split, i, g_goaldepth); exit(3); }
+    } else {
+      while (!ok) ok = make_world(&g_world, split, i);
+    }
+    if (g_goal_fallback) n_fallback++; else n_genuine++;
     int ns = rollout(&g_world, g_steps);
     nsteps_total += ns;
     if (dump) dump_world(&g_world, g_steps, ns, dump);
   }
   *out_steps = nsteps_total;
+  fprintf(stderr, "CENSUS split=%d depth=%d worlds=%d genuine=%ld fallback=%ld scans=%ld mode=%s\n",
+          split, g_goaldepth > 0 ? g_goaldepth : 2, nworlds, n_genuine, n_fallback, scans,
+          g_goal_scan ? "scan" : "fallback");
   return 0;
 }
 
@@ -459,6 +575,15 @@ int main(int argc, char **argv){
       g_sample = !strcmp(sm, "root") ? 1 : (!strcmp(sm, "sub") ? 2 : 0);
     }
     else if (!strcmp(argv[i], "--dataset-stats")) mode = "dsstats";
+    else if (!strcmp(argv[i], "--goaldepth") && i+1 < argc) g_goaldepth = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--eval-budget") && i+1 < argc) g_eval_budget = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--seed-base") && i+1 < argc) g_seed_base = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--save-weights") && i+1 < argc) g_save_weights = argv[++i];
+    else if (!strcmp(argv[i], "--load-weights") && i+1 < argc) g_load_weights = argv[++i];
+    else if (!strcmp(argv[i], "--no-bound")) g_no_bound = 1;
+    else if (!strcmp(argv[i], "--balance-reward")) g_balance = 1;
+    else if (!strcmp(argv[i], "--regret")) g_regret = 1;
+    else if (!strcmp(argv[i], "--goal-scan")) g_goal_scan = 1;
     else if (!strcmp(argv[i], "--emit-worlds")) g_emit_worlds = 1;
     else if (!strcmp(argv[i], "--export-maru") && i+1 < argc){ mode = "export"; dump = argv[++i]; }
     else if (!strcmp(argv[i], "--cases") && i+1 < argc) nworlds = atoi(argv[++i]);

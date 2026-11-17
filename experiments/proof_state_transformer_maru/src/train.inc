@@ -1,9 +1,19 @@
 /* ---------------- stage 3: data, training, evaluation, policies ---------------- */
+#ifndef MAXBUDGET
+#define MAXBUDGET 6
+#endif
 #define NW_TRAIN 180
 #define NW_VAL 40
 #define NW_TEST 40
 #define EPOCHS 40
 #define BATCH 32
+
+#define W_MAGIC 0x444C4D5730323531ULL
+typedef struct {
+  uint64_t magic;
+  int state_dim, cand_dim, variant, hard, relob, bindtok, goaldepth, eval_budget;
+  double pchk;
+} WHeader;
 
 typedef struct {
   int nlive;
@@ -23,6 +33,8 @@ typedef struct {
 
 static int g_collect = 0;       /* 0 = stop when best utility <= 0 (0245), 1 = full budget */
 static int g_sample = 0;        /* 0 = all collected states, 1 = root only, 2 = root + subsample */
+static int g_balance = 0;       /* 1 = reward-bearing states first, then fill to the same count */
+static int g_regret = 0;        /* 1 = report exact first-step regret at root states */
 static long g_ds_worlds[3], g_ds_steps[3], g_ds_hist[3][NSTEPS+1], g_ds_reward[3], g_ds_labels[3];
 
 static WSteps *g_data[3];
@@ -38,8 +50,15 @@ static void build_dataset(void){
     for (int i = 0; i < g_nw[s]; i++){
       WSteps *ws = &g_data[s][i];
       int ok = 0;
-      while (!ok) ok = make_world(&ws->w, s, i);
-      int rules[SEED_RULES + NSTEPS];
+      if (g_goal_scan){
+        static int src[3] = {0,0,0};
+        int guard = 0;
+        while (!ok && guard++ < 20000) ok = make_world(&ws->w, s, src[s]++);
+        if (!ok){ fprintf(stderr, "SCAN-FAIL split=%d world=%d depth=%d\n", s, i, g_goaldepth); exit(3); }
+      } else {
+        while (!ok) ok = make_world(&ws->w, s, i);
+      }
+      int rules[SEED_RULES + MAXBUDGET];
       int nrules = SEED_RULES;
       for (int k = 0; k < SEED_RULES; k++) rules[k] = ws->w.theory[k];
       int used[POOL] = {0};
@@ -198,7 +217,7 @@ static void step_features(const World *w, const int *rules, int nrules,
 /* mode: 0 model, 1 support, 2 prior, 3 random, 4 untrained, 5 shuffled, 6 oracle */
 static void policy_world(const World *w, const Params *p, int mode, uint64_t seed,
                          int *goals_proved, int *steps_used, int *full_success){
-  int rules[SEED_RULES + NSTEPS];
+  int rules[SEED_RULES + MAXBUDGET];
   int nrules = SEED_RULES;
   for (int k = 0; k < SEED_RULES; k++) rules[k] = w->theory[k];
   rng_state = seed | 1ULL;
@@ -206,7 +225,7 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
   static double cf2[POOL][CAND_DIM];
   static double util[POOL];
   int used_steps = 0;
-  for (int st = 0; st < NSTEPS; st++){
+  for (int st = 0; st < g_eval_budget; st++){
     int live[POOL], nlive = 0;
     for (int c = 0; c < POOL; c++){
       int r = w->cands[c], u = 0;
@@ -272,7 +291,7 @@ static int bnd_best;
 static void bound_rec(const World *w, const uint8_t base[WENT], const int *pick,
                       int depth, int start, int k){
   if (depth == k){
-    int rules[SEED_RULES+NSTEPS];
+    int rules[SEED_RULES+MAXBUDGET];
     for (int i = 0; i < SEED_RULES; i++) rules[i] = w->theory[i];
     for (int i = 0; i < k; i++) rules[SEED_RULES+i] = w->cands[pick[i]];
     uint8_t known[WENT];
@@ -294,8 +313,10 @@ static int bound_world(const World *w){
   bnd_best = 0;
   for (int g = 0; g < w->ngoals; g++)
     if (base[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) bnd_best++;
-  int pick[NSTEPS] = {0,0,0,0};
-  for (int k = 1; k <= NSTEPS; k++) bound_rec(w, base, pick, 0, 0, k);
+  int pick[MAXBUDGET];
+  for (int i = 0; i < MAXBUDGET; i++) pick[i] = 0;
+  int bmax = g_eval_budget < MAXBUDGET ? g_eval_budget : MAXBUDGET;
+  for (int k = 1; k <= bmax; k++) bound_rec(w, base, pick, 0, 0, k);
   return bnd_best;
 }
 
@@ -348,7 +369,7 @@ static int score_candidates(int scorer, const Params *p, const double *state,
 
 static void policy_world_beam(const World *w, const Params *p, int scorer, uint64_t seed,
                               int *goals_proved, int *full_success, Counters *ctr){
-  enum { BW = 3, MAXSEQ = SEED_RULES + NSTEPS, MAXC = BW*BW };
+  enum { BW = 3, MAXSEQ = SEED_RULES + MAXBUDGET, MAXC = BW*BW };
   int W = g_beam; if (W > BW) W = BW;
   static double state[STATE_DIM];
   static double cf2[POOL][CAND_DIM];
@@ -361,7 +382,7 @@ static void policy_world_beam(const World *w, const Params *p, int scorer, uint6
   for (int k = 0; k < SEED_RULES; k++) seq[0][k] = w->theory[k];
   score[0] = 0.0;
   rng_state = seed | 1ULL;
-  for (int d = 0; d < NSTEPS; d++){
+  for (int d = 0; d < g_eval_budget; d++){
     int nseq[MAXC]; int ns2[MAXC][MAXSEQ]; double sc2[MAXC];
     int n2 = 0;
     for (int bi = 0; bi < nW; bi++){
@@ -478,6 +499,25 @@ static void train_seed(int seed, int epochs){
     }
   }
   if (g_sample == 1) for (long i = 0; i < ntr; i++) idx[i] = idx_root[i];
+  if (g_balance){
+    /* keep every reward-bearing state, then fill the rest deterministically so
+     * that the number of training samples (and therefore updates) is unchanged.
+     * This equalises goal-reward label exposure across collection modes. */
+    int *bal = (int*)calloc((size_t)n_all, sizeof(int));
+    if (!bal){ fprintf(stderr, "alloc\n"); exit(2); }
+    long nb = 0, npos = 0;
+    for (long i = 0; i < n_all; i++){
+      int wi = idx[i] / 1000, si = idx[i] % 1000;
+      if (g_data[0][wi].st[si].reward_pos){ bal[nb++] = idx[i]; npos++; }
+    }
+    for (long i = 0; i < n_all && nb < ntr; i++){
+      int wi = idx[i] / 1000, si = idx[i] % 1000;
+      if (!g_data[0][wi].st[si].reward_pos) bal[nb++] = idx[i];
+    }
+    for (long i = 0; i < ntr && i < nb; i++) idx[i] = bal[i];
+    fprintf(stderr, "BALANCE train_samples=%ld reward_states=%ld total_states=%ld\n", ntr, npos, n_all);
+    free(bal);
+  }
   int t = 0;
   for (int ep = 0; ep < epochs; ep++){
     /* deterministic shuffle; the exposure-matched arm shuffles every collected
@@ -530,6 +570,112 @@ static void head_prior_from_train(void){
       }
     }
   for (int q = 0; q < P; q++) g_head_prior[q] = counts[q] ? sums[q]/counts[q] : 0.0;
+}
+
+/* ---- exact first-step regret (discovery criterion) ------------------------
+ * For every live candidate at the root state, Q(a) = max goals reachable with
+ * the remaining budget (a plus up to budget-1 further rules). The exact optimum
+ * is available because the fixture is finite (<=24 candidates, budget <=4).
+ * regret = max_a Q(a) - Q(chosen); optimal = Q(chosen) == max_a Q(a).
+ * This separates action quality from state reachability: a policy can reach few
+ * goals because it chose badly (high regret) or because the state is bad. */
+static int q_closure_goals(const World *w, const int *rules, int nrules, const int *extra, int nx){
+  int all[SEED_RULES + MAXBUDGET + 4];
+  int m = 0;
+  for (int i = 0; i < nrules; i++) all[m++] = rules[i];
+  for (int i = 0; i < nx; i++) all[m++] = extra[i];
+  uint8_t known[WENT];
+  closure(w->facts, all, m, known);
+  int gp = 0;
+  for (int g = 0; g < w->ngoals; g++)
+    if (known[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) gp++;
+  return gp;
+}
+
+/* Q for every live candidate; budget = total actions available from here */
+static void q_actions(const World *w, const int *rules, int nrules,
+                      const int *live, int nlive, int budget, int *q){
+  int extra[MAXBUDGET + 4];
+  for (int a = 0; a < nlive; a++){
+    int best = q_closure_goals(w, rules, nrules, &live[a], 1);
+    int rem = budget - 1;
+    if (rem >= 1){
+      for (int b = 0; b < nlive; b++){
+        if (b == a) continue;
+        extra[0] = live[a]; extra[1] = live[b];
+        int v = q_closure_goals(w, rules, nrules, extra, 2);
+        if (v > best) best = v;
+      }
+    }
+    if (rem >= 2){
+      for (int b = 0; b < nlive; b++){
+        if (b == a) continue;
+        for (int c = b+1; c < nlive; c++){
+          if (c == a) continue;
+          extra[0] = live[a]; extra[1] = live[b]; extra[2] = live[c];
+          int v = q_closure_goals(w, rules, nrules, extra, 3);
+          if (v > best) best = v;
+        }
+      }
+    }
+    if (rem >= 3){
+      for (int b = 0; b < nlive; b++){
+        if (b == a) continue;
+        for (int c = b+1; c < nlive; c++){
+          if (c == a) continue;
+          for (int d = c+1; d < nlive; d++){
+            if (d == a) continue;
+            extra[0] = live[a]; extra[1] = live[b]; extra[2] = live[c]; extra[3] = live[d];
+            int v = q_closure_goals(w, rules, nrules, extra, 4);
+            if (v > best) best = v;
+          }
+        }
+      }
+    }
+    q[a] = best;
+  }
+}
+
+/* first-action regret for the model, the support heuristic and utility_greedy */
+static void first_step_regret(double *r_model, double *h_model,
+                              double *r_sup, double *h_sup,
+                              double *r_ug, double *h_ug){
+  double rm = 0, hm = 0, rs = 0, hs = 0, ru = 0, hu = 0;
+  long n = 0;
+  static double state[STATE_DIM];
+  static double cf2[POOL][CAND_DIM];
+  static double util[POOL];
+  int q[POOL];
+  for (int i = 0; i < g_nw[2]; i++){
+    const World *w = &g_data[2][i].w;
+    int rules[SEED_RULES];
+    for (int k = 0; k < SEED_RULES; k++) rules[k] = w->theory[k];
+    int live[POOL], nlive = 0;
+    for (int c = 0; c < POOL; c++){
+      int used = 0;
+      for (int k = 0; k < SEED_RULES; k++) if (rules[k] == w->cands[c]) used = 1;
+      if (!used) live[nlive++] = w->cands[c];
+    }
+    if (!nlive) continue;
+    step_features(w, rules, SEED_RULES, live, nlive, state, cf2, util);
+    model_forward(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, g_c);
+    int am = 0, asup = 0, aug = 0;
+    for (int a = 1; a < nlive; a++){
+      if (g_c->score[a] > g_c->score[am]) am = a;
+      if (cf2[a][3] + 0.5*cf2[a][5] > cf2[asup][3] + 0.5*cf2[asup][5]) asup = a;
+      if (util[a] > util[aug]) aug = a;
+    }
+    q_actions(w, rules, SEED_RULES, live, nlive, g_eval_budget, q);
+    int qmax = q[0];
+    for (int a = 1; a < nlive; a++) if (q[a] > qmax) qmax = q[a];
+    rm += qmax - q[am]; hm += (q[am] == qmax) ? 1 : 0;
+    rs += qmax - q[asup]; hs += (q[asup] == qmax) ? 1 : 0;
+    ru += qmax - q[aug]; hu += (q[aug] == qmax) ? 1 : 0;
+    n++;
+  }
+  *r_model = n ? rm/n : 0; *h_model = n ? hm/n : 0;
+  *r_sup = n ? rs/n : 0;   *h_sup = n ? hs/n : 0;
+  *r_ug = n ? ru/n : 0;    *h_ug = n ? hu/n : 0;
 }
 
 static int g_emit_worlds = 0;
@@ -608,18 +754,23 @@ static void run_variant(int seeds, int epochs, int verbose){
   double bound_goal = 0, bound_full = 0;
   long bound_gt = 0, bound_w = 0, bound_states = 0;
   static int bw_goals[512];
-  for (int i = 0; i < g_nw[2]; i++){
-    const World *w = &g_data[2][i].w;
-    int bg = bound_world(w);
-    bw_goals[i] = bg;
-    bound_goal += bg; bound_gt += w->ngoals;
-    if (bg == w->ngoals) bound_full += 1;
-    bound_w++;
+  if (g_no_bound){
+    for (int i = 0; i < g_nw[2]; i++) bw_goals[i] = 99;   /* assertion disabled */
+    bound_goal = -1.0; bound_full = -1.0;
+  } else {
+    for (int i = 0; i < g_nw[2]; i++){
+      const World *w = &g_data[2][i].w;
+      int bg = bound_world(w);
+      bw_goals[i] = bg;
+      bound_goal += bg; bound_gt += w->ngoals;
+      if (bg == w->ngoals) bound_full += 1;
+      bound_w++;
+    }
+    bound_goal = bound_gt ? bound_goal/(double)bound_gt : 0.0;
+    bound_full = bound_w ? bound_full/(double)bound_w : 0.0;
   }
-  bound_goal = bound_gt ? bound_goal/(double)bound_gt : 0.0;
-  bound_full = bound_w ? bound_full/(double)bound_w : 0.0;
 
-  enum { NAGG = 29 };
+  enum { NAGG = 35 };
   double agg[NAGG];
   for (int i = 0; i < NAGG; i++) agg[i] = 0;
   Counters cinfo = {0,0,0,0};
@@ -627,9 +778,38 @@ static void run_variant(int seeds, int epochs, int verbose){
   long bound_pairs = 0, bound_viol = 0;
 
   for (int si = 0; si < seeds; si++){
-    int seed = 11 + si;
+    int seed = g_seed_base + si;
     rng_state = (uint64_t)(seed*7 + 1);
-    train_seed(seed, epochs);
+    /* R250-8: weights carry a config header so a stale .bin from a different
+     * build (dims/flags/data protocol) is rejected instead of silently reused. */
+    if (g_load_weights){
+      FILE *lf = fopen(g_load_weights, "rb");
+      if (!lf){ fprintf(stderr, "cannot open weights %s\n", g_load_weights); exit(2); }
+      WHeader h;
+      if (fread(&h, sizeof h, 1, lf) != 1){ fprintf(stderr, "short header\n"); exit(2); }
+      if (h.magic != W_MAGIC || h.state_dim != STATE_DIM || h.cand_dim != CAND_DIM ||
+          h.variant != NOUT || h.hard != HARD_GOALS || h.relob != RELOB || h.bindtok != BINDTOK){
+        fprintf(stderr, "WEIGHTS-MISMATCH %s: header dims %d/%d variant %d hard %d relob %d bindtok %d, "
+                "binary dims %d/%d variant %d hard %d relob %d bindtok %d\n",
+                g_load_weights, h.state_dim, h.cand_dim, h.variant, h.hard, h.relob, h.bindtok,
+                STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK);
+        exit(4);
+      }
+      if (fread(g_p, sizeof(Params), 1, lf) != 1){ fprintf(stderr, "short weights\n"); exit(2); }
+      fclose(lf);
+    } else {
+      train_seed(seed, epochs);
+      if (g_save_weights){
+        FILE *sf = fopen(g_save_weights, "wb");
+        if (!sf){ fprintf(stderr, "cannot write %s\n", g_save_weights); exit(2); }
+        double pchk = 0;
+        { double *pp = pv(g_p); long np = param_count(); for (long i = 0; i < np; i++) pchk += pp[i]*(double)(i % 97); }
+        WHeader h = { W_MAGIC, STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, g_goaldepth, g_eval_budget, pchk };
+        fwrite(&h, sizeof h, 1, sf);
+        fwrite(g_p, sizeof(Params), 1, sf);
+        fclose(sf);
+      }
+    }
     Metrics m;
     eval_steps(g_p, 2, &m);
 
@@ -687,19 +867,22 @@ static void run_variant(int seeds, int epochs, int verbose){
                g_wgoals[si][SC_MODEL_RAW][wi], w->ngoals, bw_goals[wi]);
       }
     }
+    double rg_m = 0, ht_m = 0, rg_s = 0, ht_s = 0, rg_u = 0, ht_u = 0;
+    if (g_regret) first_step_regret(&rg_m, &ht_m, &rg_s, &ht_s, &rg_u, &ht_u);
     double perm = permutation_invariance();
     Metrics vt, bs, bp, br; eval_steps(g_p, 1, &vt);
     eval_steps_base(2, 1, &bs); eval_steps_base(2, 2, &bp); eval_steps_base(2, 3, &br);
     double pchk = 0;
     { double *pp = pv(g_p); long n = param_count(); for (long i = 0; i < n; i++) pchk += pp[i]*(double)(i % 97); }
-    printf("SEED %d variant=%s fixture=%s top1=%.4f hit=%.4f regret=%.4f "
+    printf("SEED %d variant=%s fixture=%s d=%d b=%d top1=%.4f hit=%.4f regret=%.4f "
            "proof_model=%.4f full_model=%.4f proof_utility_greedy=%.4f proof_support=%.4f "
            "proof_prior=%.4f proof_random=%.4f proof_untrained=%.4f proof_shuffled=%.4f "
            "proof_beam=%.4f full_beam=%.4f beam_logp=%.4f beam_support=%.4f beam_prior=%.4f "
            "beam_random=%.4f beam_untrained=%.4f beam_full_support=%.4f bound_goal=%.4f bound_full=%.4f "
            "perm_maxdiff=%.3e val_top1=%.4f pchk=%.6f base_support=%.4f base_prior=%.4f "
            "base_random=%.4f search_states=%ld search_cands=%ld search_closes=%ld forwards_model=%ld\n",
-           seed, VNAME, (HARD_GOALS ? "hard" : "ref"), m.top1, m.hit, m.regret,
+           seed, VNAME, (HARD_GOALS ? "hard" : "ref"),
+           (g_goaldepth > 0 ? g_goaldepth : 2), g_eval_budget, m.top1, m.hit, m.regret,
            pm, fm, po, ps, pp, pr, pu, psh, bg[SC_MODEL_RAW], bf[SC_MODEL_RAW],
            bg[SC_MODEL_LOGP], bg[SC_SUPPORT], bg[SC_PRIOR], bg[SC_RANDOM], bg[SC_UNTRAINED],
            bf[SC_SUPPORT], bound_goal, bound_full, perm, vt.top1, pchk, bs.top1, bp.top1, br.top1,
@@ -712,21 +895,23 @@ static void run_variant(int seeds, int epochs, int verbose){
                       bf[SC_SUPPORT], bound_goal, bound_full, perm,
                       (double)arm_ctr[SC_MODEL_RAW].states, (double)arm_ctr[SC_MODEL_RAW].cands,
                       (double)arm_ctr[SC_MODEL_RAW].closes, vt.top1, pchk,
-                      bs.top1, bp.top1, br.top1};
+                      bs.top1, bp.top1, br.top1,
+                      rg_m, ht_m, rg_s, ht_s, rg_u, ht_u};
     for (int i = 0; i < NAGG; i++) agg[i] += v[i];
     cinfo.states += arm_ctr[SC_MODEL_RAW].states;
     cinfo.cands += arm_ctr[SC_MODEL_RAW].cands;
     cinfo.closes += arm_ctr[SC_MODEL_RAW].closes;
     cinfo.forwards += arm_ctr[SC_MODEL_RAW].forwards;
   }
-  printf("MEAN variant=%s fixture=%s seeds=%d top1=%.4f hit=%.4f proof_model=%.4f full_model=%.4f "
+  printf("MEAN variant=%s fixture=%s d=%d b=%d seeds=%d top1=%.4f hit=%.4f proof_model=%.4f full_model=%.4f "
          "proof_utility_greedy=%.4f proof_support=%.4f proof_prior=%.4f proof_random=%.4f "
          "proof_untrained=%.4f proof_shuffled=%.4f proof_beam=%.4f full_beam=%.4f "
          "beam_logp=%.4f beam_support=%.4f beam_prior=%.4f beam_random=%.4f beam_untrained=%.4f "
          "beam_full_support=%.4f bound_goal=%.4f bound_full=%.4f perm_maxdiff=%.3e "
          "search_states=%.0f search_cands=%.0f search_closes=%.0f forwards_model=%.0f "
          "val_top1=%.4f pchk=%.6f base_support=%.4f base_prior=%.4f base_random=%.4f\n",
-         VNAME, (HARD_GOALS ? "hard" : "ref"), seeds,
+         VNAME, (HARD_GOALS ? "hard" : "ref"),
+         (g_goaldepth > 0 ? g_goaldepth : 2), g_eval_budget, seeds,
          agg[0]/seeds, agg[1]/seeds, agg[2]/seeds, agg[3]/seeds, agg[4]/seeds, agg[5]/seeds,
          agg[6]/seeds, agg[7]/seeds, agg[8]/seeds, agg[9]/seeds, agg[10]/seeds, agg[11]/seeds,
          agg[12]/seeds, agg[13]/seeds, agg[14]/seeds, agg[15]/seeds, agg[16]/seeds,
@@ -744,6 +929,12 @@ static void run_variant(int seeds, int epochs, int verbose){
            "goal_macro_lo=%.4f goal_macro_hi=%.4f full_lo=%.4f full_hi=%.4f\n",
            rlo, rhi, mlo, mhi, flo, fhi);
   }
+  if (g_regret)
+    printf("REGRET-MEAN variant=%s d=%d b=%d model_regret=%.4f model_opt=%.4f "
+           "support_regret=%.4f support_opt=%.4f ug_regret=%.4f ug_opt=%.4f\n",
+           VNAME, (g_goaldepth > 0 ? g_goaldepth : 2), g_eval_budget,
+           agg[29]/seeds, agg[30]/seeds, agg[31]/seeds, agg[32]/seeds,
+           agg[33]/seeds, agg[34]/seeds);
   printf("BOUND-ASSERT ok=%d pairs=%ld violations=%ld bound_goal=%.4f bound_full=%.4f\n",
          bound_assert_ok, bound_pairs, bound_viol, bound_goal, bound_full);
   printf("SEARCH-BUDGET states=%ld cands=%ld closes=%ld forwards_model=%ld (identical across the six beam arms)\n",

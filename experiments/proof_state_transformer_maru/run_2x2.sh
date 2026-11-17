@@ -13,7 +13,7 @@ clang -O2 -DHARD_GOALS=1 -Iinclude -Isrc src/pst.c -o bin/pst_hard_agg -lm
 clang -O2 -DHARD_GOALS=1 -DRELOB=1 -Iinclude -Isrc src/pst.c -o bin/pst_hard_relob -lm
 run () { # arm binary collect sample name
   ./"$2" --train --seeds "$SEEDS" --epochs "$EPOCHS" --train-n 180 --val-n 60 --test-n 100 \
-    --collect "$3" --sample "$4" > "out/2x2_$1.txt"
+    --collect "$3" --sample "$4" --goal-scan > "out/2x2_$1.txt"
   grep '^MEAN' "out/2x2_$1.txt" | sed -E "s/^MEAN variant=base fixture=hard seeds=$SEEDS /$1 /" | cut -c1-190
 }
 run A_root_agg    bin/pst_hard_agg   root root

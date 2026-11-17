@@ -1,0 +1,99 @@
+PARITY world/features/kernel-utility/rollout vs reference implementation
+GRADCHECK six aggregate variants (GRADCHECK params=18403 loss=3.468537 max_abs=1.526e-10 max_grad=9.667e-01 rel_to_max_grad=1.579e-10 max_rel_small=1.035e-04)
+ASAN+UBSAN clean at eval budget 6 (goal depth 4, scan mode)
+LLVM O0/O2/O3 byte-identical at eval budget 6; training re-run byte-identical
+F1/R245-4-INVARIANTS ref witness=0 unreachable=0 bound=100%; hard unreachable=0 pool_mismatch=0 pool=520
+  ALIAS worlds=100 counted=100 variants=200 pairs=137355
+  ALIAS base feature_equal=22586 alias_pairs=0 optimal_differs=0
+  ALIAS relob feature_equal=0 alias_pairs=0 optimal_differs=0
+R245-3-ALIAS aggregate collisions=22586 (optimal differs=0, reported), relation collisions=0
+  DATASET fixture=hard collect=rootstop split=0(train) worlds=180 steps=187 hist1=177 hist2=0 hist3=2 hist4=1 label_reward_steps=7 candidate_labels=4476
+  DATASET fixture=hard collect=full split=0(train) worlds=180 steps=720 hist1=0 hist2=0 hist3=0 hist4=180 label_reward_steps=311 candidate_labels=16200
+R245-2-DATASET root 187 states/7 reward, full 720 states/311 reward labels
+  A_root_agg GATE-PASS fixture=hard seeds=5 model=0.2630 beam_model=0.3158 beam_support=0.6410 (model-minus-support -0.3252, reported) bound_goal=0.9414 bound_full=0.8400 search states=1000 cands=22200 closes=300 forwards=1000
+  B_full_agg GATE-PASS fixture=hard seeds=5 model=0.4974 beam_model=0.6051 beam_support=0.6410 (model-minus-support -0.0359, reported) bound_goal=0.9414 bound_full=0.8400 search states=1000 cands=22200 closes=300 forwards=1000
+  C_root_relob GATE-PASS fixture=hard seeds=5 model=0.2755 beam_model=0.3326 beam_support=0.6410 (model-minus-support -0.3084, reported) bound_goal=0.9414 bound_full=0.8400 search states=1000 cands=22200 closes=300 forwards=1000
+  D_full_relob GATE-PASS fixture=hard seeds=5 model=0.7538 beam_model=0.8454 beam_support=0.6410 (model-minus-support +0.2044, reported) bound_goal=0.9414 bound_full=0.8400 search states=1000 cands=22200 closes=300 forwards=1000
+  E_full_all GATE-PASS fixture=hard seeds=5 model=0.7839 beam_model=0.8557 beam_support=0.6410 (model-minus-support +0.2147, reported) bound_goal=0.9414 bound_full=0.8400 search states=1000 cands=22200 closes=300 forwards=1000
+  empty                  want=fail got=exit1
+  no_seed_rows           want=fail got=exit1
+  one_seed_only          want=fail got=exit1
+  model_below_prior      want=fail got=exit1
+  support_stronger_is_data want=pass got=exit0
+  missing_shuffled       want=fail got=exit1
+  shuffled_099           want=fail got=exit1
+  mean_tampered          want=fail got=exit1
+  beam_prior_high        want=fail got=exit1
+  duplicate_seed         want=fail got=exit1
+  perm_not_invariant     want=fail got=exit1
+  proof_rate_101         want=fail got=exit1
+  mean_beam_full_tamper  want=fail got=exit1
+  seed_budget_zero       want=fail got=exit1
+  mean_budget_inf        want=fail got=exit1
+  mean_seeds_mismatch    want=fail got=exit1
+  token_garbage          want=fail got=exit1
+  duplicate_field        want=fail got=exit1
+GATE-REGRESSION-PASS out/gate_probes (17 mutations rejected, baseline accepted)
+2x2 greedy: A=0.2630 B=0.4974 C=0.2755 D=0.7538 E=0.7839 (state +0.2344, features +0.2564)
+2x2 beam:   D=0.8454 support=0.6410
+R245-2/3-2X2-PASS state collection and relation features both required
+  BOOT beam_model_raw_minus_support goal_ratio_lo=0.1284 goal_ratio_hi=0.2830 goal_macro_lo=0.1387 goal_macro_hi=0.2940 full_lo=0.1180 full_hi=0.3340
+R245-5-ESTIMAND headline goal CI uses the total-goal ratio; macro CI reported separately
+R245-5-CI headline goal estimator = total-goal ratio per resample (see BOOT line)
+  EXPORT-CONFIG variant=base fixture=hard seed=11 epochs=40 train=180 val=60 test=100 cases=100 params=19939 weights_checksum=8506.583558
+  MARU-PST picks=100/100 maxerr_q16=556
+F5-MARU matched checkpoint (best arm) exported, 100 initial states reproduced in Maru Q16
+== probes (unbalanced exposure)
+  ladder 2_4 goal=0.7539 full=0.4880 beam=0.8454 beam_full=0.6460 support_beam=0.6410
+  regret 2_4 model=0.0660 model_opt=0.9340 support=0.0800 ug=0.1300
+  ladder 3_4 goal=0.5657 full=0.3760 beam=0.7326 beam_full=0.6000 support_beam=0.3429
+  regret 3_4 model=0.0300 model_opt=0.9700 support=0.0900 ug=0.1500
+  ladder 4_4 goal=0.1000 full=0.0460 beam=0.3238 beam_full=0.2540 support_beam=0.1349
+  regret 4_4 model=0.1720 model_opt=0.8340 support=0.1500 ug=0.4100
+  ladder 2_6 goal=0.9590 full=0.9040 beam=0.9692 beam_full=0.9280 support_beam=0.8132
+  regret 2_6 model=0.0660 model_opt=0.9340 support=0.0800 ug=0.1300
+  ladder 4_6 goal=0.6079 full=0.5580 beam=0.6937 beam_full=0.6420 support_beam=0.5079
+  regret 4_6 model=0.1720 model_opt=0.8340 support=0.1500 ug=0.4100
+== probes (reward-balanced exposure)
+  ladder 2_4 goal=0.7832 full=0.5280 beam=0.8527 beam_full=0.6460 support_beam=0.6410
+  regret 2_4 model=0.0420 model_opt=0.9580 support=0.0800 ug=0.1300
+  ladder 3_4 goal=0.5977 full=0.3920 beam=0.7657 beam_full=0.6320 support_beam=0.3429
+  regret 3_4 model=0.0300 model_opt=0.9720 support=0.0900 ug=0.1500
+  ladder 4_4 goal=0.1159 full=0.0540 beam=0.3587 beam_full=0.2720 support_beam=0.1349
+  regret 4_4 model=0.1600 model_opt=0.8440 support=0.1500 ug=0.4100
+  ladder 2_6 goal=0.9524 full=0.8900 beam=0.9722 beam_full=0.9320 support_beam=0.8132
+  regret 2_6 model=0.0420 model_opt=0.9580 support=0.0800 ug=0.1300
+  ladder 4_6 goal=0.6651 full=0.6020 beam=0.7381 beam_full=0.6800 support_beam=0.5079
+  regret 4_6 model=0.1600 model_opt=0.8440 support=0.1500 ug=0.4100
+DISCOVERY-CRITERIA exposure d4b6 balanced=0.6651 unbalanced=0.6079 (delta +0.0572); d4b6 regret model=0.1600 support=0.1500 (reported)
+STEP-REGRET id: model_regret=0.0420 model_opt=0.9580 support_regret=0.0800
+== probe stats (mean +- SE over seeds)
+  bal PROBECHECK-PASS probes/bal seeds=5
+  bal PROBESTAT 2_4 n=5 goal=0.7832+-0.0039 full=0.5280+-0.0116 beam=0.8527+-0.0073
+  bal PROBESTAT 3_4 n=5 goal=0.5977+-0.0091 full=0.3920+-0.0146 beam=0.7657+-0.0183
+  bal PROBESTAT 4_4 n=5 goal=0.1159+-0.0209 full=0.0540+-0.0196 beam=0.3587+-0.0410
+  bal PROBESTAT 2_6 n=5 goal=0.9524+-0.0070 full=0.8900+-0.0176 beam=0.9722+-0.0025
+  bal PROBESTAT 4_6 n=5 goal=0.6651+-0.0391 full=0.6020+-0.0482 beam=0.7381+-0.0460
+  bindtok PROBECHECK-PASS probes/bindtok seeds=5
+  bindtok PROBESTAT 2_4 n=5 goal=0.7531+-0.0122 full=0.4860+-0.0154 beam=0.8454+-0.0106
+  bindtok PROBESTAT 3_4 n=5 goal=0.5474+-0.0255 full=0.3660+-0.0323 beam=0.7211+-0.0167
+  bindtok PROBESTAT 4_4 n=5 goal=0.1159+-0.0211 full=0.0540+-0.0150 beam=0.3206+-0.0221
+  bindtok PROBESTAT 2_6 n=5 goal=0.9531+-0.0058 full=0.8880+-0.0111 beam=0.9707+-0.0060
+  bindtok PROBESTAT 4_6 n=5 goal=0.6032+-0.0231 full=0.5320+-0.0256 beam=0.7413+-0.0148
+  bindshuf PROBECHECK-PASS probes/bindshuf seeds=5
+  bindshuf PROBESTAT 2_4 n=5 goal=0.7538+-0.0089 full=0.5000+-0.0089 beam=0.8432+-0.0079
+  bindshuf PROBESTAT 3_4 n=5 goal=0.5771+-0.0332 full=0.3860+-0.0266 beam=0.7509+-0.0195
+  bindshuf PROBESTAT 4_4 n=5 goal=0.1159+-0.0197 full=0.0480+-0.0116 beam=0.3381+-0.0391
+  bindshuf PROBESTAT 2_6 n=5 goal=0.9451+-0.0031 full=0.8660+-0.0098 beam=0.9612+-0.0038
+  bindshuf PROBESTAT 4_6 n=5 goal=0.6222+-0.0291 full=0.5540+-0.0284 beam=0.7365+-0.0416
+  PROBECONTRAST bal-bindtok@4_6:proof_model mean=+0.0619 se=0.0609 n=5 range=[-0.0952,+0.2698] INCONCLUSIVE(2SE)
+  PROBECONTRAST bal-bindshuf@4_6:proof_model mean=+0.0429 se=0.0400 n=5 range=[-0.0397,+0.1905] INCONCLUSIVE(2SE)
+  PROBECONTRAST bindtok-bindshuf@4_6:proof_model mean=-0.0190 se=0.0474 n=5 range=[-0.1111,+0.1349] INCONCLUSIVE(2SE)
+  PROBECONTRAST bindtok-bindshuf@4_6:proof_beam mean=+0.0048 se=0.0485 n=5 range=[-0.1270,+0.1746] INCONCLUSIVE(2SE)
+WIDTH-REPORT d4b6 relation(38)=0.6651 aligned(56)=0.6032 shifted(56)=0.6222 (dimension counts from CAND_DIM)
+  final-ladder ladder 2_4 goal=0.7832 full=0.5280 beam=0.8527 beam_full=0.6460 support_beam=0.6410
+  final-ladder ladder 3_4 goal=0.5977 full=0.3920 beam=0.7657 beam_full=0.6320 support_beam=0.3429
+  final-ladder ladder 4_4 goal=0.1159 full=0.0540 beam=0.3587 beam_full=0.2720 support_beam=0.1349
+  final-ladder ladder 2_6 goal=0.9524 full=0.8900 beam=0.9722 beam_full=0.9320 support_beam=0.8132
+  final-ladder ladder 4_6 goal=0.6651 full=0.6020 beam=0.7381 beam_full=0.6800 support_beam=0.5079
+V0250-PROOF-STATE-WIDTH-CONTROL-PASS

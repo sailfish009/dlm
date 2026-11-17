@@ -1,5 +1,5 @@
 {
-  "version": "0.0246",
+  "version": "0.0251",
   "note": "Minimal-core capability ledger. Research snapshots are separate; the native scope is docs/native-scope-0243.md.",
   "removed_in_0_0205": [
     "d107 contract layer (d107-*.l, contract/unit/surface/plan/session modules)",
@@ -261,6 +261,54 @@
     "feature_alias_audit": {
       "status": "experimental",
       "witness": "experiments/proof_state_transformer_maru/tools/alias_audit.c"
+    },
+    "structure_probe_ladder": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/run_probes.sh"
+    },
+    "deduction_cell_search": {
+      "status": "research",
+      "witness": "docs/design-0247.md"
+    },
+    "step_regret_metric": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "reward_exposure_control": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/run_probes.sh"
+    },
+    "bounding_and_shared_repeat_cell": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "binding_token_features": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "binding_token_control": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/run.sh"
+    },
+    "matched_width_binding_control": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "relational_two_variable_fixture": {
+      "status": "not-implemented",
+      "witness": null
+    },
+    "goal_depth_census": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/run.sh"
+    },
+    "probe_log_validator": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/tools/probe_stats.sh"
+    },
+    "weights_config_header": {
+      "status": "implemented",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
     }
   }
 }

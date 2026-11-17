@@ -1,4 +1,4 @@
-# DLM 0.0246 — minimal deductive core + native proof-state transformer (validated repair)
+# DLM 0.0251 — minimal deductive core + harness repair and fixture redesign
 
 This is the **minimal-core lineage** of DLM on Maru, extended with the v0.0216
 array-view C/LLVM backend, the v0.0237 transformer graph/LLVM variant matrix,

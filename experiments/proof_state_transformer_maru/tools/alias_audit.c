@@ -250,15 +250,16 @@ int main(int argc, char **argv){
           for (int q = 0; q < PREFIX; q++) if (prefix[q] == w.cand[i]) used = 1;
           if (!used) rem[nrem++] = w.cand[i];
         }
+        for (int slot = 0; slot < w.ngoal; slot++)
         for (int pr = 0; pr < NP; pr++){
           int es[WENT], ne = 0;
           for (int e = 0; e < WENT; e++) if (pool & (1ULL << (e*NP + pr))) es[ne++] = e;
           for (int i = 0; i < ne; i++)
             for (int j = i+1; j < ne; j++){
               int gpA[MAXG], geA[MAXG], gpB[MAXG], geB[MAXG];
-              int ng = 0;
-              gpA[0] = pr; geA[0] = es[i]; gpB[0] = pr; geB[0] = es[j]; ng = 1;
-              for (int g = 1; g < w.ngoal; g++){ gpA[ng] = w.gp[g]; geA[ng] = w.ge[g]; gpB[ng] = w.gp[g]; geB[ng] = w.ge[g]; ng++; }
+              int ng = w.ngoal;
+              for (int g = 0; g < ng; g++){ gpA[g] = w.gp[g]; geA[g] = w.ge[g]; gpB[g] = w.gp[g]; geB[g] = w.ge[g]; }
+              gpA[slot] = pr; geA[slot] = es[i]; gpB[slot] = pr; geB[slot] = es[j];
               Variant A, B;
               memset(&A, 0, sizeof A); memset(&B, 0, sizeof B);
               relob_state(known, &w, gpA, geA, ng, A.s);
