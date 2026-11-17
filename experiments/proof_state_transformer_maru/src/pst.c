@@ -390,6 +390,7 @@ static void shuffle_ints(int *v, int n){
 
 /* returns 0 if the world had to be retried */
 static int g_goal_fallback = 0;   /* 1 = exact-depth pool was empty, shallower used */
+static int g_dp_check = 0;     /* 1 = DP vs brute-force label audit */
 static int g_goal_scan = 0;       /* 1 = scan structures until the exact depth is genuine */
 static int g_goal_depth_used = 0;
 
@@ -682,6 +683,10 @@ int main(int argc, char **argv){
     else if (!strcmp(argv[i], "--lemma-cost") && i+1 < argc) g_lemma_cost = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--cert") && i+1 < argc) g_cert_on = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--cert-selftest")) g_cert_selftest = 1;
+    else if (!strcmp(argv[i], "--pairmode") && i+1 < argc) g_pairmode = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--pair-keep") && i+1 < argc) g_pair_keep = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--valmode") && i+1 < argc) g_valmode = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--dp-bruteforce-check")) g_dp_check = 1;
     else if (!strcmp(argv[i], "--goal-scan")) g_goal_scan = 1;
     else if (!strcmp(argv[i], "--serve") && i+1 < argc){ mode = "serve"; g_load_weights = argv[++i]; }
     else if (!strcmp(argv[i], "--holdout") && i+1 < argc){

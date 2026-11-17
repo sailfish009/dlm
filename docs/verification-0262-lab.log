@@ -1,0 +1,27 @@
+== 1. DP label equals an independent brute-force enumeration
+DP-EXACT-PASS DP-AUDIT-SUMMARY checks=24 mismatches=0 (memoised recursion vs no-memo enumeration)
+== 2. labels are actually used: shuffled control collapses
+HYBRID-CONTRAST dp-dpshuf goal mean=+0.3572 se=0.0482 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST dp-util goal mean=+0.0222 se=0.0282 n=5 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST dp-util full mean=+0.0220 se=0.0306 n=5 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST dplem-util goal mean=+0.1445 se=0.0235 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST dplem-dp goal mean=+0.1222 se=0.0105 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST dplem-dp full mean=+0.1520 se=0.0116 n=5 SIGNIFICANT(2SE)
+VAL-LEARNED-PASS shuffled DP labels collapse (same multiset, no correspondence)
+== 3. the central contrast: exact DP value vs single-step utility
+VAL-TARGET-VERDICT DP-VALUE-NOT-DEMONSTRATED (dp-util goal inside 2SE; composition still carried by the symbolic action space)
+VAL-TARGET-PASS verdict stated in docs/release-0262.md
+== 4. VALMODE=0 path is inert (conservation)
+CONSERVATION-PASS VALMODE=0 deterministic and free of DP label work
+== 5. aggregation schema, table identity, mutation regression
+HYBRID-TABLE-PASS table equals per-seed recomputation (all arms, 5 seeds)
+GATE-REGRESSION-PASS 10 mutations rejected, baseline accepted
+== 6. weight header carries the value-label mode
+WHDR-PASS value-label mode in the header; cross-label load refused
+== 7. LLVM identity + sanitizers on the DP-label arm
+LLVM-PASS O0/O2/O3 byte-identical; ASAN+UBSAN clean (DP labels, budget 4, depth 4; the label has cost C(n,<=budget) so the identity gate runs at the evaluation budget)
+V0262-DPVALUE-PASS
+
+real	0m27.880s
+user	0m27.160s
+sys	0m0.507s

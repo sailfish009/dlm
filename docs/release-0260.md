@@ -1,9 +1,5 @@
 # DLM 0.0260 — hybrid reasoning layer: Rocq, Silicon and Screamer elements in the native proof-state transformer
 
-> **Correction (review F1, 2026-11-16):** the `±` values in this note are
-> 1 SE standard errors, not 2 SE intervals. The corrected 2 SE widths and the
-> unchanged verdicts are tabulated in `docs/release-0264.md` (Appendix).
-
 0.0260 continues the 0.0259 layer-substitution experiment on the same native
 (C/LLVM IR + Maru Q16) proof-state transformer. 0.0259 ablated two transformer
 readouts (sparse top-k attention, symbolic residual gate). 0.0260 keeps those and

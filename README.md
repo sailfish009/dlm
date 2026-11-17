@@ -1,3 +1,52 @@
+# DLM 0.0262 — minimal deductive core + hybrid reasoning layer (DP value labels)
+
+**0.0262** replaces the single-step utility label with a **budget-exact DP value**
+`V(mask, rem) = max(P(mask), max_c V(mask∪{c}, rem−1))`, computed from the kernel
+closure with memoisation and audited against an independent brute-force
+enumeration (24 checks, 0 mismatches). 5 seeds, fresh base 31–35, d4/b4:
+
+```text
+arm      dfs     dfs_full  note
+util     0.5095  0.4340    single-step utility
+dp       0.5318  0.4560    exact DP value  -> +2.2pp goal +-2.8 (inside 2SE)
+dpshuf   0.1746  0.1660    same label multiset, shuffled (labels are used: -35.7pp)
+dplem    0.6540  0.6080    dp + hand-mined contracts (+12.2pp over dp)
+```
+
+**DP-VALUE-NOT-DEMONSTRATED**: an oracle-grade value label does not substitute
+for the missing learning signal at 19,939 parameters / 40 epochs; it is +2.2pp on
+the DFS split and −4.1pp under beam. The large effect remains the symbolic action
+space (contracts), which stacks with the value label (+14.5pp over util).
+Details: `docs/release-0262.md`; gates: `verify_value.sh` → `V0262-DPVALUE-PASS`.
+
+# DLM 0.0261 — minimal deductive core + hybrid reasoning layer (contract proposal test)
+
+**0.0261** tests whether the 0.0260 contract gain can be *learned* rather than
+hand-designed. Four arms on a fresh seed base (21–25), identical transformer
+(19,939 params), identical protocol, identical search, matched contract count:
+`pure` / `mined` (teacher-rollout pairs) / `learn` (scorer fitted on **kernel
+labels** only, normal equations) / `rand` (matched random pairs).
+
+```text
+arm     dfs     dfs_full  pair_uses
+pure    0.4683  0.3900    0
+mined   0.6302  0.5880    479
+learn   0.6778  0.6400    887
+rand    0.6841  0.6480    922
+```
+
+`learn − rand = −0.6 pp ± 0.7` (5 seeds, inside 2 SE): **PAIR-LEARN-NOT-DEMONSTRATED**.
+The contract gain (+16…22 pp) is an action-space effect — 16 structurally valid,
+kernel-admissible 2-rule actions per state — and the teacher-mined set was a
+*coverage* restriction, not a smarter set. The learning side needs a budget-aware
+value target over contract sequences, not a pointwise pair score. Details:
+`docs/release-0261.md`. Gates: `verify_pair.sh` → `V0261-PAIRLEARN-PASS`.
+Also repaired in this line: the 0.0259 layer-table aggregation (seed-13 row
+printed as a 3-seed mean), stale release manifests, a wrapper token that no
+lab emitted, a `tail -20 a b` diagnostic that failed on GNU 9.12, the seed-count
+dependence of the 0.0251 harness pin, and a latent stack overflow in the 0.0257
+lemma action found by the new ASan gate.
+
 # DLM 0.0260 — minimal deductive core + hybrid reasoning layer
 
 **0.0260** continues the 0.0259 layer-substitution experiment in

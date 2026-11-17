@@ -55,6 +55,20 @@ echo "LAB-GATE proof_state_transformer_maru: $(grep -c '^PARITY\|^GRADCHECK\|^LL
     && ./verify_hybrid.sh > /tmp/pst_hybrid_verify_0260.log 2>&1 ) \
   || { echo HYBRID-LAB-GATE-FAIL; tail -n 20 /tmp/pst_hybrid_run_0260.log /tmp/pst_hybrid_verify_0260.log; exit 1; }
 grep -q '^V0260-HYBRID-PASS$' /tmp/pst_hybrid_verify_0260.log || { echo HYBRID-LAB-GATE-FAIL; exit 1; }
+# --- 0.0262 DP-value gate ----------------------------------------------------
+( cd experiments/proof_state_transformer_maru && ./run_value.sh > /tmp/pst_value_run_0262.log 2>&1 \
+    && ./verify_value.sh > /tmp/pst_value_verify_0262.log 2>&1 ) \
+  || { echo VALUE-LAB-GATE-FAIL; tail -n 20 /tmp/pst_value_run_0262.log /tmp/pst_value_verify_0262.log; exit 1; }
+grep -q '^V0262-DPVALUE-PASS$' /tmp/pst_value_verify_0262.log || { echo VALUE-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE DP value labels: $(grep -c '^DP-\|^VAL-\|^CONSERVATION-PASS\|^HYBRID-TABLE-PASS\|^GATE-REGRESSION-PASS\|^WHDR-PASS\|^LLVM-PASS' /tmp/pst_value_verify_0262.log) checks, V0262-DPVALUE-PASS ($(grep -o 'DP-VALUE-NOT-DEMONSTRATED' /tmp/pst_value_verify_0262.log | head -1))"
+
+# --- 0.0261 learned-contract gate -------------------------------------------
+( cd experiments/proof_state_transformer_maru && ./run_pair.sh > /tmp/pst_pair_run_0261.log 2>&1 \
+    && ./verify_pair.sh > /tmp/pst_pair_verify_0261.log 2>&1 ) \
+  || { echo PAIR-LAB-GATE-FAIL; tail -n 20 /tmp/pst_pair_run_0261.log /tmp/pst_pair_verify_0261.log; exit 1; }
+grep -q '^V0261-PAIRLEARN-PASS$' /tmp/pst_pair_verify_0261.log || { echo PAIR-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE learned contracts: $(grep -c '^PAIR-\|^HYBRID-TABLE-PASS\|^GATE-REGRESSION-PASS\|^WHDR-PASS\|^LLVM-PASS' /tmp/pst_pair_verify_0261.log) checks, V0261-PAIRLEARN-PASS ($(grep -o 'PAIR-LEARN-NOT-DEMONSTRATED' /tmp/pst_pair_verify_0261.log | head -1))"
+
 echo "LAB-GATE hybrid (rocq/silicon/screamer): $(grep -c '^GRADCHECK-PASS\|^PC-PATH-PASS\|^CERT-PASS\|^CERT-MUTATION-PASS\|^FOCUS-\|^FOCUS-COMPLETENESS-PASS\|^LEMMA-PASS\|^HYBRID-TABLE-PASS\|^GATE-REGRESSION-PASS\|^WHDR-PASS\|^LLVM-PASS' /tmp/pst_hybrid_verify_0260.log) checks, V0260-HYBRID-PASS"
 
 # --- relational closure lab gate (0.0253) ----------------------------------

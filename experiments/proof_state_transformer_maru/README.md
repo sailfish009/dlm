@@ -1,4 +1,41 @@
-# Proof-state transformer — native (C/LLVM + Maru Q16), 0.0260
+# Proof-state transformer — native (C/LLVM + Maru Q16), 0.0262
+
+## 0.0262 budget-exact DP value labels (`run_value.sh`, `verify_value.sh`)
+
+```text
+arm      dfs     dfs_full  pair_uses(note)
+util     0.5095  0.4340    single-step utility
+dp       0.5318  0.4560    exact V(mask,rem) label
+dpshuf   0.1746  0.1660    shuffled-label control
+dplem    0.6540  0.6080    dp + mined contracts, 428
+```
+
+`dp − util = +2.2pp ± 2.8` → **DP-VALUE-NOT-DEMONSTRATED**; the label is used
+(shuffled control collapses) but does not yield a better policy. Contracts stack
+(+12.2pp over dp). Gate: `verify_value.sh` → `V0262-DPVALUE-PASS`.
+
+## 0.0261 learned contract proposal (`run_pair.sh`, `verify_pair.sh`)
+
+## 0.0261 learned contract proposal (`run_pair.sh`, `verify_pair.sh`)
+
+Same transformer and protocols; only the contract proposer differs, at matched
+count (16 offers/state). Seeds 21–25.
+
+```text
+arm     dfs     dfs_full  nodes  pair_uses  pair_viol
+pure    0.4683  0.3900    3553   0          0
+mined   0.6302  0.5880    3519   479        0
+learn   0.6778  0.6400    3437   887        0
+rand    0.6841  0.6480    3444   922        0
+```
+
+`learn − rand = −0.6pp ± 0.7` → **PAIR-LEARN-NOT-DEMONSTRATED**: a kernel-labelled
+pointwise pair scorer does not beat a matched random proposer. The contract gain
+is carried by the action space (kernel-verified 2-rule actions), and the mined
+set was a coverage restriction. Verdict and gates: `docs/release-0261.md`,
+`verify_pair.sh` → `V0261-PAIRLEARN-PASS`.
+
+## 0.0260 hybrid reasoning layer (`run_hybrid.sh`, `verify_hybrid.sh`)
 
 ## 0.0260 hybrid reasoning layer (`run_hybrid.sh`, `verify_hybrid.sh`)
 

@@ -14,6 +14,8 @@ typedef struct {
   int state_dim, cand_dim, variant, hard, relob, bindtok, goaldepth, eval_budget;
   int integral, lifted, prior_shuf, holdout;
   int attmode, symgate, cert, focus, lemma;   /* 0260 hybrid-layer tag */
+  int pairmode, pair_keep;                   /* 0261 contract proposer */
+  int valmode;                               /* 0262 value label */
   double lift_rho, path_gamma;
   double pchk;
 } WHeader;
@@ -55,6 +57,18 @@ static int g_lemma_cost = 1;           /* action slots charged for a lemma (cont
 typedef struct { int r1, r2; int body; int uses; } Lemma;  /* pre: body atom holds at an entity */
 static Lemma g_lem[128];
 static int g_nlem = 0;
+/* 0.0261: how the contract set is proposed.
+ *   PAIRMODE 1 = mined from teacher rollouts (0.0257/0.0260, hand-designed)
+ *   PAIRMODE 2 = learned pair scorer over the world's own candidate rules
+ *   PAIRMODE 3 = random structurally-valid pairs (matched-count control) */
+static int g_pairmode = PAIRMODE;
+static int g_pair_keep = 16;           /* contracts offered per state */
+static int g_pair_uses = 0, g_pair_viol = 0;   /* applied / kernel-mismatch */
+#define PAIRF 8
+static double g_pairw[PAIRF];
+static int g_pair_learned = 0;
+static int g_valmode = VALMODE;   /* 0 utility, 1 DP value, 2 shuffled DP (control) */
+static long g_dp_states = 0, g_dp_masks = 0;
 static int g_cert_on = CERT;           /* independent certificate check on the DFS proof */
 static int g_cert_selftest = 0;        /* 1 = corrupt one parent (checker must fail) */
 static long g_dfs_nodes = 0, g_dfs_cands = 0, g_dfs_leafs = 0, g_dfs_pruned = 0;
@@ -63,6 +77,157 @@ static long g_nsteps[3];
 static void pc_filter(const uint8_t *known, int *live, int *nlive);
 static int focus_filter(const World *w, const uint8_t *known, int *live, int nlive);
 static void lemma_mine(void);
+static void pair_learn(void);
+
+/* ---- 0.0262 budget-exact DP value labels ----------------------------------
+ * The single-step utility target cannot express "this rule enables the next
+ * step". The DP label is the exact value of committing a candidate and then
+ * playing optimally within the REMAINING budget:
+ *
+ *   P(mask)      = goals proved by closure(theory + mask)
+ *   V(mask, rem) = max(P(mask), max_{c not in mask} V(mask | 1<<c, rem-1))
+ *   label(c)     = V(mask | 1<<c, rem-1)
+ *
+ * The recursion is memoised over (mask, rem); the state space is every candidate
+ * subset reachable within the remaining budget (C(22,<=4) = 9109 at the root), and
+ * every leaf is a kernel closure. This is an oracle label, not a rollout label:
+ * verify_value.sh compares it against an independent brute-force enumeration.
+ * VALMODE=2 keeps the same label multiset with the correspondence to candidates
+ * destroyed, so any gain from VALMODE=1 can be attributed to the labels. */
+#define DPMEMO 32768
+typedef struct { uint32_t mask; int8_t rem; int8_t used; int val; } DpCell;
+static DpCell g_dp[DPMEMO];
+
+static int proved_mask(const World *w, uint32_t mask){
+  int rules[MAXRULE];
+  int n = SEED_RULES;
+  for (int k = 0; k < SEED_RULES; k++) rules[k] = w->theory[k];
+  for (int c = 0; c < POOL; c++)
+    if (mask & (1u << c)){ if (n < MAXRULE) rules[n++] = w->cands[c]; }
+  uint8_t known[WENT];
+  closure(w->facts, rules, n, known);
+  int gp = 0;
+  for (int g = 0; g < w->ngoals; g++)
+    if (known[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) gp++;
+  return gp;
+}
+
+static uint32_t dp_hash(uint32_t mask, int rem){
+  uint64_t h = (uint64_t)mask*0x9E3779B97F4A7C15ULL ^ (uint64_t)(rem+1)*0xBF58476D1CE4E5B9ULL;
+  return (uint32_t)(h >> 40) & (DPMEMO-1);
+}
+
+static int dp_value(const World *w, uint32_t mask, int rem);
+
+static int dp_lookup(uint32_t mask, int rem, int *val){
+  uint32_t h = dp_hash(mask, rem);
+  for (int i = 0; i < 64; i++){
+    DpCell *e = &g_dp[(h+i) & (DPMEMO-1)];
+    if (!e->used) return 0;
+    if (e->mask == mask && e->rem == rem){ *val = e->val; return 1; }
+  }
+  return 0;
+}
+static void dp_store(uint32_t mask, int rem, int val){
+  uint32_t h = dp_hash(mask, rem);
+  for (int i = 0; i < 64; i++){
+    DpCell *e = &g_dp[(h+i) & (DPMEMO-1)];
+    if (!e->used || (e->mask == mask && e->rem == rem)){
+      e->used = 1; e->mask = mask; e->rem = (int8_t)rem; e->val = val; return;
+    }
+  }
+}
+
+static int dp_value(const World *w, uint32_t mask, int rem){
+  int memo;
+  if (dp_lookup(mask, rem, &memo)) return memo;
+  g_dp_masks++;
+  int best = proved_mask(w, mask);
+  if (rem > 0){
+    for (int c = 0; c < POOL; c++){
+      if (mask & (1u << c)) continue;
+      int v = dp_value(w, mask | (1u << c), rem-1);
+      if (v > best) best = v;
+    }
+  }
+  dp_store(mask, rem, best);
+  return best;
+}
+
+/* independent brute force (no memo, no recursion sharing) for the gate */
+static int dp_bruteforce(const World *w, uint32_t mask, int rem){
+  int best = proved_mask(w, mask);
+  if (rem <= 0) return best;
+  for (int c = 0; c < POOL; c++){
+    if (mask & (1u << c)) continue;
+    int v = dp_bruteforce(w, mask | (1u << c), rem-1);
+    if (v > best) best = v;
+  }
+  return best;
+}
+
+/* candidate-mask of the committed rules at this state */
+static uint32_t committed_mask(const World *w, const int *live, int nlive,
+                               const int *rules, int nrules){
+  uint32_t mask = 0;
+  (void)live; (void)nlive;
+  for (int k = 0; k < nrules; k++)
+    for (int c = 0; c < POOL; c++)
+      if (w->cands[c] == rules[k]) mask |= (1u << c);
+  return mask;
+}
+
+static void dp_labels(const World *w, const int *rules, int nrules, const int *live,
+                      int nlive, int rem, double *util){
+  uint32_t mask = committed_mask(w, live, nlive, rules, nrules);
+  memset(g_dp, 0, sizeof g_dp);
+  g_dp_states++;
+  int vals[POOL];
+  for (int k = 0; k < nlive; k++){
+    uint32_t bit = 0;
+    for (int c = 0; c < POOL; c++) if (w->cands[c] == live[k]) bit = (1u << c);
+    vals[k] = dp_value(w, mask | bit, rem > 0 ? rem-1 : 0);
+    /* scale: fraction of all goals reachable with the remaining budget, mapped to
+     * the same 5.0 range as the single-step goal term, so util/TEMP stays
+     * comparable across VALMODE */
+    util[k] = 5.0*(double)vals[k]/(double)(w->ngoals > 0 ? w->ngoals : 1)
+              - rule_cost(&all_rules[live[k]]);
+  }
+  if (g_valmode == 2){       /* control: same multiset, correspondence destroyed */
+    for (int k = nlive-1; k > 0; k--){
+      int j = (int)randbelow((uint64_t)k+1);
+      double t = util[k]; util[k] = util[j]; util[j] = t;
+    }
+  }
+}
+
+
+/* DP vs independent brute force (gate helper). Runs on the first few train
+ * states at remaining budgets 1..3, where brute force is affordable. */
+static void dp_audit(void){
+  long checks = 0, bad = 0;
+  for (int i = 0; i < g_nw[0] && i < 4; i++){
+    const World *w = &g_data[0][i].w;
+    for (int st = 0; st < g_data[0][i].nsteps && st < 2; st++){
+      const RStep *rs = &g_data[0][i].st[st];
+      int rules[MAXRULE];
+      int nrules = SEED_RULES;
+      for (int k = 0; k < SEED_RULES; k++) rules[k] = w->theory[k];
+      for (int q = 0; q < st; q++) rules[nrules++] = g_data[0][i].st[q].live[g_data[0][i].st[q].best];
+      uint32_t mask = committed_mask(w, rs->live, rs->nlive, rules, nrules);
+      for (int rem = 1; rem <= 3; rem++){
+        memset(g_dp, 0, sizeof g_dp);
+        int a = dp_value(w, mask, rem);
+        int b = dp_bruteforce(w, mask, rem);
+        checks++;
+        if (a != b) bad++;
+        printf("DP-AUDIT world=%d state=%d rem=%d memo=%d brute=%d %s\n",
+               i, st, rem, a, b, a == b ? "ok" : "MISMATCH");
+      }
+    }
+  }
+  printf("DP-AUDIT-SUMMARY checks=%ld mismatches=%ld\n", checks, bad);
+}
 
 static void build_dataset(void){
   for (int s = 0; s < 3; s++){
@@ -103,6 +268,10 @@ static void build_dataset(void){
           rs->util[k] = utility(&ws->w, rules, nrules, live[k]);
           if (rs->util[k] > rs->util[best]) best = k;
         }
+        if (g_valmode != 0)
+          dp_labels(&ws->w, rules, nrules, live, nlive, g_eval_budget - st, rs->util);
+        for (int k = 0; k < nlive; k++)
+          if (rs->util[k] > rs->util[best]) best = k;
         fill_path_features(&ws->w, rules, nrules, live, nlive, rs->cf);
         rs->best = best;
         rs->reward_pos = (rs->util[best] > 0) ? 1 : 0;
@@ -513,6 +682,214 @@ static void lemma_mine(void){
   printf("LEMMA-MINE unique=%d cap=%d kernel_checked=1\n", g_nlem, g_lemma_max);
 }
 
+/* ---- 0.0261 learned contract proposal --------------------------------------
+ * The 0.0257/0.0260 contract set is HAND-DESIGNED: pairs are read off teacher
+ * rollouts, so the "proposal" step carries no learning. Here the candidate spaces
+ * are enumerated from each world's own ruleset (structural chain body(r2)=head(r1))
+ * and three proposers are compared at matched contract count:
+ *   mined   teacher-rollout pairs (PAIRMODE 1)
+ *   learned linear pair scorer trained on KERNEL labels (PAIRMODE 2)
+ *   random  structurally valid pairs (PAIRMODE 3, matched count, no learning)
+ * Labels come from the kernel, never from the teacher: for a train-world root the
+ * label of a pair is the change in proved goals when the pair is committed
+ * (two closures). The scorer is fitted by normal equations (deterministic, 8x8). */
+static void pair_features(const World *w, const uint8_t *known, int r1, int r2,
+                          double *f){
+  const Rule *a = &all_rules[r1], *b = &all_rules[r2];
+  int sup_body = 0, sup_head = 0, goal1 = 0, goal2 = 0;
+  for (int e = 0; e < WENT; e++){
+    if (a->blen && (known[e] & (uint8_t)(1u << a->body[0]))) sup_body++;
+    if (known[e] & (uint8_t)(1u << a->head)) sup_head++;
+  }
+  for (int g = 0; g < w->ngoals; g++){
+    if (w->goal_pred[g] == a->head) goal1 = 1;
+    if (w->goal_pred[g] == b->head) goal2 = 1;
+  }
+  f[0] = (double)sup_body / (double)WENT;
+  f[1] = (double)sup_head / (double)WENT;
+  f[2] = (double)goal1;
+  f[3] = (double)goal2;
+  f[4] = rule_cost(a) / 2.0;
+  f[5] = rule_cost(b) / 2.0;
+  f[6] = g_head_prior[b->head];
+  f[7] = 1.0;                       /* bias */
+}
+
+static int pair_structurally_valid(const World *w, int r1, int r2){
+  const Rule *a = &all_rules[r1], *b = &all_rules[r2];
+  if (a->blen != 1 || b->blen != 1) return 0;
+  if (b->body[0] != a->head) return 0;
+  for (int c = 0; c < POOL; c++){
+    if (w->cands[c] == r1 || w->cands[c] == r2) return 1;
+  }
+  return 0;
+}
+
+/* kernel label: committing (r1,r2) at this state -> goal delta + atom delta.
+ * Both terms come from the kernel closure; the teacher never supplies the label. */
+static double pair_label(const World *w, const int *rules, int nrules, int r1, int r2){
+  int rr[MAXRULE];
+  int n = nrules;
+  for (int k = 0; k < nrules; k++) rr[k] = rules[k];
+  if (n + 2 > MAXRULE) return 0.0;
+  rr[n++] = r1; rr[n++] = r2;
+  uint8_t kn[WENT], k0[WENT];
+  closure(w->facts, rules, nrules, k0);
+  closure(w->facts, rr, n, kn);
+  int rel[P];
+  for (int p = 0; p < P; p++) rel[p] = 0;
+  for (int g = 0; g < w->ngoals; g++){
+    int e = w->goal_ent[g], p = w->goal_pred[g];
+    if (!(k0[e] & (uint8_t)(1u << p))) rel[p] = 1;
+  }
+  for (int it = 0; it < 4; it++)
+    for (int c = 0; c < POOL; c++){
+      const Rule *r = &all_rules[w->cands[c]];
+      if (!rel[r->head]) continue;
+      for (int q = 0; q < r->blen; q++) rel[r->body[q]] = 1;
+    }
+  int g0 = 0, g1 = 0, a0 = 0, a1 = 0;
+  for (int g = 0; g < w->ngoals; g++){
+    if (k0[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) g0++;
+    if (kn[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) g1++;
+  }
+  for (int e = 0; e < WENT; e++){
+    for (int p = 0; p < P; p++){
+      if (!rel[p]) continue;                 /* goal-reachable predicates only */
+      if (k0[e] & (uint8_t)(1u << p)) a0++;
+      if (kn[e] & (uint8_t)(1u << p)) a1++;
+    }
+  }
+  return 4.0*(double)(g1 - g0) + (double)(a1 - a0)/(double)(WENT*P);
+}
+
+static void pair_learn(void){
+  /* normal equations over kernel-labelled pairs sampled from RANDOM rollouts
+   * (model-independent state distribution; the label is always kernel-derived) */
+  double A[PAIRF][PAIRF], bb[PAIRF], f[PAIRF];
+  for (int i = 0; i < PAIRF; i++){ bb[i] = 0; for (int j = 0; j < PAIRF; j++) A[i][j] = 0; }
+  long rows = 0, pos = 0;
+  uint64_t saved = rng_state;
+  for (int i = 0; i < g_nw[0]; i++){
+    const World *w = &g_data[0][i].w;
+    int used[POOL];
+    for (int c = 0; c < POOL; c++) used[c] = 0;
+    int rules[MAXRULE];
+    int nrules = SEED_RULES;
+    for (int k = 0; k < SEED_RULES; k++) rules[k] = w->theory[k];
+    int depth = 0;
+    while (depth < g_eval_budget){
+      uint8_t known[WENT];
+      closure(w->facts, rules, nrules, known);
+      for (int c1 = 0; c1 < POOL; c1++){
+        if (used[c1]) continue;
+        for (int c2 = 0; c2 < POOL; c2++){
+          if (used[c2] || c1 == c2) continue;
+          int r1 = w->cands[c1], r2 = w->cands[c2];
+          if (!pair_structurally_valid(w, r1, r2)) continue;
+          const Rule *ar = &all_rules[r1];
+          int ok = 0;
+          for (int e = 0; e < WENT; e++) if (known[e] & (uint8_t)(1u << ar->body[0])) ok = 1;
+          if (!ok) continue;
+          double lab = pair_label(w, rules, nrules, r1, r2);
+          if (lab < 0) lab = 0;
+          if (lab >= 1.0) pos++;
+          pair_features(w, known, r1, r2, f);
+          for (int p = 0; p < PAIRF; p++){
+            bb[p] += f[p]*lab;
+            for (int q = 0; q < PAIRF; q++) A[p][q] += f[p]*f[q];
+          }
+          rows++;
+        }
+      }
+      /* advance the rollout with a uniformly random admissible single rule */
+      int pick = -1, nfree = 0;
+      for (int c = 0; c < POOL; c++) if (!used[c]) nfree++;
+      if (!nfree) break;
+      int want = (int)(randbelow((uint64_t)nfree));
+      for (int c = 0, k2 = 0; c < POOL; c++) if (!used[c]){ if (k2 == want){ pick = c; break; } k2++; }
+      if (pick < 0) break;
+      used[pick] = 1;
+      if (nrules + 1 > MAXRULE) break;
+      rules[nrules++] = w->cands[pick];
+      depth++;
+    }
+  }
+  rng_state = saved;
+  for (int i = 0; i < PAIRF; i++) A[i][i] += 1e-3;
+  for (int i = 0; i < PAIRF; i++){
+    int piv = i;
+    for (int r = i+1; r < PAIRF; r++) if (fabs(A[r][i]) > fabs(A[piv][i])) piv = r;
+    if (piv != i){
+      for (int c = 0; c < PAIRF; c++){ double t = A[i][c]; A[i][c] = A[piv][c]; A[piv][c] = t; }
+      double t = bb[i]; bb[i] = bb[piv]; bb[piv] = t;
+    }
+    double d = A[i][i];
+    if (fabs(d) < 1e-12){ g_pairw[i] = 0; continue; }
+    for (int c = i; c < PAIRF; c++) A[i][c] /= d;
+    bb[i] /= d;
+    for (int r = 0; r < PAIRF; r++){
+      if (r == i) continue;
+      double m = A[r][i];
+      if (m == 0) continue;
+      for (int c = i; c < PAIRF; c++) A[r][c] -= m*A[i][c];
+      bb[r] -= m*bb[i];
+    }
+  }
+  for (int i = 0; i < PAIRF; i++) g_pairw[i] = bb[i];
+  g_pair_learned = 1;
+  printf("PAIR-LEARN rows=%ld positives=%ld w=[", rows, pos);
+  for (int i = 0; i < PAIRF; i++) printf("%.4f%s", g_pairw[i], i+1<PAIRF ? "," : "");
+  printf("]\n");
+}
+
+static double pair_score(const World *w, const uint8_t *known, int r1, int r2){
+  double f[PAIRF], s = 0;
+  pair_features(w, known, r1, r2, f);
+  for (int i = 0; i < PAIRF; i++) s += g_pairw[i]*f[i];
+  return s;
+}
+
+/* Build the contract set for the CURRENT state under the active proposer.
+ * Learned/random propose from the world's own ruleset (not from rollouts), and
+ * the set is capped at g_pair_keep so every proposer gets the same budget. */
+typedef struct { int r1, r2; } PairAct;
+static int pair_candidates(const World *w, const uint8_t *known, const int *rules,
+                           int nrules, PairAct *out, int max){
+  PairAct all[POOL*POOL];
+  double sc[POOL*POOL];
+  int nall = 0;
+  for (int c1 = 0; c1 < POOL; c1++){
+    int r1 = w->cands[c1], used1 = 0;
+    for (int k = 0; k < nrules; k++) if (rules[k] == r1) used1 = 1;
+    if (used1) continue;
+    for (int c2 = 0; c2 < POOL; c2++){
+      int r2 = w->cands[c2], used2 = 0;
+      for (int k = 0; k < nrules; k++) if (rules[k] == r2) used2 = 1;
+      if (used2) continue;
+      if (!pair_structurally_valid(w, r1, r2)) continue;
+      /* kernel applicability at this state: r1's body must hold somewhere */
+      const Rule *a = &all_rules[r1];
+      int ok = 0;
+      for (int e = 0; e < WENT; e++) if (known[e] & (uint8_t)(1u << a->body[0])) ok = 1;
+      if (!ok) continue;
+      all[nall].r1 = r1; all[nall].r2 = r2;
+      if (g_pairmode == 2) sc[nall] = pair_score(w, known, r1, r2);
+      else sc[nall] = (double)randbelow(1000000);   /* matched-count control */
+      nall++;
+    }
+  }
+  for (int i = 0; i < nall; i++)
+    for (int j = i+1; j < nall; j++)
+      if (sc[j] > sc[i]){
+        double t = sc[i]; sc[i] = sc[j]; sc[j] = t;
+        PairAct tp = all[i]; all[i] = all[j]; all[j] = tp;
+      }
+  int m = (max < nall) ? max : nall;
+  for (int i = 0; i < m; i++) out[i] = all[i];
+  return m;
+}
+
 static void dfs_world(const World *w, int *rules, int nrules, int depth, int budget){
   g_dfs_nodes++;
   uint8_t known[WENT];
@@ -564,29 +941,45 @@ static void dfs_world(const World *w, int *rules, int nrules, int depth, int bud
   for (int a = 0; a < nlive; a++)
     for (int b = a+1; b < nlive; b++)
       if (g_c->score[order[b]] > g_c->score[order[a]]){ int t = order[a]; order[a] = order[b]; order[b] = t; }
-  /* combined action set: single rules + kernel-verified lemma (pair) actions */
+  /* combined action set: single rules + proposed 2-rule contracts.
+   * PAIRMODE 1 uses the mined set; PAIRMODE 2/3 propose from the world's own
+   * ruleset at this state (learned scorer / matched-count random control), each
+   * capped at g_pair_keep. Contracts are ranked by the same transformer score of
+   * their first rule, so only the *selection* differs between proposers. */
   int act_kind[POOL+128], act_val[POOL+128];
   double act_score[POOL+128];
+  PairAct pact[POOL*POOL];
+  int npact = 0;
   int nact = 0;
   for (int a = 0; a < nlive; a++){
     act_kind[nact] = 0; act_val[nact] = live[order[a]]; act_score[nact] = g_c->score[order[a]]; nact++;
   }
-  if (g_lemmas){
-    int rules_used[POOL];
-    for (int c = 0; c < POOL; c++) rules_used[c] = 0;
-    for (int k = 0; k < nrules; k++)
-      for (int c = 0; c < POOL; c++) if (w->cands[c] == rules[k]) rules_used[c] = 1;
+  if (g_pairmode == 1){
     for (int L = 0; L < g_nlem; L++){
       int r1 = g_lem[L].r1, r2 = g_lem[L].r2, i1 = -1, i2 = -1;
       for (int c = 0; c < POOL; c++){ if (w->cands[c] == r1) i1 = c; if (w->cands[c] == r2) i2 = c; }
-      if (i1 < 0 || i2 < 0 || rules_used[i1] || rules_used[i2]) continue;
+      if (i1 < 0 || i2 < 0) continue;
+      int used = 0;
+      for (int k = 0; k < nrules; k++) if (rules[k] == r1 || rules[k] == r2) used = 1;
+      if (used) continue;
       int pre_ok = 0;
       for (int e = 0; e < WENT; e++) if (known[e] & (uint8_t)(1u << g_lem[L].body)) pre_ok = 1;
       if (!pre_ok) continue;
       double sc = -1e30;
       for (int a = 0; a < nlive; a++) if (live[a] == r1) sc = g_c->score[a];
       if (sc <= -1e29) continue;
-      act_kind[nact] = 1; act_val[nact] = L; act_score[nact] = sc; nact++;
+      pact[npact].r1 = r1; pact[npact].r2 = r2;
+      act_kind[nact] = 1; act_val[nact] = npact; act_score[nact] = sc; npact++; nact++;
+    }
+  } else if (g_pairmode >= 2 && nrules + 2 <= MAXRULE){
+    PairAct cand[POOL*POOL];
+    int np = pair_candidates(w, known, rules, nrules, cand, g_pair_keep);
+    for (int i = 0; i < np; i++){
+      double sc = -1e30;
+      for (int a = 0; a < nlive; a++) if (live[a] == cand[i].r1) sc = g_c->score[a];
+      if (sc <= -1e29) continue;
+      pact[npact] = cand[i];
+      act_kind[nact] = 1; act_val[nact] = npact; act_score[nact] = sc; npact++; nact++;
     }
   }
   for (int a = 0; a < nact; a++)
@@ -609,10 +1002,27 @@ static void dfs_world(const World *w, int *rules, int nrules, int depth, int bud
       rules[nrules] = act_val[a];
       dfs_world(w, rules, nrules+1, depth+1, budget);
     } else {
-      int L = act_val[a];
+      int pi = act_val[a];
       if (nrules + 2 > MAXRULE) continue;      /* capacity guard (0260 fix) */
-      rules[nrules] = g_lem[L].r1; rules[nrules+1] = g_lem[L].r2;
-      g_lemma_uses++; g_lem[L].uses++;
+      int r1 = pact[pi].r1, r2 = pact[pi].r2;
+      /* kernel re-check at application time (Silicon-style contract check): the
+       * committed pair must derive r2's head where r1's body held, else the
+       * contract is not admissible and the action is counted as a violation. */
+      const Rule *ar = &all_rules[r1], *br = &all_rules[r2];
+      int rr[MAXRULE];
+      int n = nrules;
+      for (int k = 0; k < nrules; k++) rr[k] = rules[k];
+      rr[n++] = r1; rr[n++] = r2;
+      uint8_t kn[WENT];
+      closure(w->facts, rr, n, kn);
+      int held = 0, derived = 0;
+      for (int e = 0; e < WENT; e++){
+        if (ar->blen && (kn[e] & (uint8_t)(1u << ar->body[0]))) held = 1;
+        if (kn[e] & (uint8_t)(1u << br->head)) derived = 1;
+      }
+      if (!held || !derived){ g_pair_viol++; continue; }
+      rules[nrules] = r1; rules[nrules+1] = r2;
+      g_pair_uses++; g_lemma_uses++;
       dfs_world(w, rules, nrules+2, depth+g_lemma_cost, budget);
     }
     if (proven > g_best_seen) g_best_seen = proven;
@@ -1237,6 +1647,7 @@ static void run_variant(int seeds, int epochs, int verbose){
   build_dataset();
   head_prior_from_train();
   rule_prior_from_train();
+  if (g_dp_check){ dp_audit(); return; }
   g_untrained = (Params*)calloc(1, sizeof(Params));
   if (!g_untrained){ fprintf(stderr, "alloc\n"); exit(2); }
   init_params(g_untrained, 999);
@@ -1304,14 +1715,16 @@ static void run_variant(int seeds, int epochs, int verbose){
           h.integral != INTEGRAL || h.lifted != LIFTED || h.prior_shuf != PRIOR_SHUF ||
           h.holdout != g_holdout_mask || h.lift_rho != LIFT_RHO || h.path_gamma != PATH_GAMMA ||
           h.attmode != ATTMODE || h.symgate != SYMGATE || h.cert != CERT ||
-          h.focus != FOCUS || h.lemma != LEMMA){
+          h.focus != FOCUS || h.lemma != LEMMA ||
+          h.pairmode != PAIRMODE || h.pair_keep != g_pair_keep || h.valmode != VALMODE){
         fprintf(stderr, "WEIGHTS-MISMATCH %s: header dims %d/%d variant %d hard %d relob %d bindtok %d "
-                "integral %d lifted %d holdout %d attmode %d symgate %d cert %d focus %d lemma %d, "
-                "binary dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d attmode %d symgate %d cert %d focus %d lemma %d\n",
+                "integral %d lifted %d holdout %d attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d, "
+                "binary dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d\n",
                 g_load_weights, h.state_dim, h.cand_dim, h.variant, h.hard, h.relob, h.bindtok,
                 h.integral, h.lifted, h.holdout, h.attmode, h.symgate, h.cert, h.focus, h.lemma,
+                h.pairmode, h.pair_keep, h.valmode,
                 STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, INTEGRAL, LIFTED, g_holdout_mask,
-                ATTMODE, SYMGATE, CERT, FOCUS, LEMMA);
+                ATTMODE, SYMGATE, CERT, FOCUS, LEMMA, PAIRMODE, g_pair_keep, VALMODE);
         exit(4);
       }
       if (fread(g_p, sizeof(Params), 1, lf) != 1){ fprintf(stderr, "short weights\n"); exit(2); }
@@ -1325,17 +1738,19 @@ static void run_variant(int seeds, int epochs, int verbose){
         { double *pp = pv(g_p); long np = param_count(); for (long i = 0; i < np; i++) pchk += pp[i]*(double)(i % 97); }
         WHeader h = { W_MAGIC, STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, g_goaldepth, g_eval_budget,
                       INTEGRAL, LIFTED, PRIOR_SHUF, g_holdout_mask,
-                      ATTMODE, SYMGATE, CERT, FOCUS, LEMMA,
+                      ATTMODE, SYMGATE, CERT, FOCUS, LEMMA, PAIRMODE, g_pair_keep, VALMODE,
                       LIFT_RHO, PATH_GAMMA, pchk };
         fwrite(&h, sizeof h, 1, sf);
         fwrite(g_p, sizeof(Params), 1, sf);
         fclose(sf);
       }
     }
-    if (g_lemmas) lemma_mine();   /* verified 2-rule contracts from train rollouts */
+    if (g_pairmode == 1 && g_lemmas) lemma_mine();   /* hand-designed: teacher-rollout pairs */
+    if (g_pairmode == 2) pair_learn();               /* learned: kernel-labelled pair scorer */
     g_pc_tokens = g_pc_dropped = g_pc_fallback = g_pc_picks = 0;
     g_cert_ok = g_cert_fail = g_cert_checked = g_cert_mutfail = 0;
     g_focus_states = g_focus_removed = 0;
+    g_pair_uses = g_pair_viol = 0;
     Metrics m;
     eval_steps(g_p, 2, &m);
 
@@ -1409,11 +1824,13 @@ static void run_variant(int seeds, int epochs, int verbose){
       printf("HYBRID seed=%d variant=%s attmode=%d symgate=%d cert=%d focus=%d lemma=%d "
              "gate_viol=%ld pc_fallback=%ld pc_tokens=%ld pc_dropped=%ld "
              "cert_ok=%ld cert_fail=%ld cert_checked=%ld cert_mutfail=%ld lemma_uses=%ld lemmas=%d "
-             "focus_states=%ld focus_removed=%ld\n",
+             "focus_states=%ld focus_removed=%ld pairmode=%d pair_uses=%d pair_viol=%d "
+             "pair_keep=%d lemma_uses_all=%ld\n",
              seed, VNAME, ATTMODE, SYMGATE, CERT, FOCUS, LEMMA,
              g_pc_picks, g_pc_fallback, g_pc_tokens, g_pc_dropped,
              g_cert_ok, g_cert_fail, g_cert_checked, g_cert_mutfail, g_lemma_uses, g_nlem,
-             g_focus_states, g_focus_removed);
+             g_focus_states, g_focus_removed, g_pairmode, g_pair_uses, g_pair_viol,
+             g_pair_keep, g_lemma_uses);
     }
     double perm = permutation_invariance();
     Metrics vt, bs, bp, br; eval_steps(g_p, 1, &vt);
@@ -1625,6 +2042,7 @@ static void dump_forward(const char *path, int seed, int epochs, int case_idx){
 static double gradcheck(void){
   build_dataset();
   rule_prior_from_train();
+  if (g_dp_check) dp_audit();
   const RStep *rs = &g_data[0][0].st[0];
   init_params(g_p, 1234);
   memset(g_g, 0, sizeof(Params));

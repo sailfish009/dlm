@@ -10,8 +10,8 @@ CFG="--collect full --sample sub --train-n 180 --val-n 60 --test-n 100 --goal-sc
 clang -O2 -DHARD_GOALS=1 -DRELOB=1 -Iinclude -Isrc src/pst.c -o $BIN -lm
 for i in $(seq 0 $((SEEDS-1))); do
   s=$((11+i))
-  [ -f probes/w_$s.bin ] || $BIN --train --seeds 1 --seed-base $s --epochs $EPOCHS $CFG \
-      --goaldepth 2 --save-weights probes/w_$s.bin --no-bound > probes/train_$s.log 2>&1
+  [ -f probes/w_${s}_v$(cat ../../VERSION).bin ] || $BIN --train --seeds 1 --seed-base $s --epochs $EPOCHS $CFG \
+      --goaldepth 2 --save-weights probes/w_${s}_v$(cat ../../VERSION).bin --no-bound > probes/train_$s.log 2>&1
 done
 out=out/decomp.txt; : > $out
 for d in 2 4; do
@@ -20,7 +20,7 @@ for d in 2 4; do
     for i in $(seq 0 $((SEEDS-1))); do
       s=$((11+i))
       $BIN --train --seeds 1 --seed-base $s $CFG --goaldepth $d --goal-scan --eval-budget 4 \
-        --beam $W --load-weights probes/w_$s.bin --no-bound >> probes/cfg_d${d}_w${W}.txt
+        --beam $W --load-weights probes/w_${s}_v$(cat ../../VERSION).bin --no-bound >> probes/cfg_d${d}_w${W}.txt
     done
     awk -v d=$d -v W=$W '/^MEAN /{n++; for(i=1;i<=NF;i++){split($i,kv,"="); m[kv[1]]+=kv[2]}}
       END{ printf "DECOMP d=%d W=%d goal=%.4f full=%.4f beam=%.4f\n", d, W, m["proof_model"]/n, m["full_model"]/n, m["proof_beam"]/n }' \
@@ -32,7 +32,7 @@ for d in 2 4; do
   for i in $(seq 0 $((SEEDS-1))); do
     s=$((11+i))
     $BIN --train --seeds 1 --seed-base $s $CFG --goaldepth $d --goal-scan --eval-budget 4 \
-      --beam 1 --regret --load-weights probes/w_$s.bin --no-bound >> probes/cfg_traj${d}.txt
+      --beam 1 --regret --load-weights probes/w_${s}_v$(cat ../../VERSION).bin --no-bound >> probes/cfg_traj${d}.txt
   done
   awk -v d=$d '/^TRAJ /{n[$4]++; for(i=1;i<=NF;i++){split($i,kv,"="); v[kv[1]]=kv[2]} o[$4]+=v["opt"]; os[$4]+=v["optset"]; r[$4]+=v["regret"]}
     END{ for (k in n) printf "TRAJ-MEAN d=%d step=%s opt=%.4f optset=%.2f regret=%.4f\n", d, substr(k,6), o[k]/n[k], os[k]/n[k], r[k]/n[k] }' \

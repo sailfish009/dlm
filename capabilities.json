@@ -1,5 +1,5 @@
 {
-  "version": "0.0260",
+  "version": "0.0262",
   "note": "Minimal-core capability ledger. Research snapshots are separate; the native scope is docs/native-scope-0243.md.",
   "removed_in_0_0205": [
     "d107 contract layer (d107-*.l, contract/unit/surface/plan/session modules)",
@@ -392,8 +392,18 @@
     },
     "verified_contract_actions": {
       "status": "experimental",
-      "witness": "experiments/proof_state_transformer_maru/verify_hybrid.sh",
-      "note": "2-rule chains kernel-checked and applied as one action slot; +13pp DFS goal (3 seeds)"
+      "witness": "experiments/proof_state_transformer_maru/verify_value.sh",
+      "note": "dp+contracts 0.654 goal / 0.608 full at 5 seeds (base 31-35); combination is significant vs both components"
+    },
+    "learned_contract_proposal": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_pair.sh",
+      "note": "kernel-labelled pair scorer vs matched random proposer: PAIR-LEARN-NOT-DEMONSTRATED (within 2SE)"
+    },
+    "dp_value_labels": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_value.sh",
+      "note": "budget-exact V(mask,rem) label from the kernel oracle, audited against brute force; dp-util goal +2.2pp (inside 2SE) => DP-VALUE-NOT-DEMONSTRATED"
     }
   }
 }

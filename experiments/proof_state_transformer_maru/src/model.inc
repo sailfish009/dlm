@@ -44,6 +44,13 @@
 #ifndef LEMMA
 #define LEMMA 0          /* 1 = verified 2-rule lemma (contract) actions */
 #endif
+#ifndef PAIRMODE
+#define PAIRMODE 0       /* 0 = off; 1 = mined contracts; 2 = learned proposer; 3 = random control */
+#endif
+#ifndef VALMODE
+#define VALMODE 0        /* 0 = single-step utility; 1 = budget-exact DP value;
+                          * 2 = same DP label multiset, shuffled across candidates */
+#endif
 /* census counters (kernel path condition / certificate / lemma), reset per run */
 static long g_pc_tokens = 0, g_pc_dropped = 0, g_pc_fallback = 0, g_pc_picks = 0;
 static long g_cert_ok = 0, g_cert_fail = 0, g_cert_checked = 0, g_cert_mutfail = 0;
