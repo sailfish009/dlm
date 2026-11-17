@@ -1,3 +1,12 @@
+> **Correction (0.0268/0.0269, audit F1/F2/F3/F6):** the claim that labels were
+> independent of the evaluation budget was false (`rem = min(eval_budget - st, 4)`);
+> the weight header did not carry the label flags; the 0.9286 ceiling was
+> single-seed and hardcoded (5-seed mean is 0.9365, D = 94.2 %). The node-matched
+> control (A_b5) shows the contract gain survives (D − A_b5 = +9.5 pp at 7236 vs
+> 7331 nodes). E's 0.9905 below became 0.9889 once the F1 fix changed eval-time
+> contract mining at budget 6 (LEMMA-MINE unique 64 → 47); trained parameters
+> were unchanged. Corrected numbers and gates: `docs/release-0268.md`.
+
 # DLM 0.0267 — recombination of the working parts, and the label-DP budget fix
 
 Two things happened here: a build defect in the label DP was found and fixed by an

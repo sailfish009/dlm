@@ -64,11 +64,11 @@ for a in $ORDER; do arm_run "$a" & done
 wait
 PROBES=probes_x ARMS="$ORDER" bash tools/hybrid_stats.sh table "$SEEDS" | tee out/recomb0268.txt
 
-# per-seed contract-action ceiling: exhaustive DFS (branch = POOL) with the B config
+# per-seed contract-action ceiling: exhaustive DFS (branch 64 >= POOL+keep, 0268 review G2)
 for i in $(seq 0 $((SEEDS-1))); do
   s=$((SEED_BASE+i))
   "bin/y_B_pair16" --train --seeds 1 --seed-base "$s" $CFG --goaldepth 4 --eval-budget 4 \
-    --dfs --branch 24 --subsume 1 --prop 1 --no-bound \
+    --dfs --branch 64 --subsume 1 --prop 1 --no-bound \
     --load-weights "probes_x/B_pair16/w_$s.bin" > "probes_x/ceiling/seed_$s.txt" 2>&1 &
 done
 wait

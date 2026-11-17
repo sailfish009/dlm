@@ -3,11 +3,11 @@ RECOMB-GRADCHECK-PASS
 == 2. F1: labels and weights independent of the evaluation budget (behavioural)
 LABEL-INDEPENDENT-PASS (pchk=8943.499165, mean_top=12.57top_share=0.559 at both budgets)
 == 3. F2: label flags in the weight header
-HEADER-LABELFLAGS-PASS (ncost and label_rem cross-loads refused)
+HEADER-LABELFLAGS-PASS (ncost, label_rem and label_steps cross-loads refused)
 == 4. budget ladder + guard exit code (F6)
-  budget 4: 310 ms
-  budget 5: 334 ms
-  budget 6: 335 ms
+  budget 4: 314 ms
+  budget 5: 332 ms
+  budget 6: 349 ms
 BUDGET-LADDER-PASS; BUDGET-GUARD-PASS (exit 2)
 == 5. F3: per-seed ceiling recomputed from artefacts
 CEILING-PASS per-seed ceilings [0.9286, 0.9365, 0.9365, 0.9365, 0.9444] mean=0.9365; D=0.8825 = 94.2% of mean, below every seed ceiling

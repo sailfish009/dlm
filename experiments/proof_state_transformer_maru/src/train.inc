@@ -19,7 +19,9 @@ typedef struct {
   int label_ncost, label_steps, label_rem;   /* 0268 label definition */
   int branchtok, readmax, regshuf;           /* 0263 multi-register structure */
   int md, mnl, phaseuntie;                   /* 0264 capacity */
+  int loopcell, celldetach, cellshuf, remfeat, eptrain;  /* 0269 loop cell */
   double lift_rho, path_gamma;
+  double predw;                              /* 0269 world-model auxiliary weight */
   double pchk;
 } WHeader;
 
@@ -71,9 +73,7 @@ static int g_pair_uses = 0, g_pair_viol = 0;   /* applied / kernel-mismatch */
 static double g_pairw[PAIRF];
 static int g_pair_learned = 0;
 static int g_valmode = VALMODE;   /* 0 utility, 1 DP value, 2 shuffled DP (control) */
-static int g_label_rem_max = 4;   /* 0.0267: labels are defined at budget 4 regardless of
-                                    * the search budget; --eval-budget 6 must not change the
-                                    * label dataset (it made build_dataset exponential) */
+/* g_label_rem_max moved to pst.c (0.0269: the stage-1 rollout needs it too) */
 static long g_dp_store_fail = 0, g_dp_states = 0, g_dp_masks = 0, g_onpath_cands = 0, g_onpath_states = 0, g_onpath_distinct = 0;
 static long g_lab_states[3], g_lab_top[3], g_lab_nlive[3];
 static int g_lab_split = 0;
@@ -334,7 +334,8 @@ static void build_dataset(void){
         RStep *rs = &ws->st[ns++];
         rs->nlive = nlive;
         for (int k = 0; k < nlive; k++) rs->live[k] = live[k];
-        state_features(&ws->w, rules, nrules, live, nlive, rs->state);
+        state_features(&ws->w, rules, nrules, live, nlive, rs->state,
+                       g_label_rem_max - st > 0 ? g_label_rem_max - st : 0);
         int best = 0;
         for (int k = 0; k < nlive; k++){
           cand_features(&ws->w, rules, nrules, live[k], rs->cf[k]);
@@ -413,6 +414,127 @@ static double loss_eval(const Params *p, const double *state,
   return loss_from_cache(c, util, best, nlive, (double*)0);
 }
 
+/* ---- 0.0269 episode-level training: BPTT through the loop cell ------------
+ * One scalar per episode: sum of the per-step listwise+pairwise losses on the
+ * kernel DP labels, plus PREDW * MSE of the next-state value predicted from
+ * (z_t, emb(a_t)) alone. The trainer and the finite-difference checker share
+ * episode_forward, so the checked scalar IS the trained scalar. */
+#if EPTRAIN || LOOPCELL
+static Cache g_epc[NSTEPS];
+static double g_epds[NSTEPS][POOL];
+#if LOOPCELL
+static CellCache g_epcell[NSTEPS];
+static int g_epcsrc[NSTEPS];
+static double g_epea[NSTEPS][D];
+static double g_epth[NSTEPS][D], g_eppx[NSTEPS][2*D], g_eppred[NSTEPS];
+static CellCache g_evalcell;
+#endif
+
+static double ep_maxutil(const RStep *rs){
+  double mx = rs->util[0];
+  for (int j = 1; j < rs->nlive; j++) if (rs->util[j] > mx) mx = rs->util[j];
+  return mx;
+}
+
+static double episode_forward(const Params *p, const WSteps *ws, int grad){
+  double z[D];
+  for (int d = 0; d < D; d++) z[d] = p->z0[d];
+  double total = 0;
+  for (int t = 0; t < ws->nsteps; t++){
+    const RStep *rs = &ws->st[t];
+    model_forward_z(p, rs->state, rs->cf, rs->nlive, LOOPCELL ? z : (const double*)0, &g_epc[t]);
+    total += loss_from_cache(&g_epc[t], rs->util, rs->best, rs->nlive, grad ? g_epds[t] : (double*)0);
+#if LOOPCELL
+    g_epcsrc[t] = CELLSHUF ? (t+1) % ws->nsteps : t;
+    action_embed(p, rs->cf[rs->best], g_epea[t]);
+    if (PREDW > 0 && t+1 < ws->nsteps){
+      double tgt = ep_maxutil(&ws->st[t+1]);
+      g_eppred[t] = pred_fwd(p, z, g_epea[t], g_epth[t], g_eppx[t]);
+      double e = g_eppred[t]-tgt;
+      total += PREDW*e*e;
+    }
+    if (!CELLDETACH){
+      double ea_cell[D];
+      if (g_epcsrc[t] == t){ for (int d = 0; d < D; d++) ea_cell[d] = g_epea[t][d]; }
+      else action_embed(p, ws->st[g_epcsrc[t]].cf[ws->st[g_epcsrc[t]].best], ea_cell);
+      cell_fwd(p, z, ea_cell, z, &g_epcell[t]);
+    }
+#endif
+  }
+  return total;
+}
+
+#if LOOPCELL
+static void episode_backward(const WSteps *ws){
+  Params *g = g_g;
+  const Params *p = g_p;
+  double dz_rec[D];
+  for (int d = 0; d < D; d++) dz_rec[d] = 0;
+  for (int t = ws->nsteps-1; t >= 0; t--){
+    const RStep *rs = &ws->st[t];
+    model_backward_ds(&g_epc[t], rs->state, rs->cf, rs->nlive, g_epds[t]);
+    double dz[D], dea_pred[D];
+    for (int d = 0; d < D; d++){ dz[d] = g_dh[0][d]; dea_pred[d] = 0; }
+    if (PREDW > 0 && t+1 < ws->nsteps){
+      double tgt = ep_maxutil(&ws->st[t+1]);
+      pred_bwd(p, g, g_epth[t], g_eppx[t], 2.0*PREDW*(g_eppred[t]-tgt), dz, dea_pred);
+      action_embed_bwd(g, rs->cf[rs->best], dea_pred);
+    }
+    if (CELLDETACH){
+      /* static token: every step's z IS z0; accumulate its gradient directly */
+      for (int d = 0; d < D; d++) g->z0[d] += dz[d];
+      continue;
+    }
+    double dz_prev[D], dea_cell[D];
+    for (int d = 0; d < D; d++){ dz_prev[d] = 0; dea_cell[d] = 0; }
+    cell_bwd(p, g, &g_epcell[t], dz_rec, dz_prev, dea_cell);
+    action_embed_bwd(g, ws->st[g_epcsrc[t]].cf[ws->st[g_epcsrc[t]].best], dea_cell);
+    if (t == 0){ for (int d = 0; d < D; d++) g->z0[d] += dz[d] + dz_prev[d]; }
+    else for (int d = 0; d < D; d++) dz_rec[d] = dz[d] + dz_prev[d];
+  }
+}
+#else
+static void episode_backward(const WSteps *ws){
+  for (int t = ws->nsteps-1; t >= 0; t--){
+    const RStep *rs = &ws->st[t];
+    model_backward_ds(&g_epc[t], rs->state, rs->cf, rs->nlive, g_epds[t]);
+  }
+}
+#endif
+
+/* world-model quality on the val split: MSE of the (z_t, a_t) prediction vs
+ * the kernel's next-state optimal value, against a constant-train-mean baseline */
+#if LOOPCELL
+static void pred_val_report(const Params *p){
+  double ssum = 0; long sn = 0;
+  for (int i = 0; i < g_nw[0]; i++){
+    const WSteps *ws = &g_data[0][i];
+    for (int t = 0; t+1 < ws->nsteps; t++){ ssum += ep_maxutil(&ws->st[t+1]); sn++; }
+  }
+  double tmean = sn ? ssum/(double)sn : 0;
+  double mse = 0, bse = 0; long n = 0;
+  for (int i = 0; i < g_nw[1]; i++){
+    const WSteps *ws = &g_data[1][i];
+    double z[D];
+    for (int d = 0; d < D; d++) z[d] = p->z0[d];
+    for (int t = 0; t < ws->nsteps; t++){
+      const RStep *rs = &ws->st[t];
+      double ea[D], th[D], x[2*D];
+      action_embed(p, rs->cf[rs->best], ea);
+      if (t+1 < ws->nsteps){
+        double tgt = ep_maxutil(&ws->st[t+1]);
+        double v = pred_fwd(p, z, ea, th, x);
+        mse += (v-tgt)*(v-tgt); bse += (tmean-tgt)*(tmean-tgt); n++;
+      }
+      if (!CELLDETACH) cell_fwd(p, z, ea, z, &g_evalcell);
+    }
+  }
+  printf("LOOPCELL-VAL predw=%.3f detach=%d shuf=%d mse=%.4f base_mse=%.4f n=%ld\n",
+         (double)PREDW, CELLDETACH, CELLSHUF, n ? mse/(double)n : 0, n ? bse/(double)n : 0, n);
+}
+#endif
+#endif
+
 static void adam_update(Params *p, Params *g, Params *m, Params *v, int t){
   long n = param_count();
   double *pp = pv(p), *gg = pv(g), *mm = pv(m), *vv = pv(v);
@@ -438,9 +560,13 @@ static void eval_steps(const Params *p, int split, Metrics *out){
   long n = 0;
   for (int i = 0; i < g_nw[split]; i++){
     const WSteps *ws = &g_data[split][i];
+    double z[D];
+#if LOOPCELL
+    for (int d = 0; d < D; d++) z[d] = p->z0[d];
+#endif
     for (int s = 0; s < ws->nsteps; s++){
       const RStep *rs = &ws->st[s];
-      model_forward(p, rs->state, rs->cf, rs->nlive, g_c);
+      model_forward_z(p, rs->state, rs->cf, rs->nlive, LOOPCELL ? z : (const double*)0, g_c);
       int arg = 0;
       for (int j = 1; j < rs->nlive; j++) if (g_c->score[j] > g_c->score[arg]) arg = j;
       u += rs->util[arg];
@@ -449,6 +575,13 @@ static void eval_steps(const Params *p, int split, Metrics *out){
       for (int j = 1; j < rs->nlive; j++) if (rs->util[j] > mx) mx = rs->util[j];
       r += mx - rs->util[arg];
       n++;
+#if LOOPCELL
+      if (!CELLDETACH){
+        double ea[D];
+        action_embed(p, rs->cf[rs->best], ea);
+        cell_fwd(p, z, ea, z, &g_evalcell);
+      }
+#endif
     }
   }
   if (n == 0){ out->top1 = out->hit = out->regret = 0; return; }
@@ -494,8 +627,8 @@ static Params *g_untrained;
 
 static void step_features(const World *w, const int *rules, int nrules,
                           const int *live, int nlive, double *state,
-                          double (*cf)[CAND_DIM], double *util){
-  state_features(w, rules, nrules, live, nlive, state);
+                          double (*cf)[CAND_DIM], double *util, int rem){
+  state_features(w, rules, nrules, live, nlive, state, rem);
   for (int k = 0; k < nlive; k++){
     cand_features(w, rules, nrules, live[k], cf[k]);
     util[k] = utility(w, rules, nrules, live[k]);
@@ -514,6 +647,10 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
   static double state[STATE_DIM];
   static double cf2[POOL][CAND_DIM];
   static double util[POOL];
+#if LOOPCELL
+  double z[D];
+  for (int d = 0; d < D; d++) z[d] = p->z0[d];
+#endif
   int used_steps = 0;
   for (int st = 0; st < g_eval_budget; st++){
     int live[POOL], nlive = 0;
@@ -530,7 +667,7 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
       pc_filter(known, live, &nlive);                /* Silicon path condition */
     }
     if (!nlive) break;
-    step_features(w, rules, nrules, live, nlive, state, cf2, util);
+    step_features(w, rules, nrules, live, nlive, state, cf2, util, g_eval_budget - st);
     int pick = 0;
     if (mode == 0 || mode == 4 || mode == 5){
       const Params *mp = (mode == 4) ? g_untrained : p;
@@ -545,7 +682,13 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
       static double cfp[POOL][CAND_DIM];
       for (int k = 0; k < nlive; k++)
         for (int d = 0; d < CAND_DIM; d++) cfp[k][d] = cf2[perm[k]][d];
-      model_forward(mp, state, (const double (*)[CAND_DIM])cfp, nlive, g_c);
+      model_forward_z(mp, state, (const double (*)[CAND_DIM])cfp, nlive,
+#if LOOPCELL
+                      z,
+#else
+                      (const double*)0,
+#endif
+                      g_c);
       for (int k = 1; k < nlive; k++) if (g_c->score[k] > g_c->score[pick]) pick = k;
 #if SYMGATE >= 1
       /* path-condition census at the actual selection point: the soft residual
@@ -570,6 +713,14 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
     }
     rules[nrules++] = live[pick];
     used_steps++;
+#if LOOPCELL
+    if (mode == 0 || mode == 4 || mode == 5){
+      const Params *mp = (mode == 4) ? g_untrained : p;
+      double ea[D];
+      action_embed(mp, cf2[pick], ea);
+      if (!CELLDETACH){ CellCache cc; cell_fwd(mp, z, ea, z, &cc); }
+    }
+#endif
   }
   uint8_t known[WENT];
   closure(w->facts, rules, nrules, known);
@@ -986,7 +1137,8 @@ static int pair_candidates(const World *w, const uint8_t *known, const int *rule
   return m;
 }
 
-static void dfs_world(const World *w, int *rules, int nrules, int depth, int budget){
+static void dfs_world_z(const World *w, int *rules, int nrules, int depth, int budget,
+                        const double *z){
   g_dfs_nodes++;
   uint8_t known[WENT];
   closure(w->facts, rules, nrules, known);
@@ -1029,8 +1181,8 @@ static void dfs_world(const World *w, int *rules, int nrules, int depth, int bud
   static double state[STATE_DIM];
   static double cf2[POOL][CAND_DIM];
   static double util[POOL];
-  step_features(w, rules, nrules, live, nlive, state, cf2, util);
-  model_forward(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, g_c);
+  step_features(w, rules, nrules, live, nlive, state, cf2, util, budget - depth);
+  model_forward_z(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, z, g_c);
   g_dfs_cands += nlive;
   int order[POOL];
   for (int a = 0; a < nlive; a++) order[a] = a;
@@ -1096,7 +1248,19 @@ static void dfs_world(const World *w, int *rules, int nrules, int depth, int bud
   for (int a = 0; a < keep; a++){
     if (act_kind[a] == 0){
       rules[nrules] = act_val[a];
-      dfs_world(w, rules, nrules+1, depth+1, budget);
+#if LOOPCELL
+      { /* latent transition on the committed rule (cf row copied BEFORE the
+         * recursive call: cf2 is a static buffer the child overwrites) */
+        double znext[D], ea[D]; CellCache cc;
+        int ri = act_val[a], li = -1;
+        for (int q = 0; q < nlive; q++) if (live[q] == ri) li = q;
+        action_embed(g_p, cf2[li], ea);
+        cell_fwd(g_p, z, ea, znext, &cc);
+        dfs_world_z(w, rules, nrules+1, depth+1, budget, znext);
+      }
+#else
+      dfs_world_z(w, rules, nrules+1, depth+1, budget, (const double*)0);
+#endif
     } else {
       int pi = act_val[a];
       if (nrules + 2 > MAXRULE) continue;      /* capacity guard (0260 fix) */
@@ -1119,7 +1283,20 @@ static void dfs_world(const World *w, int *rules, int nrules, int depth, int bud
       if (!held || !derived){ g_pair_viol++; continue; }
       rules[nrules] = r1; rules[nrules+1] = r2;
       g_pair_uses++; g_lemma_uses++;
-      dfs_world(w, rules, nrules+2, depth+g_lemma_cost, budget);
+#if LOOPCELL
+      { /* a contract commits two rules: apply the cell once per rule, in order */
+        double zmid[D], znext[D], ea[D]; CellCache cc;
+        int li1 = -1, li2 = -1;
+        for (int q = 0; q < nlive; q++){ if (live[q] == r1) li1 = q; if (live[q] == r2) li2 = q; }
+        action_embed(g_p, cf2[li1], ea);
+        cell_fwd(g_p, z, ea, zmid, &cc);
+        if (li2 >= 0){ action_embed(g_p, cf2[li2], ea); cell_fwd(g_p, zmid, ea, znext, &cc); }
+        else for (int d = 0; d < D; d++) znext[d] = zmid[d];
+        dfs_world_z(w, rules, nrules+2, depth+g_lemma_cost, budget, znext);
+      }
+#else
+      dfs_world_z(w, rules, nrules+2, depth+g_lemma_cost, budget, (const double*)0);
+#endif
     }
     if (proven > g_best_seen) g_best_seen = proven;
   }
@@ -1127,6 +1304,9 @@ static void dfs_world(const World *w, int *rules, int nrules, int depth, int bud
    * let an ancestor on the current path dominate its own descendants, which is
    * unsound even for exhaustive search (review 0255 F3). */
   if (g_subsume) subs_add(mask, depth);
+}
+static void dfs_world(const World *w, int *rules, int nrules, int depth, int budget){
+  dfs_world_z(w, rules, nrules, depth, budget, LOOPCELL ? g_p->z0 : (const double*)0);
 }
 
 /* native DFS policy over the test split (returns goal fraction) */
@@ -1209,16 +1389,16 @@ static const char *g_scorer_name[NSCORE] = {
 /* score nlive candidates under a scorer; returns 1 if scores came from a net */
 static int score_candidates(int scorer, const Params *p, const double *state,
                             const double (*cf)[CAND_DIM], int nlive, double *out,
-                            Counters *ctr){
+                            Counters *ctr, const double *z){
   if (scorer == SC_MODEL_RAW || scorer == SC_UNTRAINED){
     const Params *mp = (scorer == SC_UNTRAINED) ? g_untrained : p;
-    model_forward(mp, state, cf, nlive, g_c);
+    model_forward_z(mp, state, cf, nlive, z, g_c);
     ctr->forwards++;
     for (int j = 0; j < nlive; j++) out[j] = g_c->score[j];
     return 1;
   }
   if (scorer == SC_MODEL_LOGP){
-    model_forward(p, state, cf, nlive, g_c);
+    model_forward_z(p, state, cf, nlive, z, g_c);
     ctr->forwards++;
     double mx = -1e30;
     for (int j = 0; j < nlive; j++) if (g_c->score[j] > mx) mx = g_c->score[j];
@@ -1249,6 +1429,10 @@ static void policy_world_beam(const World *w, const Params *p, int scorer, uint6
   int seq[BW][MAXSEQ];
   int seqn[BW];
   double score[BW];
+#if LOOPCELL
+  static double bz[BW][D], bz2[MAXC][D];
+  for (int d = 0; d < D; d++) bz[0][d] = p->z0[d];
+#endif
   int nW = 1;
   seqn[0] = SEED_RULES;
   for (int k = 0; k < SEED_RULES; k++) seq[0][k] = w->theory[k];
@@ -1273,9 +1457,15 @@ static void policy_world_beam(const World *w, const Params *p, int scorer, uint6
         pc_filter(known, live, &nlive);               /* Silicon path condition */
       }
       if (!nlive) continue;
-      step_features(w, seq[bi], nrules, live, nlive, state, cf2, util);
+      step_features(w, seq[bi], nrules, live, nlive, state, cf2, util, g_eval_budget - d);
       double sc[POOL];
-      score_candidates(scorer, p, state, (const double (*)[CAND_DIM])cf2, nlive, sc, ctr);
+      score_candidates(scorer, p, state, (const double (*)[CAND_DIM])cf2, nlive, sc, ctr,
+#if LOOPCELL
+                       bz[bi]
+#else
+                       (const double*)0
+#endif
+                       );
       ctr->states++;
       ctr->cands += nlive;
       int order[POOL];
@@ -1289,6 +1479,12 @@ static void policy_world_beam(const World *w, const Params *p, int scorer, uint6
         ns2[n2][nrules] = live[k];
         nseq[n2] = nrules + 1;
         sc2[n2] = score[bi] + sc[k];
+#if LOOPCELL
+        { double ea[D]; CellCache cc;
+          action_embed(p, cf2[k], ea);
+          if (CELLDETACH) for (int q = 0; q < D; q++) bz2[n2][q] = p->z0[q];
+          else cell_fwd(p, bz[bi], ea, bz2[n2], &cc); }
+#endif
         n2++;
       }
     }
@@ -1299,12 +1495,18 @@ static void policy_world_beam(const World *w, const Params *p, int scorer, uint6
           double t = sc2[i]; sc2[i] = sc2[j]; sc2[j] = t;
           int tn = nseq[i]; nseq[i] = nseq[j]; nseq[j] = tn;
           for (int q = 0; q < MAXSEQ; q++){ int x = ns2[i][q]; ns2[i][q] = ns2[j][q]; ns2[j][q] = x; }
+#if LOOPCELL
+          for (int q = 0; q < D; q++){ double x = bz2[i][q]; bz2[i][q] = bz2[j][q]; bz2[j][q] = x; }
+#endif
         }
     nW = (n2 < W) ? n2 : W;
     for (int i = 0; i < nW; i++){
       score[i] = sc2[i];
       seqn[i] = nseq[i];
       for (int q = 0; q < MAXSEQ; q++) seq[i][q] = ns2[i][q];
+#if LOOPCELL
+      for (int q = 0; q < D; q++) bz[i][q] = bz2[i][q];
+#endif
     }
   }
   int bestgp = -1, bestfull = 0;
@@ -1346,6 +1548,37 @@ static double permutation_invariance(void){
     double d = fabs(s1[k] - s2[k]);
     if (d > mx) mx = d;
   }
+#if LOOPCELL
+  { /* episode-level equivariance: permute candidates consistently at EVERY
+     * step (live/cf/util/best remapped); the latent chain and the episode
+     * scalar must be invariant, not just the root-state scores */
+    static WSteps wp;
+    static double es1[NSTEPS][POOL];
+    wp.w = ws->w; wp.nsteps = ws->nsteps;
+    for (int t = 0; t < ws->nsteps; t++){
+      const RStep *r0 = &ws->st[t]; RStep *rp = &wp.st[t];
+      rp->nlive = r0->nlive; rp->reward_pos = r0->reward_pos;
+      for (int d = 0; d < STATE_DIM; d++) rp->state[d] = r0->state[d];
+      for (int k = 0; k < r0->nlive; k++){
+        int rk = r0->nlive-1-k;
+        rp->live[k] = r0->live[rk];
+        for (int d = 0; d < CAND_DIM; d++) rp->cf[k][d] = r0->cf[rk][d];
+        rp->util[k] = r0->util[rk];
+      }
+      rp->best = r0->nlive-1-r0->best;
+    }
+    double l1 = episode_forward(g_p, ws, 0);
+    for (int t = 0; t < ws->nsteps; t++)
+      for (int k = 0; k < ws->st[t].nlive; k++) es1[t][k] = g_epc[t].score[k];
+    double l2 = episode_forward(g_p, &wp, 0);
+    if (fabs(l1-l2) > mx) mx = fabs(l1-l2);
+    for (int t = 0; t < ws->nsteps; t++)
+      for (int k = 0; k < ws->st[t].nlive; k++){
+        double d = fabs(es1[t][k] - g_epc[t].score[ws->st[t].nlive-1-k]);
+        if (d > mx) mx = d;
+      }
+  }
+#endif
   return mx;
 }
 
@@ -1397,6 +1630,73 @@ static void train_seed(int seed, int epochs){
     fprintf(stderr, "BALANCE train_samples=%ld reward_states=%ld total_states=%ld\n", ntr, npos, n_all);
     free(bal);
   }
+#if EPTRAIN || LOOPCELL
+  /* episode-batched protocol (0.0269): shuffle WORLDS, batch EPB worlds per
+   * update, average the gradient over the states in the batch. Every 0269 arm
+   * uses this schedule so cell-vs-baseline contrasts are protocol-matched.
+   * --balance-reward is a no-op here: every collected state is already used. */
+  {
+    enum { EPB = 8 };
+    int nw = (int)g_nw[0];
+    int *widx = (int*)calloc((size_t)(nw > 0 ? nw : 1), sizeof(int));
+    if (!widx){ fprintf(stderr, "alloc\n"); exit(2); }
+    for (int i = 0; i < nw; i++) widx[i] = i;
+    printf("EPTRAIN episodes=%d epbatch=%d updates_per_epoch=%ld balance_noop=%d\n",
+           nw, EPB, (long)((nw + EPB - 1)/EPB), g_balance ? 1 : 0);
+    int t = 0;
+    for (int ep = 0; ep < epochs; ep++){
+      for (int i = nw-1; i > 0; i--){
+        int j = randbelow(i+1);
+        int tmp = widx[i]; widx[i] = widx[j]; widx[j] = tmp;
+      }
+      for (int b = 0; b < nw; b += EPB){
+        memset(g_g, 0, sizeof(Params));
+        long nst = 0;
+        for (int k = b; k < b + EPB && k < nw; k++){
+          const WSteps *ws = &g_data[0][widx[k]];
+          episode_forward(g_p, ws, 1);
+          episode_backward(ws);
+          nst += ws->nsteps;
+        }
+        if (nst){
+          double inv = 1.0/(double)nst;
+          double *gg = pv(g_g);
+          long np = param_count();
+          for (long q = 0; q < np; q++) gg[q] *= inv;
+          t++;
+          adam_update(g_p, g_g, g_m, g_v, t);
+        }
+      }
+      eval_steps(g_p, 1, &vm);
+      if (vm.top1 > best_val){ best_val = vm.top1; *best = *g_p; }
+#if LOOPCELL
+      if (PREDW > 0 && (ep % 10 == 0 || ep == epochs-1)){
+        /* world-model learning curve on TRAIN episodes (directional evidence
+         * that the auxiliary objective is actually being optimised) */
+        double mse = 0; long n = 0;
+        for (int i = 0; i < g_nw[0] && i < 40; i++){
+          const WSteps *ws = &g_data[0][i];
+          double z[D];
+          for (int d = 0; d < D; d++) z[d] = g_p->z0[d];
+          for (int t = 0; t < ws->nsteps; t++){
+            const RStep *rs = &ws->st[t];
+            double ea[D], th[D], x[2*D];
+            action_embed(g_p, rs->cf[rs->best], ea);
+            if (t+1 < ws->nsteps){
+              double tgt = ep_maxutil(&ws->st[t+1]);
+              double v = pred_fwd(g_p, z, ea, th, x);
+              mse += (v-tgt)*(v-tgt); n++;
+            }
+            if (!CELLDETACH) cell_fwd(g_p, z, ea, z, &g_evalcell);
+          }
+        }
+        printf("PRED-TRAIN ep=%d mse=%.4f n=%ld val_top1=%.4f\n", ep, n ? mse/(double)n : 0, n, vm.top1);
+      }
+#endif
+    }
+    free(widx);
+  }
+#else
   int t = 0;
   for (int ep = 0; ep < epochs; ep++){
     /* deterministic shuffle; the exposure-matched arm shuffles every collected
@@ -1429,7 +1729,11 @@ static void train_seed(int seed, int epochs){
     eval_steps(g_p, 1, &vm);
     if (vm.top1 > best_val){ best_val = vm.top1; *best = *g_p; }
   }
+#endif
   *g_p = *best;
+#if LOOPCELL
+  pred_val_report(g_p);
+#endif
   free(best);
   free(idx);
   free(idx_root);
@@ -1573,7 +1877,7 @@ static void traj_profile(int seed){
         if (!used) live[nlive++] = r;
       }
       if (!nlive) break;
-      step_features(wd, rules, nrules, live, nlive, state, cf2, util);
+      step_features(wd, rules, nrules, live, nlive, state, cf2, util, nstep - st);
       model_forward(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, g_c);
       int pick = 0;
       for (int a = 1; a < nlive; a++) if (g_c->score[a] > g_c->score[pick]) pick = a;
@@ -1619,7 +1923,7 @@ static void first_step_regret(double *r_model, double *h_model,
       if (!used) live[nlive++] = w->cands[c];
     }
     if (!nlive) continue;
-    step_features(w, rules, SEED_RULES, live, nlive, state, cf2, util);
+    step_features(w, rules, SEED_RULES, live, nlive, state, cf2, util, g_eval_budget);
     model_forward(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, g_c);
     int am = 0, asup = 0, aug = 0;
     for (int a = 1; a < nlive; a++){
@@ -1665,7 +1969,8 @@ static void serve(void){
       if (!used) live[nlive++] = wd->cands[c];
     }
     if (!nlive){ printf("0\n"); fflush(stdout); continue; }
-    step_features(wd, rules, n, live, nlive, state, cf2, util);
+    step_features(wd, rules, n, live, nlive, state, cf2, util,
+                  g_eval_budget - (n - SEED_RULES) > 0 ? g_eval_budget - (n - SEED_RULES) : 0);
     model_forward(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, g_c);
     printf("%d", nlive);
     for (int a = 0; a < nlive; a++) printf(" %d %.9f", live[a], g_c->score[a]);
@@ -1816,23 +2121,29 @@ static void run_variant(int seeds, int epochs, int verbose){
           h.pairmode != PAIRMODE || h.pair_keep != g_pair_keep || h.valmode != VALMODE ||
           h.branchtok != BRANCHTOK || h.readmax != READMAX || h.regshuf != REGSHUF ||
           h.label_ncost != LABEL_NCOST || h.label_steps != LABEL_STEPS || h.label_rem != g_label_rem_max ||
+          h.loopcell != LOOPCELL || h.celldetach != CELLDETACH || h.cellshuf != CELLSHUF ||
+          h.remfeat != REMFEAT || h.eptrain != EPTRAIN || h.predw != (double)PREDW ||
           h.md != D || h.mnl != NL || h.phaseuntie != PHASEUNTIE){
         fprintf(stderr, "WEIGHTS-MISMATCH %s\n", g_load_weights);
         fprintf(stderr, "  weights: dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d "
                         "attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d "
-                        "ncost %d steps %d label_rem %d branchtok %d readmax %d regshuf %d md %d nl %d untie %d\n",
+                        "ncost %d steps %d label_rem %d branchtok %d readmax %d regshuf %d md %d nl %d untie %d "
+                        "cell %d detach %d shuf %d remfeat %d eptrain %d predw %.3f\n",
                 h.state_dim, h.cand_dim, h.variant, h.hard, h.relob, h.bindtok,
                 h.integral, h.lifted, h.holdout, h.attmode, h.symgate, h.cert, h.focus, h.lemma,
                 h.pairmode, h.pair_keep, h.valmode,
                 h.label_ncost, h.label_steps, h.label_rem,
-                h.branchtok, h.readmax, h.regshuf, h.md, h.mnl, h.phaseuntie);
+                h.branchtok, h.readmax, h.regshuf, h.md, h.mnl, h.phaseuntie,
+                h.loopcell, h.celldetach, h.cellshuf, h.remfeat, h.eptrain, h.predw);
         fprintf(stderr, "  binary : dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d "
                         "attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d "
-                        "ncost %d steps %d label_rem %d branchtok %d readmax %d regshuf %d md %d nl %d untie %d\n",
+                        "ncost %d steps %d label_rem %d branchtok %d readmax %d regshuf %d md %d nl %d untie %d "
+                        "cell %d detach %d shuf %d remfeat %d eptrain %d predw %.3f\n",
                 STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK,
                 INTEGRAL, LIFTED, g_holdout_mask, ATTMODE, SYMGATE, CERT, FOCUS, LEMMA,
                 PAIRMODE, g_pair_keep, VALMODE, LABEL_NCOST, LABEL_STEPS, g_label_rem_max,
-                BRANCHTOK, READMAX, REGSHUF, D, NL, PHASEUNTIE);
+                BRANCHTOK, READMAX, REGSHUF, D, NL, PHASEUNTIE,
+                LOOPCELL, CELLDETACH, CELLSHUF, REMFEAT, EPTRAIN, (double)PREDW);
         exit(4);
       }
       if (fread(g_p, sizeof(Params), 1, lf) != 1){ fprintf(stderr, "short weights\n"); exit(2); }
@@ -1849,7 +2160,8 @@ static void run_variant(int seeds, int epochs, int verbose){
                       ATTMODE, SYMGATE, CERT, FOCUS, LEMMA, PAIRMODE, g_pair_keep, VALMODE,
                       LABEL_NCOST, LABEL_STEPS, g_label_rem_max,
                       BRANCHTOK, READMAX, REGSHUF, D, NL, PHASEUNTIE,
-                      LIFT_RHO, PATH_GAMMA, pchk };
+                      LOOPCELL, CELLDETACH, CELLSHUF, REMFEAT, EPTRAIN,
+                      LIFT_RHO, PATH_GAMMA, (double)PREDW, pchk };
         fwrite(&h, sizeof h, 1, sf);
         fwrite(g_p, sizeof(Params), 1, sf);
         fclose(sf);
@@ -2035,6 +2347,12 @@ static void emit_vec(FILE *f, const char *name, const double *w, int n){
 }
 
 static void export_maru(const char *path, int seed, int epochs, int ncases){
+#if LOOPCELL
+  fprintf(stderr, "EXPORT-FAIL: LOOPCELL Maru Q16 export is not implemented yet "
+                  "(the latent chain needs a multi-step pst_infer port); "
+                  "gate Maru parity on the base build\n");
+  exit(2);
+#else
   build_dataset();
   head_prior_from_train();
   rule_prior_from_train();
@@ -2103,6 +2421,7 @@ static void export_maru(const char *path, int seed, int epochs, int ncases){
          VNAME, (HARD_GOALS ? "hard" : "ref"), seed, epochs, g_nw[0], g_nw[1], g_nw[2],
          emitted, param_count(), pchk);
   printf("EXPORT-MARU cases=%d path=%s params=%ld\n", emitted, path, param_count());
+#endif
 }
 
 /* debug: dump stage-by-stage Q16 values for one exported case */
@@ -2153,9 +2472,37 @@ static double gradcheck(void){
   build_dataset();
   rule_prior_from_train();
   if (g_dp_check) dp_audit();
-  const RStep *rs = &g_data[0][0].st[0];
   init_params(g_p, 1234);
   memset(g_g, 0, sizeof(Params));
+#if EPTRAIN || LOOPCELL
+  /* the checked scalar is the EPISODE objective (BPTT through the cell),
+   * exactly what the episode trainer optimises */
+  const WSteps *ws = &g_data[0][0];
+  double base = episode_forward(g_p, ws, 1);
+  episode_backward(ws);
+  long n = param_count();
+  double *pp = pv(g_p), *gg = pv(g_g);
+  double eps = 1e-5, max_rel = 0, max_abs = 0, max_grad = 0;
+  long worst = -1; double worst_num = 0, worst_ana = 0;
+  int checked = 0;
+  for (long i = 0; i < n; i++){
+    double orig = pp[i];
+    pp[i] = orig + eps;
+    double lp = episode_forward(g_p, ws, 0);
+    pp[i] = orig - eps;
+    double lm = episode_forward(g_p, ws, 0);
+    pp[i] = orig;
+    double num = (lp - lm)/(2*eps);
+    double ana = gg[i];
+    double denom = fabs(num) + fabs(ana) + 1e-8;
+    double rel = fabs(num - ana)/denom;
+    if (fabs(num - ana) > max_abs){ max_abs = fabs(num - ana); worst = i; worst_num = num; worst_ana = ana; }
+    if (fabs(ana) > max_grad) max_grad = fabs(ana);
+    if (rel > max_rel && fabs(num) + fabs(ana) > 1e-7) max_rel = rel;
+    checked++;
+  }
+#else
+  const RStep *rs = &g_data[0][0].st[0];
   double base = model_step(rs->state, (const double (*)[CAND_DIM])rs->cf,
                            (const int*)0, rs->best, rs->util, rs->nlive);
   long n = param_count();
@@ -2179,9 +2526,23 @@ static double gradcheck(void){
     if (rel > max_rel && fabs(num) + fabs(ana) > 1e-7) max_rel = rel;
     checked++;
   }
+#endif
   double rel_to_max = max_abs / (max_grad > 0 ? max_grad : 1.0);
   printf("GRADCHECK params=%d loss=%.6f max_abs=%.3e max_grad=%.3e rel_to_max_grad=%.3e max_rel_small=%.3e\n",
          checked, base, max_abs, max_grad, rel_to_max, max_rel);
+#if LOOPCELL
+  { /* BPTT liveness: the transition matrices must carry nonzero gradient,
+     * otherwise a dead recurrence would pass the finite-difference check
+     * vacuously (0 = 0). CELLDETACH expects zero cell gradients by design. */
+    double cmax = 0;
+    long off = (long)(offsetof(Params, Wu)/sizeof(double));
+    long cnt = (long)((offsetof(Params, Wv) - offsetof(Params, Wu))/sizeof(double));
+    for (long i = off; i < off+cnt; i++) if (fabs(gg[i]) > cmax) cmax = fabs(gg[i]);
+    int ok = CELLDETACH ? (cmax < 1e-12) : (cmax > 1e-8);
+    printf("CELL-GRAD max=%.3e detach=%d %s\n", cmax, CELLDETACH, ok ? "OK" : "DEAD");
+    if (!ok) return 1e9;
+  }
+#endif
   if (getenv("PST_GRADDEBUG"))
     printf("GRADDEBUG worst_idx=%ld num=%.6e ana=%.6e\n", worst, worst_num, worst_ana);
   (void)gg;

@@ -44,11 +44,14 @@ set +e
 ./bin/gcy_cost $ra --load-weights probes_x/A_nocost/w_71.bin --no-bound > out/hh_a.txt 2>&1; ea=$?
 ./bin/gcy_A_nocost $ra --label-rem 3 --load-weights probes_x/A_nocost/w_71.bin --no-bound > out/hh_b.txt 2>&1; eb=$?
 ./bin/gcy_A_nocost $ra --load-weights probes_x/A_nocost/w_71.bin --no-bound > out/hh_c.txt 2>&1; ec=$?
+clang -O2 -DHARD_GOALS=1 -DRELOB=1 -DVALMODE=1 -DLABEL_NCOST=1 -DLABEL_STEPS=1 -Iinclude -Isrc src/pst.c -o bin/gcy_steps -lm
+./bin/gcy_steps $ra --load-weights probes_x/A_nocost/w_71.bin --no-bound > out/hh_s.txt 2>&1; es=$?
 set -e
 [ "$ea" -eq 4 ] || { echo "HEADER-LABELFLAGS-FAIL ncost mismatch not refused (exit $ea)"; exit 1; }
 [ "$eb" -eq 4 ] || { echo "HEADER-LABELFLAGS-FAIL label_rem mismatch not refused (exit $eb)"; exit 1; }
 [ "$ec" -eq 0 ] || { echo "HEADER-LABELFLAGS-FAIL own weights rejected (exit $ec)"; exit 1; }
-echo "HEADER-LABELFLAGS-PASS (ncost and label_rem cross-loads refused)"
+[ "$es" -eq 4 ] || { echo "HEADER-LABELFLAGS-FAIL label_steps mismatch not refused (exit $es)"; exit 1; }
+echo "HEADER-LABELFLAGS-PASS (ncost, label_rem and label_steps cross-loads refused)"
 
 echo "== 4. budget ladder + guard exit code (F6)"
 CFG8="--collect full --sample sub --train-n 8 --val-n 4 --test-n 4 --goal-scan --balance-reward"
@@ -78,6 +81,12 @@ for f in glob.glob('probes_x/ceiling/seed_*.txt'):
             kv = dict(x.split('=') for x in line.split()[1:] if '=' in x)
             ceil[seed] = float(kv['goal'])
 assert ceil, 'no ceiling artefacts'
+assert set(ceil) == set(range(71, 71 + int(__import__('os').environ.get('SEEDS','5')))), 'ceiling seed set != matrix seeds'
+for f in glob.glob('probes_y/ceiling/seed_*.txt') + glob.glob('probes_x/ceiling/seed_*.txt'):
+    for line in open(f):
+        if line.startswith('DFS'):
+            kv = dict(x.split('=') for x in line.split()[1:] if '=' in x)
+            assert int(kv['branch']) >= 40, 'ceiling branch must cover POOL+pair_keep (0268 review G2)'
 mean = st.mean(ceil.values())
 best = {}
 for line in open('out/recomb0268.txt'):
@@ -102,7 +111,7 @@ awk '
 /B_pair16-A_nocost goal/ && /SIGNIFICANT/ { b=1 }
 /A_b5-A_nocost goal/ && /SIGNIFICANT/ { w=1 }
 /D_pair16_b5-A_b5 goal/ && /SIGNIFICANT/ { d=1 }
-/E_pair16_e6-A_b6 goal/ { for (i=1;i<=NF;i++){ split($i,kv,"="); if(kv[1]=="mean") mm=kv[2]+0 } if (mm < 0.02) e=1 }
+/E_pair16_e6-A_b6 goal/ { for (i=1;i<=NF;i++){ split($i,kv,"="); if(kv[1]=="mean") mm=kv[2]+0 } if (mm < 0.02 && mm > -0.02) e=1 }
 END{ if (b && w && d && e) print "CLAIMS-PASS contracts at matched nodes, branch width, budget dependence all as stated"
      else { print "CLAIMS-FAIL a stated contrast changed direction or significance"; exit 1 } }' out/y_contrast.txt
 na=$(row A_b5 nodes); nd=$(row D_pair16_b5 nodes)
@@ -132,4 +141,5 @@ clang -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -DHARD_GOALS=1
   --eval-budget 4 --goaldepth 4 --goal-scan --dfs --branch 5 > out/y_asan.txt 2> out/y_asan.err
 grep -q 'Sanitizer' out/y_asan.err && { echo ASAN-FAIL; cat out/y_asan.err; exit 1; }
 echo "LLVM-PASS"
+
 echo "V0268-RECOMB-PASS"

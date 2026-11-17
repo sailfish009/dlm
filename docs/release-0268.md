@@ -106,3 +106,21 @@ CLAIMS             B−A, A_b5−A, D−A_b5 significant; E−A_b6 reported as <
 AGG/WHDR/LLVM/DOC  as in 0.0267
 V0268-RECOMB-PASS
 ```
+
+## Corrections added in 0.0269 (audit G1–G6)
+
+- The CLAIMS gate now requires |E − A_b6| < 0.02 (the old `mm < 0.02` accepted a
+  catastrophically degraded E; a consistent-degradation probe passed it).
+- The ceiling runner uses branch 64 (>= POOL + pair_keep): branch = POOL
+  truncates the score-sorted candidate+contract action list. The gate also
+  requires the ceiling seed set to equal the matrix seed set. Values on this
+  fixture are unchanged (0.9286 / 0.9365 / 0.9365 / 0.9444 / 0.9365).
+- E changed from 0.9905 (0267) to 0.9889 (0268): the F1 label fix changed the
+  eval-run dataset at budget 6, hence teacher rollouts, hence eval-time contract
+  mining (LEMMA-MINE unique 64 → 47). Trained parameters are byte-identical;
+  A_b6 is unchanged. The 0267 note in this tree now carries the correction banner.
+- The gradcheck loop builds 8 binaries (A_b6/C_pair64 share flags with
+  A_nocost/B_pair16); the header gate now also tests the LABEL_STEPS cross-load.
+- `eval_simple.sh` (seeds 81–85, branch 5: base 0.6270 / label 0.7826 /
+  best 0.8873) is a fresh-seed replication of the label and contract effects;
+  it is now manifested and gated (both contrasts significant at 2 SE).

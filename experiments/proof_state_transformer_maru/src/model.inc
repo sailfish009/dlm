@@ -59,6 +59,41 @@
 #ifndef REGSHUF
 #define REGSHUF 0        /* 1 = control: registers share one bias and one readout head */
 #endif
+/* 0.0269 loop cell: the proof-state transition moves INSIDE the model. A latent
+ * register z_t is carried across commits: tokens = [z_t, state_t, candidates_t],
+ * and after the committed action a_t the cell updates z_{t+1} = GRU(z_t, emb(a_t)).
+ * Training is episode-level BPTT over kernel-verified teacher rollouts; the kernel
+ * still owns every label and every closure. PREDW adds a world-model auxiliary
+ * loss: predict the next state's optimal DP value from (z_t, emb(a_t)) ALONE.
+ * Controls: CELLDETACH cuts the recurrent gradient (untrained cell dynamics);
+ * CELLSHUF feeds the cell a rotated action sequence (corrupted history content,
+ * matched training); REMFEAT puts the remaining budget in the state features
+ * (the identifiability gap the cell could otherwise be credited for closing). */
+#ifndef LOOPCELL
+#define LOOPCELL 0
+#endif
+#ifndef CELLDETACH
+#define CELLDETACH 0     /* 1 = control: latent register is the STATIC z0 token at every
+                          * step (no transition in forward or backward; cell params unused) */
+#endif
+#ifndef CELLSHUF
+#define CELLSHUF 0
+#endif
+#ifndef PREDW
+#define PREDW 0.0
+#endif
+#ifndef EPTRAIN
+#define EPTRAIN 0        /* 1 = episode-batched training (protocol-matched baseline) */
+#endif
+#ifndef REMFEAT
+#define REMFEAT 0        /* 1 = remaining-budget slot appended to the state features */
+#endif
+#if LOOPCELL && (BRANCHTOK >= 2 || READMAX)
+#error "LOOPCELL requires a single state register (BRANCHTOK<2, READMAX=0)"
+#endif
+#if (CELLDETACH || CELLSHUF) && !LOOPCELL
+#error "CELLDETACH/CELLSHUF require LOOPCELL"
+#endif
 #ifndef VALMODE
 #define VALMODE 0        /* 0 = single-step utility; 1 = budget-exact DP value;
                           * 2 = same DP label multiset, shuffled across candidates;
@@ -98,7 +133,8 @@ static long g_lemma_uses = 0;
 #define DH (D/NH)
 #define RB ((BRANCHTOK >= 2 || READMAX) ? 4 : 1)
 #define NREG (BRANCHTOK >= 2 ? BRANCHTOK : 1)
-#define MAXL (RB+POOL)
+#define ZTOK (LOOPCELL ? 1 : 0)
+#define MAXL (RB+POOL+1)
 #define NOUT (VAR_UTILHEAD ? 2 : 1)
 #define NPASS (VAR_LOOP ? 2 : 1)
 #define NBLK (NL*NPASS)                 /* cache blocks (pass-major) */
@@ -129,7 +165,15 @@ typedef struct {
    * readout head. RB is the compile-time register cap; only BRANCHTOK are used. */
   double Rbias[RB][D];
   double Wout_r[RB][NOUT*D], bout_r[RB][NOUT];
+  /* 0.0269 loop cell (present in every build's struct; parameters only when
+   * LOOPCELL, so non-cell weight files keep their exact 0268 layout/count) */
+  double z0[D];
+  double Wu[D*2*D], bu[D];
+  double Wn[D*2*D], bn[D];
+  double Wv[D*2*D], bv[D], wv[D];
 } Params;
+
+typedef struct { double x[2*D], u[D], n[D], z[D]; } CellCache;
 
 typedef struct {
   double in[MAXL][D];
@@ -199,15 +243,18 @@ static void init_params(Params *p, uint64_t seed){
       p->bout_r[b][r] = 0.0;
     }
   }
+#if LOOPCELL
+  /* cell initialisation is gated so non-cell builds keep the exact RNG stream */
+  for (int i = 0; i < D; i++) p->z0[i] = xr()*0.02;
+  s = 1.0/sqrt((double)(2*D));
+  for (int i = 0; i < D*2*D; i++){ p->Wu[i] = xr()*s; p->Wn[i] = xr()*s; }
+  /* pred head starts deep in the tanh linear regime: with the utility-scale
+   * targets (0..5) a 1/sqrt(2D) init saturates the tanh and the head collapses
+   * to a constant (0269 dev probe: mse 6.8 vs constant-baseline 0.36) */
+  for (int i = 0; i < D*2*D; i++) p->Wv[i] = xr()*s*0.125;
+  for (int i = 0; i < D; i++){ p->bu[i] = 0; p->bn[i] = 0; p->bv[i] = 0; p->wv[i] = xr()*s; }
+#endif
 }
-
-static long param_count(void){
-  /* the register block exists in the struct for every build, but it is only a
-   * parameter of the model when the multi-register structure is enabled */
-  if (BRANCHTOK >= 2 || READMAX) return (long)(sizeof(Params)/sizeof(double));
-  return (long)(offsetof(Params, Rbias)/sizeof(double));
-}
-static double *pv(Params *p){ return (double*)p; }
 
 /* ---- primitives ---- */
 static void layer_norm_fwd(const double *x, const double *g, const double *b,
@@ -254,6 +301,102 @@ static double gelu_d(double x){
 static double softplus(double x){ return x > 30.0 ? x : log1p(exp(x)); }
 static double sigmoid(double x){ return x >= 0 ? 1.0/(1.0+exp(-x)) : exp(x)/(1.0+exp(x)); }
 
+/* ---- 0.0269 loop cell: forward/backward of the latent transition ---------- */
+static void cell_fwd(const Params *p, const double *z, const double *ea,
+                     double *out, CellCache *cc){
+  for (int d = 0; d < D; d++){ cc->x[d] = z[d]; cc->x[D+d] = ea[d]; cc->z[d] = z[d]; }
+  for (int d = 0; d < D; d++){
+    double su = p->bu[d], sn = p->bn[d];
+    for (int k = 0; k < 2*D; k++){ su += p->Wu[d*2*D+k]*cc->x[k]; sn += p->Wn[d*2*D+k]*cc->x[k]; }
+    cc->u[d] = sigmoid(su);
+    cc->n[d] = tanh(sn);
+    out[d] = (1.0-cc->u[d])*z[d] + cc->u[d]*cc->n[d];
+  }
+}
+static void cell_bwd(const Params *p, Params *g, const CellCache *cc,
+                     const double *dout, double *dz_in, double *dea){
+  for (int d = 0; d < D; d++){
+    double du = dout[d]*(cc->n[d]-cc->z[d]);
+    double dn = dout[d]*cc->u[d];
+    double dpu = du*cc->u[d]*(1.0-cc->u[d]);
+    double dpn = dn*(1.0-cc->n[d]*cc->n[d]);
+    g->bu[d] += dpu; g->bn[d] += dpn;
+    for (int k = 0; k < 2*D; k++){
+      g->Wu[d*2*D+k] += dpu*cc->x[k];
+      g->Wn[d*2*D+k] += dpn*cc->x[k];
+      double dx = p->Wu[d*2*D+k]*dpu + p->Wn[d*2*D+k]*dpn;
+      if (k < D) dz_in[k] += dx; else dea[k-D] += dx;
+    }
+    dz_in[d] += dout[d]*(1.0-cc->u[d]);
+  }
+}
+/* committed-action embedding: the SAME Wc/bc/tc that embed candidate tokens */
+static void action_embed(const Params *p, const double *cfrow, double *ea){
+  for (int d = 0; d < D; d++){
+    double s = p->bc[d] + p->tc[d];
+    for (int k = 0; k < CAND_DIM; k++){
+      double w = p->Wc[d*CAND_DIM+k];
+#if LIFTED
+      if (k >= ID_BLOCK_LO && k < ID_BLOCK_HI) w *= LIFT_RHO;
+#endif
+      s += w*cfrow[k];
+    }
+    ea[d] = s;
+  }
+}
+static void action_embed_bwd(Params *g, const double *cfrow, const double *dea){
+  for (int d = 0; d < D; d++){
+    g->bc[d] += dea[d]; g->tc[d] += dea[d];
+    for (int k = 0; k < CAND_DIM; k++){
+      double sc = 1.0;
+#if LIFTED
+      if (k >= ID_BLOCK_LO && k < ID_BLOCK_HI) sc = LIFT_RHO;
+#endif
+      g->Wc[d*CAND_DIM+k] += dea[d]*cfrow[k]*sc;
+    }
+  }
+}
+/* world-model head: next-state optimal value from (z_t, emb(a_t)) alone */
+static double pred_fwd(const Params *p, const double *z, const double *ea,
+                       double *th, double *x){
+  for (int k = 0; k < D; k++){ x[k] = z[k]; x[D+k] = ea[k]; }
+  double v = 0;
+  for (int d = 0; d < D; d++){
+    double s = p->bv[d];
+    for (int k = 0; k < 2*D; k++) s += p->Wv[d*2*D+k]*x[k];
+    th[d] = tanh(s);
+    v += p->wv[d]*th[d];
+  }
+  return v;
+}
+static void pred_bwd(const Params *p, Params *g, const double *th, const double *x,
+                     double dv, double *dz, double *dea){
+  for (int d = 0; d < D; d++){
+    g->wv[d] += dv*th[d];
+    double dt = dv*p->wv[d]*(1.0-th[d]*th[d]);
+    g->bv[d] += dt;
+    for (int k = 0; k < 2*D; k++){
+      g->Wv[d*2*D+k] += dt*x[k];
+      double dx = p->Wv[d*2*D+k]*dt;
+      if (k < D) dz[k] += dx; else dea[k-D] += dx;
+    }
+  }
+}
+
+static long param_count(void){
+  /* the register block exists in the struct for every build, but it is only a
+   * parameter of the model when the multi-register structure is enabled.
+   * 0269: with LOOPCELL the cell block sits AFTER the register block, so the
+   * trainable span is the whole struct (counting base+cell while skipping the
+   * register gap silently froze wv and the tail of Wv/bv — dev probe caught it
+   * via a flatlined prediction head; gradcheck must cover the same span). */
+  if (LOOPCELL) return (long)(sizeof(Params)/sizeof(double));
+  if (BRANCHTOK >= 2 || READMAX) return (long)(offsetof(Params, z0)/sizeof(double));
+  return (long)(offsetof(Params, Rbias)/sizeof(double));
+}
+static double *pv(Params *p){ return (double*)p; }
+
+
 /* shared-predicate role overlap, used by VAR_BIND as an attention bias value */
 static double pred_shared(const double *fa, const double *fb){
   int ah = -1, bh = -1, ab[2] = {-1,-1}, bb[2] = {-1,-1};
@@ -274,9 +417,10 @@ static double pred_shared(const double *fa, const double *fb){
 }
 
 /* ---- forward ---- */
-static void model_forward(const Params *p, const double *state,
-                          const double (*cf)[CAND_DIM], int nlive, Cache *c){
-  c->nreg = NREG;
+static void model_forward_z(const Params *p, const double *state,
+                            const double (*cf)[CAND_DIM], int nlive,
+                            const double *z, Cache *c){
+  c->nreg = NREG + ZTOK;
   c->L = c->nreg + nlive;
   c->nlive = nlive;
   for (int j = 0; j < nlive; j++){
@@ -316,12 +460,19 @@ static void model_forward(const Params *p, const double *state,
   { /* census: fraction of tokens the path condition removes */
     for (int i = 0; i < c->L; i++){ g_pc_tokens++; if (SYMGATE >= 1 && !c->sym[i]) g_pc_dropped++; }
   }
-  for (int b = 0; b < c->nreg; b++)
+  for (int b = 0; b < c->nreg; b++){
+#if LOOPCELL
+    if (b == 0){   /* latent proof-state register: raw token, no input matrix */
+      for (int i = 0; i < D; i++) c->h[0][i] = z ? z[i] : p->z0[i];
+      continue;
+    }
+#endif
     for (int i = 0; i < D; i++){
       double s = p->bs[i] + p->ts[i];
       for (int k = 0; k < STATE_DIM; k++) s += p->Ws[i*STATE_DIM+k]*state[k];
-      c->h[b][i] = s + p->Rbias[REGSHUF ? 0 : b][i];
+      c->h[b][i] = s + p->Rbias[REGSHUF ? 0 : (b - ZTOK)][i];
     }
+  }
   for (int j = 0; j < nlive; j++)
     for (int i = 0; i < D; i++){
       double s = p->bc[i] + p->tc[i];
@@ -462,6 +613,10 @@ static void model_forward(const Params *p, const double *state,
     if (!c->msk[j]) c->score[j] = -1e30;
   }
 }
+static void model_forward(const Params *p, const double *state,
+                          const double (*cf)[CAND_DIM], int nlive, Cache *c){
+  model_forward_z(p, state, cf, nlive, (const double*)0, c);
+}
 
 /* ---- loss + backward for one step ---- */
 /* Shared scalar objective + score gradients. Both training and the
@@ -503,6 +658,9 @@ static double loss_from_cache(Cache *c, const double *util, int best, int nlive,
   return loss;
 }
 
+static void model_backward_ds(Cache *c, const double *statev,
+                              const double (*cf)[CAND_DIM], int nlive,
+                              const double *ds);
 static double model_step(const double *statev, const double (*cf)[CAND_DIM],
                          const int *util_target_best, int best,
                          const double *util, int nlive){
@@ -511,7 +669,16 @@ static double model_step(const double *statev, const double (*cf)[CAND_DIM],
   double ds[POOL];
   double loss = loss_from_cache(c, util, best, nlive, ds);
   (void)util_target_best;
+  model_backward_ds(c, statev, cf, nlive, ds);
+  return loss;
+}
 
+/* score-gradient backward through the blocks; leaves the input-token gradient
+ * in g_dh (token 0 is the latent register when LOOPCELL). Shared by the
+ * per-state trainer and the episode-level BPTT so both use ONE objective. */
+static void model_backward_ds(Cache *c, const double *statev,
+                              const double (*cf)[CAND_DIM], int nlive,
+                              const double *ds){
   Params *g = g_g;
   static double dlnf[MAXL][D];
   for (int i = 0; i < c->L; i++) for (int d = 0; d < D; d++) dlnf[i][d] = 0;
@@ -672,13 +839,17 @@ static double model_step(const double *statev, const double (*cf)[CAND_DIM],
     }
   }
   /* embedding backward */
-  for (int b = 0; b < c->nreg; b++)
+  for (int b = 0; b < c->nreg; b++){
+#if LOOPCELL
+    if (b == 0) continue;   /* latent register: gradient stays in g_dh[0] for BPTT */
+#endif
     for (int d = 0; d < D; d++){
       g->bs[d] += g_dh[b][d];
       g->ts[d] += g_dh[b][d];
       for (int k = 0; k < STATE_DIM; k++) g->Ws[d*STATE_DIM+k] += g_dh[b][d]*statev[k];
-      g->Rbias[REGSHUF ? 0 : b][d] += g_dh[b][d];
+      g->Rbias[REGSHUF ? 0 : (b - ZTOK)][d] += g_dh[b][d];
     }
+  }
   for (int j = 0; j < nlive; j++)
     for (int d = 0; d < D; d++){
       g->bc[d] += g_dh[c->nreg+j][d];
@@ -691,5 +862,4 @@ static double model_step(const double *statev, const double (*cf)[CAND_DIM],
         g->Wc[d*CAND_DIM+k] += g_dh[c->nreg+j][d]*cf[j][k]*sc;
       }
     }
-  return loss;
 }

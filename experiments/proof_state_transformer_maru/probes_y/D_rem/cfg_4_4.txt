@@ -1,0 +1,70 @@
+LABELMEMO cells=5192140 store_fail=0 probe=256 cap=1048576 label_rem_max=4
+LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=2958 mean_top=4.11 mean_nlive=22.50 top_share=0.183
+LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=882 mean_top=3.67 mean_nlive=22.50 top_share=0.163
+LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=1654 mean_top=4.13 mean_nlive=22.50 top_share=0.184
+LEMMA-MINE unique=47 cap=64 kernel_checked=1
+DFS seed=71 variant=base d=4 b=4 branch=5 subsume=1 prop=1 goal=0.9127 full=0.9000 nodes=7115 cands=30826 leafs=1479 pruned=4233
+HYBRID seed=71 variant=base attmode=0 symgate=0 cert=0 focus=0 lemma=1 gate_viol=0 pc_fallback=0 pc_tokens=148829 pc_dropped=0 cert_ok=0 cert_fail=0 cert_checked=0 cert_mutfail=0 lemma_uses=621 lemmas=47 focus_states=0 focus_removed=0 pairmode=1 pair_uses=621 pair_viol=0 pair_keep=16 lemma_uses_all=621
+SEED 71 variant=base fixture=hard d=4 b=4 top1=3.7813 hit=0.4200 regret=0.7438 proof_model=0.4524 full_model=0.4200 proof_utility_greedy=0.1349 proof_support=0.0476 proof_prior=0.0000 proof_random=0.0000 proof_untrained=0.0000 proof_shuffled=0.0000 proof_beam=0.4841 full_beam=0.4400 beam_logp=0.5000 beam_support=0.1349 beam_prior=0.0000 beam_random=0.0000 beam_untrained=0.0000 beam_full_support=0.1300 bound_goal=-1.0000 bound_full=-1.0000 perm_maxdiff=8.882e-16 val_top1=4.0347 pchk=6883.854158 base_support=2.6333 base_prior=1.2625 base_random=0.6229 search_states=1000 search_cands=22200 search_closes=300 forwards_model=1000
+MEAN variant=base fixture=hard d=4 b=4 seeds=1 top1=3.7813 hit=0.4200 proof_model=0.4524 full_model=0.4200 proof_utility_greedy=0.1349 proof_support=0.0476 proof_prior=0.0000 proof_random=0.0000 proof_untrained=0.0000 proof_shuffled=0.0000 proof_beam=0.4841 full_beam=0.4400 beam_logp=0.5000 beam_support=0.1349 beam_prior=0.0000 beam_random=0.0000 beam_untrained=0.0000 beam_full_support=0.1300 bound_goal=-1.0000 bound_full=-1.0000 perm_maxdiff=8.882e-16 search_states=1000 search_cands=22200 search_closes=300 forwards_model=1000 val_top1=4.0347 pchk=6883.854158 base_support=2.6333 base_prior=1.2625 base_random=0.6229
+BOOT beam_model_raw_minus_support goal_ratio_lo=0.2540 goal_ratio_hi=0.4470 goal_macro_lo=0.2483 goal_macro_hi=0.4367 full_lo=0.2200 full_hi=0.4100
+BOOT beam_model_raw_minus_logp goal_ratio_lo=-0.0565 goal_ratio_hi=0.0229 goal_macro_lo=-0.0700 goal_macro_hi=0.0300 full_lo=-0.0700 full_hi=0.0300
+BOUND-ASSERT ok=1 pairs=100 violations=0 bound_goal=-1.0000 bound_full=-1.0000
+SEARCH-BUDGET states=1000 cands=22200 closes=300 forwards_model=1000 (identical across the six beam arms)
+PARAMS 19971
+LABELMEMO cells=5192140 store_fail=0 probe=256 cap=1048576 label_rem_max=4
+LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=2958 mean_top=4.11 mean_nlive=22.50 top_share=0.183
+LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=882 mean_top=3.67 mean_nlive=22.50 top_share=0.163
+LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=1654 mean_top=4.13 mean_nlive=22.50 top_share=0.184
+LEMMA-MINE unique=47 cap=64 kernel_checked=1
+DFS seed=72 variant=base d=4 b=4 branch=5 subsume=1 prop=1 goal=0.8730 full=0.8600 nodes=8420 cands=36298 leafs=2239 pruned=4517
+HYBRID seed=72 variant=base attmode=0 symgate=0 cert=0 focus=0 lemma=1 gate_viol=0 pc_fallback=0 pc_tokens=154562 pc_dropped=0 cert_ok=0 cert_fail=0 cert_checked=0 cert_mutfail=0 lemma_uses=878 lemmas=47 focus_states=0 focus_removed=0 pairmode=1 pair_uses=878 pair_viol=0 pair_keep=16 lemma_uses_all=878
+SEED 72 variant=base fixture=hard d=4 b=4 top1=3.3563 hit=0.4225 regret=1.1688 proof_model=0.3095 full_model=0.2500 proof_utility_greedy=0.1349 proof_support=0.0476 proof_prior=0.0000 proof_random=0.0000 proof_untrained=0.0000 proof_shuffled=0.0000 proof_beam=0.3413 full_beam=0.2700 beam_logp=0.3651 beam_support=0.1349 beam_prior=0.0000 beam_random=0.0000 beam_untrained=0.0000 beam_full_support=0.1300 bound_goal=-1.0000 bound_full=-1.0000 perm_maxdiff=1.110e-15 val_top1=3.3368 pchk=6415.778398 base_support=2.6333 base_prior=1.2625 base_random=0.6229 search_states=1000 search_cands=22200 search_closes=300 forwards_model=1000
+MEAN variant=base fixture=hard d=4 b=4 seeds=1 top1=3.3563 hit=0.4225 proof_model=0.3095 full_model=0.2500 proof_utility_greedy=0.1349 proof_support=0.0476 proof_prior=0.0000 proof_random=0.0000 proof_untrained=0.0000 proof_shuffled=0.0000 proof_beam=0.3413 full_beam=0.2700 beam_logp=0.3651 beam_support=0.1349 beam_prior=0.0000 beam_random=0.0000 beam_untrained=0.0000 beam_full_support=0.1300 bound_goal=-1.0000 bound_full=-1.0000 perm_maxdiff=1.110e-15 search_states=1000 search_cands=22200 search_closes=300 forwards_model=1000 val_top1=3.3368 pchk=6415.778398 base_support=2.6333 base_prior=1.2625 base_random=0.6229
+BOOT beam_model_raw_minus_support goal_ratio_lo=0.1280 goal_ratio_hi=0.2868 goal_macro_lo=0.1067 goal_macro_hi=0.2700 full_lo=0.0600 full_hi=0.2200
+BOOT beam_model_raw_minus_logp goal_ratio_lo=-0.0678 goal_ratio_hi=0.0160 goal_macro_lo=-0.0800 goal_macro_hi=0.0200 full_lo=-0.0800 full_hi=0.0200
+BOUND-ASSERT ok=1 pairs=100 violations=0 bound_goal=-1.0000 bound_full=-1.0000
+SEARCH-BUDGET states=1000 cands=22200 closes=300 forwards_model=1000 (identical across the six beam arms)
+PARAMS 19971
+LABELMEMO cells=5192140 store_fail=0 probe=256 cap=1048576 label_rem_max=4
+LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=2958 mean_top=4.11 mean_nlive=22.50 top_share=0.183
+LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=882 mean_top=3.67 mean_nlive=22.50 top_share=0.163
+LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=1654 mean_top=4.13 mean_nlive=22.50 top_share=0.184
+LEMMA-MINE unique=47 cap=64 kernel_checked=1
+DFS seed=73 variant=base d=4 b=4 branch=5 subsume=1 prop=1 goal=0.9048 full=0.8900 nodes=7905 cands=34179 leafs=1856 pruned=4488
+HYBRID seed=73 variant=base attmode=0 symgate=0 cert=0 focus=0 lemma=1 gate_viol=0 pc_fallback=0 pc_tokens=152340 pc_dropped=0 cert_ok=0 cert_fail=0 cert_checked=0 cert_mutfail=0 lemma_uses=721 lemmas=47 focus_states=0 focus_removed=0 pairmode=1 pair_uses=721 pair_viol=0 pair_keep=16 lemma_uses_all=721
+SEED 73 variant=base fixture=hard d=4 b=4 top1=3.5688 hit=0.4400 regret=0.9563 proof_model=0.4206 full_model=0.3700 proof_utility_greedy=0.1349 proof_support=0.0476 proof_prior=0.0000 proof_random=0.0000 proof_untrained=0.0000 proof_shuffled=0.0000 proof_beam=0.5159 full_beam=0.4500 beam_logp=0.5238 beam_support=0.1349 beam_prior=0.0000 beam_random=0.0000 beam_untrained=0.0000 beam_full_support=0.1300 bound_goal=-1.0000 bound_full=-1.0000 perm_maxdiff=1.776e-15 val_top1=3.5000 pchk=7702.859288 base_support=2.6333 base_prior=1.2625 base_random=0.6229 search_states=1000 search_cands=22200 search_closes=300 forwards_model=1000
+MEAN variant=base fixture=hard d=4 b=4 seeds=1 top1=3.5688 hit=0.4400 proof_model=0.4206 full_model=0.3700 proof_utility_greedy=0.1349 proof_support=0.0476 proof_prior=0.0000 proof_random=0.0000 proof_untrained=0.0000 proof_shuffled=0.0000 proof_beam=0.5159 full_beam=0.4500 beam_logp=0.5238 beam_support=0.1349 beam_prior=0.0000 beam_random=0.0000 beam_untrained=0.0000 beam_full_support=0.1300 bound_goal=-1.0000 bound_full=-1.0000 perm_maxdiff=1.776e-15 search_states=1000 search_cands=22200 search_closes=300 forwards_model=1000 val_top1=3.5000 pchk=7702.859288 base_support=2.6333 base_prior=1.2625 base_random=0.6229
+BOOT beam_model_raw_minus_support goal_ratio_lo=0.2903 goal_ratio_hi=0.4724 goal_macro_lo=0.2767 goal_macro_hi=0.4733 full_lo=0.2200 full_hi=0.4200
+BOOT beam_model_raw_minus_logp goal_ratio_lo=-0.0620 goal_ratio_hi=0.0448 goal_macro_lo=-0.0700 goal_macro_hi=0.0600 full_lo=-0.0600 full_hi=0.0600
+BOUND-ASSERT ok=1 pairs=100 violations=0 bound_goal=-1.0000 bound_full=-1.0000
+SEARCH-BUDGET states=1000 cands=22200 closes=300 forwards_model=1000 (identical across the six beam arms)
+PARAMS 19971
+LABELMEMO cells=5192140 store_fail=0 probe=256 cap=1048576 label_rem_max=4
+LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=2958 mean_top=4.11 mean_nlive=22.50 top_share=0.183
+LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=882 mean_top=3.67 mean_nlive=22.50 top_share=0.163
+LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=1654 mean_top=4.13 mean_nlive=22.50 top_share=0.184
+LEMMA-MINE unique=47 cap=64 kernel_checked=1
+DFS seed=74 variant=base d=4 b=4 branch=5 subsume=1 prop=1 goal=0.9048 full=0.9000 nodes=6900 cands=29856 leafs=1428 pruned=4112
+HYBRID seed=74 variant=base attmode=0 symgate=0 cert=0 focus=0 lemma=1 gate_viol=0 pc_fallback=0 pc_tokens=147816 pc_dropped=0 cert_ok=0 cert_fail=0 cert_checked=0 cert_mutfail=0 lemma_uses=687 lemmas=47 focus_states=0 focus_removed=0 pairmode=1 pair_uses=687 pair_viol=0 pair_keep=16 lemma_uses_all=687
+SEED 74 variant=base fixture=hard d=4 b=4 top1=3.6333 hit=0.4050 regret=0.8917 proof_model=0.3333 full_model=0.2600 proof_utility_greedy=0.1349 proof_support=0.0476 proof_prior=0.0000 proof_random=0.0000 proof_untrained=0.0000 proof_shuffled=0.0000 proof_beam=0.4524 full_beam=0.3700 beam_logp=0.4444 beam_support=0.1349 beam_prior=0.0000 beam_random=0.0000 beam_untrained=0.0000 beam_full_support=0.1300 bound_goal=-1.0000 bound_full=-1.0000 perm_maxdiff=1.332e-15 val_top1=3.7569 pchk=6874.939417 base_support=2.6333 base_prior=1.2625 base_random=0.6229 search_states=1000 search_cands=22200 search_closes=300 forwards_model=1000
+MEAN variant=base fixture=hard d=4 b=4 seeds=1 top1=3.6333 hit=0.4050 proof_model=0.3333 full_model=0.2600 proof_utility_greedy=0.1349 proof_support=0.0476 proof_prior=0.0000 proof_random=0.0000 proof_untrained=0.0000 proof_shuffled=0.0000 proof_beam=0.4524 full_beam=0.3700 beam_logp=0.4444 beam_support=0.1349 beam_prior=0.0000 beam_random=0.0000 beam_untrained=0.0000 beam_full_support=0.1300 bound_goal=-1.0000 bound_full=-1.0000 perm_maxdiff=1.332e-15 search_states=1000 search_cands=22200 search_closes=300 forwards_model=1000 val_top1=3.7569 pchk=6874.939417 base_support=2.6333 base_prior=1.2625 base_random=0.6229
+BOOT beam_model_raw_minus_support goal_ratio_lo=0.2339 goal_ratio_hi=0.4077 goal_macro_lo=0.2100 goal_macro_hi=0.3867 full_lo=0.1600 full_hi=0.3300
+BOOT beam_model_raw_minus_logp goal_ratio_lo=-0.0165 goal_ratio_hi=0.0382 goal_macro_lo=-0.0200 goal_macro_hi=0.0500 full_lo=-0.0200 full_hi=0.0500
+BOUND-ASSERT ok=1 pairs=100 violations=0 bound_goal=-1.0000 bound_full=-1.0000
+SEARCH-BUDGET states=1000 cands=22200 closes=300 forwards_model=1000 (identical across the six beam arms)
+PARAMS 19971
+LABELMEMO cells=5192140 store_fail=0 probe=256 cap=1048576 label_rem_max=4
+LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=2958 mean_top=4.11 mean_nlive=22.50 top_share=0.183
+LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=882 mean_top=3.67 mean_nlive=22.50 top_share=0.163
+LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=1654 mean_top=4.13 mean_nlive=22.50 top_share=0.184
+LEMMA-MINE unique=47 cap=64 kernel_checked=1
+DFS seed=75 variant=base d=4 b=4 branch=5 subsume=1 prop=1 goal=0.8968 full=0.8900 nodes=7180 cands=31013 leafs=1579 pruned=4185
+HYBRID seed=75 variant=base attmode=0 symgate=0 cert=0 focus=0 lemma=1 gate_viol=0 pc_fallback=0 pc_tokens=149029 pc_dropped=0 cert_ok=0 cert_fail=0 cert_checked=0 cert_mutfail=0 lemma_uses=738 lemmas=47 focus_states=0 focus_removed=0 pairmode=1 pair_uses=738 pair_viol=0 pair_keep=16 lemma_uses_all=738
+SEED 75 variant=base fixture=hard d=4 b=4 top1=3.7188 hit=0.4250 regret=0.8063 proof_model=0.3651 full_model=0.3500 proof_utility_greedy=0.1349 proof_support=0.0476 proof_prior=0.0000 proof_random=0.0000 proof_untrained=0.0000 proof_shuffled=0.0000 proof_beam=0.4683 full_beam=0.4200 beam_logp=0.4683 beam_support=0.1349 beam_prior=0.0000 beam_random=0.0000 beam_untrained=0.0000 beam_full_support=0.1300 bound_goal=-1.0000 bound_full=-1.0000 perm_maxdiff=8.882e-16 val_top1=3.6528 pchk=6899.622144 base_support=2.6333 base_prior=1.2625 base_random=0.6229 search_states=1000 search_cands=22200 search_closes=300 forwards_model=1000
+MEAN variant=base fixture=hard d=4 b=4 seeds=1 top1=3.7188 hit=0.4250 proof_model=0.3651 full_model=0.3500 proof_utility_greedy=0.1349 proof_support=0.0476 proof_prior=0.0000 proof_random=0.0000 proof_untrained=0.0000 proof_shuffled=0.0000 proof_beam=0.4683 full_beam=0.4200 beam_logp=0.4683 beam_support=0.1349 beam_prior=0.0000 beam_random=0.0000 beam_untrained=0.0000 beam_full_support=0.1300 bound_goal=-1.0000 bound_full=-1.0000 perm_maxdiff=8.882e-16 search_states=1000 search_cands=22200 search_closes=300 forwards_model=1000 val_top1=3.6528 pchk=6899.622144 base_support=2.6333 base_prior=1.2625 base_random=0.6229
+BOOT beam_model_raw_minus_support goal_ratio_lo=0.2500 goal_ratio_hi=0.4228 goal_macro_lo=0.2483 goal_macro_hi=0.4267 full_lo=0.2000 full_hi=0.3800
+BOOT beam_model_raw_minus_logp goal_ratio_lo=-0.0397 goal_ratio_hi=0.0394 goal_macro_lo=-0.0500 goal_macro_hi=0.0400 full_lo=-0.0500 full_hi=0.0300
+BOUND-ASSERT ok=1 pairs=100 violations=0 bound_goal=-1.0000 bound_full=-1.0000
+SEARCH-BUDGET states=1000 cands=22200 closes=300 forwards_model=1000 (identical across the six beam arms)
+PARAMS 19971

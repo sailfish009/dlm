@@ -55,6 +55,20 @@ echo "LAB-GATE proof_state_transformer_maru: $(grep -c '^PARITY\|^GRADCHECK\|^LL
     && ./verify_hybrid.sh > /tmp/pst_hybrid_verify_0260.log 2>&1 ) \
   || { echo HYBRID-LAB-GATE-FAIL; tail -n 20 /tmp/pst_hybrid_run_0260.log /tmp/pst_hybrid_verify_0260.log; exit 1; }
 grep -q '^V0260-HYBRID-PASS$' /tmp/pst_hybrid_verify_0260.log || { echo HYBRID-LAB-GATE-FAIL; exit 1; }
+# --- 0.0269 simple-loop gate (G1-G6) -----------------------------------------
+( cd experiments/proof_state_transformer_maru && ./run_simple.sh > /tmp/pst_s269_run.log 2>&1 \
+    && SEEDS=5 ./verify_simple0269.sh > /tmp/pst_s269_verify.log 2>&1 ) \
+  || { echo S269-LAB-GATE-FAIL; tail -n 20 /tmp/pst_s269_run.log /tmp/pst_s269_verify.log; exit 1; }
+grep -q '^V0269-SIMPLE-PASS$' /tmp/pst_s269_verify.log || { echo S269-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE simple loop: $(grep -c 'PASS$' /tmp/pst_s269_verify.log) checks, V0269-SIMPLE-PASS"
+
+# --- 0.0269 loop-cell gate (BPTT recurrence + controls) ----------------------
+( cd experiments/proof_state_transformer_maru && ./run_loop0269.sh > /tmp/pst_l269_run.log 2>&1 \
+    && SEEDS=5 ./verify_loop0269.sh > /tmp/pst_l269_verify.log 2>&1 ) \
+  || { echo L269-LAB-GATE-FAIL; tail -n 20 /tmp/pst_l269_run.log /tmp/pst_l269_verify.log; exit 1; }
+grep -q '^V0269-LOOPCELL-PASS$' /tmp/pst_l269_verify.log || { echo L269-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE loop cell: $(grep -c 'PASS' /tmp/pst_l269_verify.log) checks, V0269-LOOPCELL-PASS"
+
 # --- 0.0268 corrected recombination gate ------------------------------------
 ( cd experiments/proof_state_transformer_maru && ./run_recomb0268.sh > /tmp/pst_r268_run.log 2>&1 \
     && SEEDS=5 ./verify_recomb0268.sh > /tmp/pst_r268_verify.log 2>&1 ) \

@@ -1,0 +1,17 @@
+== G5: gradcheck — 문서와 동일한 4개 라벨 체제
+GRADCHECK-PASS builds=4 (문서와 일치)
+== G5: LABEL_STEPS cross-load 거부
+STEPS-CROSSLOAD-PASS (exit 4)
+== G2: 천장은 branch 64(절단 없음) + 시드 집합 일치
+CEILING-PASS branch>=40, seeds=[81, 82, 83, 84, 85], values=[0.9365]
+== G1: 주장 검사 + 열화 변이 회귀
+SIMPLE-CHECK PASS d8=+0.0381 d5=+0.0984 best_b8=0.9254 ceiling=0.9365 (98.8% of ceiling)
+G1-PASS claim checks reject degraded arm and ceiling violation
+== G3: 배포 표 == 재계산 (동본 비교) + 재실행 eval 동일
+TABLE-PASS shipped table == per-seed recomputation (3 arms)
+RERUN-PASS identical DFS line for seed 81
+== G6: 단순 평가가 게이트 경로에 있음
+G6-PASS
+== 문서 위생 + AGG
+DOC-PASS 1 release notes: prose only, tokens in context (fenced commands allowed)
+V0269-SIMPLE-PASS

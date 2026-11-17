@@ -1,5 +1,5 @@
 {
-  "version": "0.0268",
+  "version": "0.0269",
   "note": "Minimal-core capability ledger. Research snapshots are separate; the native scope is docs/native-scope-0243.md.",
   "removed_in_0_0205": [
     "d107 contract layer (d107-*.l, contract/unit/surface/plan/session modules)",
@@ -392,8 +392,8 @@
     },
     "verified_contract_actions": {
       "status": "experimental",
-      "witness": "experiments/proof_state_transformer_maru/verify_value.sh",
-      "note": "dp+contracts 0.654 goal / 0.608 full at 5 seeds (base 31-35); combination is significant vs both components"
+      "witness": "experiments/proof_state_transformer_maru/verify_simple0269.sh",
+      "note": "contract effect survives the node-matched control (0.8825 vs 0.7873 at 7236 vs 7331 nodes)"
     },
     "learned_contract_proposal": {
       "status": "experimental",
@@ -439,6 +439,16 @@
       "status": "experimental",
       "witness": "experiments/proof_state_transformer_maru/verify_recomb0268.sh",
       "note": "WHeader carries label_ncost/label_steps/label_rem; cross-load refused (exit 4)"
+    },
+    "simple_eval_loop": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_simple0269.sh",
+      "note": "3-config simple loop (best / branch8 / budget5): 0.8873 / 0.9254 / 0.9857 at 5 seeds; branch 8 = 98.8% of the branch-64 ceiling 0.9365; remaining budget-4 gap is search width"
+    },
+    "loop_cell_bptt": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_loop0269.sh",
+      "note": "recurrent proof-step cell (GRU latent over commits, episode BPTT, gradcheck 2.6e-9 incl. cell liveness): policy gain NULL at 5 seeds (D_cell-D +1.4pp ns; D_cell-D_detach +0.2pp ns; corrupted-history D_shuf beats D_cell by 1.9pp at 2SE). World-model aux loss trains (train mse 14.3->0.43) but val targets near-constant. Budget-4 gap is search width (branch 8 = 98.8% of ceiling), not model structure."
     }
   }
 }

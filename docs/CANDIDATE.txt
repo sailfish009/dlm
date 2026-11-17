@@ -1,1 +1,1 @@
-CANDIDATE — 0.0268 corrected recombination: contract gain node-matched (+9.5pp at 7236 vs 7331 nodes), 94.2% of 5-seed mean ceiling; label budget decoupled behaviourally; label flags in header.
+CANDIDATE — 0.0269 simple loop: branch 8 reaches 98.8% of the branch-64 ceiling at budget 4 (0.9254/0.9365); budget 5 saturates (0.9857); audit G1-G6 closed.

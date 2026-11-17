@@ -1,0 +1,41 @@
+== 1. gradient check, ten configurations (episode scalar = trained scalar)
+LOOP-GRADCHECK-PASS (10 configs; BPTT liveness asserted)
+== 2. label-budget independence (0268 F1 regression, behavioural)
+LABEL-INDEPENDENT-PASS (pchk=9010.556934 at budgets 4 and 6, cell arm)
+== 3. header: cell/remfeat/eptrain/predw cross-loads refused
+HEADER-CELL-PASS
+== 4. episode permutation equivariance (cell arms)
+PERM-PASS (episode-level, cell arms)
+== 5. world-model learning curve (directional, train split)
+LOOPCELL-VAL predw=0.500 detach=0 shuf=0 mse=0.3696 base_mse=0.3627 n=180
+PRED-LEARN-PASS (train mse 14.2772 -> 0.4319; val-vs-constant reported above, fixture targets near-constant)
+== 6. claims (recomb core under the new protocol + cell contrasts)
+HYBRID-CONTRAST B_pair16-A_nocost goal mean=+0.1302 se1=0.0171 2se=0.0343 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST D_pair16_b5-B_pair16 goal mean=+0.1174 se1=0.0108 2se=0.0215 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST D_cell-D_detach goal mean=+0.0016 se1=0.0059 2se=0.0117 n=5 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST D_cell-D_shuf goal mean=-0.0191 se1=0.0082 2se=0.0163 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST D_rem-D_pair16_b5 goal mean=+0.0222 se1=0.0134 2se=0.0268 n=5 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST D_cellpred-D_cell goal mean=+0.0111 se1=0.0169 2se=0.0339 n=5 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST D_cell-D_remcell goal mean=-0.0048 se1=0.0114 2se=0.0228 n=5 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST D_cellpred-D_detachpred goal mean=+0.0000 se1=0.0205 2se=0.0411 n=5 INCONCLUSIVE(2SE)
+LOOP-CLAIMS-PASS recomb core survives the episode protocol
+== 7. ceilings: per-arm per-seed (own mined contracts), branch 64, seed sets match
+CEILING-ARM D_pair16_b5 own-mean=0.9333
+CEILING-ARM D_cell own-mean=0.9365
+CEILING-ARM D_cellpred own-mean=0.9365
+CEILING-ARM D_detach own-mean=0.9365
+CEILING-ARM D_shuf own-mean=0.9365
+CEILING-ARM D_rem own-mean=0.9365
+CEILING-ARM D_remcell own-mean=0.9365
+CEILING-ARM D_wide own-mean=0.9365
+CEILING-PASS B mean=0.9333 [0.9286, 0.9286, 0.9365, 0.9365, 0.9365]; every branch-5 arm below its own per-seed ceiling; seed sets match
+== documentation hygiene
+DOC-PASS 1 release notes: prose only, tokens in context (fenced commands allowed)
+== 8. aggregation + mutation regression
+HYBRID-TABLE-PASS table equals per-seed recomputation (all arms, 5 seeds)
+GATE-REGRESSION-PASS 10 mutations rejected, baseline accepted
+== 9. LLVM identity + sanitizers (cellpred arm, BPTT stack)
+LLVM-PASS
+== 10. 15-seed confirmation table == recomputation
+CONFIRM-TABLE-PASS 15-seed means == per-seed recomputation (7 arms)
+V0269-LOOPCELL-PASS

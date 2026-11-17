@@ -1,0 +1,15 @@
+ARM A_nocost greedy=0.2953 beam=0.3381 dfs=0.6286 dfs_full=0.5880 nodes=3357 cands=24031 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=0 focus_removed=0 pair_uses=0 pair_viol=0 n=5
+ARM B_pair16 greedy=0.2953 beam=0.3381 dfs=0.7587 dfs_full=0.7380 nodes=3362 cands=23858 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=289 focus_states=0 focus_removed=0 pair_uses=289 pair_viol=0 n=5
+ARM D_pair16_b5 greedy=0.2953 beam=0.3381 dfs=0.8762 dfs_full=0.8640 nodes=7868 cands=33983 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=779 focus_states=0 focus_removed=0 pair_uses=779 pair_viol=0 n=5
+ARM D_rem   greedy=0.3762 beam=0.4524 dfs=0.8984 dfs_full=0.8880 nodes=7504 cands=32434 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=729 focus_states=0 focus_removed=0 pair_uses=729 pair_viol=0 n=5
+ARM D_cell  greedy=0.3254 beam=0.3095 dfs=0.8905 dfs_full=0.8800 nodes=7991 cands=34491 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=744 focus_states=0 focus_removed=0 pair_uses=744 pair_viol=0 n=5
+ARM D_cellpred greedy=0.4064 beam=0.4048 dfs=0.9016 dfs_full=0.8860 nodes=7565 cands=32746 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=646 focus_states=0 focus_removed=0 pair_uses=646 pair_viol=0 n=5
+ARM D_detach greedy=0.3540 beam=0.3936 dfs=0.8889 dfs_full=0.8780 nodes=7680 cands=33170 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=780 focus_states=0 focus_removed=0 pair_uses=780 pair_viol=0 n=5
+ARM D_shuf  greedy=0.3397 beam=0.3698 dfs=0.9095 dfs_full=0.8980 nodes=7579 cands=32758 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=734 focus_states=0 focus_removed=0 pair_uses=734 pair_viol=0 n=5
+ARM D_remcell greedy=0.3460 beam=0.2857 dfs=0.8952 dfs_full=0.8820 nodes=8184 cands=35353 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=765 focus_states=0 focus_removed=0 pair_uses=765 pair_viol=0 n=5
+ARM D_wide  greedy=0.3635 beam=0.4460 dfs=0.8857 dfs_full=0.8760 nodes=7669 cands=33138 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=788 focus_states=0 focus_removed=0 pair_uses=788 pair_viol=0 n=5
+CEILING DFS seed=71 variant=base d=4 b=4 branch=64 subsume=1 prop=1 goal=0.9365 full=0.9300 nodes=74181 cands=68529 leafs=12039 pruned=58998
+CEILING DFS seed=72 variant=base d=4 b=4 branch=64 subsume=1 prop=1 goal=0.9286 full=0.9200 nodes=73471 cands=67956 leafs=11822 pruned=58531
+CEILING DFS seed=73 variant=base d=4 b=4 branch=64 subsume=1 prop=1 goal=0.9365 full=0.9300 nodes=68578 cands=63194 leafs=6720 pruned=58970
+CEILING DFS seed=74 variant=base d=4 b=4 branch=64 subsume=1 prop=1 goal=0.9365 full=0.9300 nodes=72385 cands=66821 leafs=11269 pruned=58053
+CEILING DFS seed=75 variant=base d=4 b=4 branch=64 subsume=1 prop=1 goal=0.9286 full=0.9200 nodes=76175 cands=70487 leafs=12127 pruned=60815

@@ -51,11 +51,16 @@
 #ifndef PATH_GAMMA
 #define PATH_GAMMA 1.0           /* retention decay on the path integral; 1.0 = monotone accumulation */
 #endif
+#ifndef REMFEAT
+#define REMFEAT 0                /* 0.0269: remaining-budget slot in the state features */
+#endif
 #define BIND_FEAT (NSLOT*WENT + WENT)   /* body slot x entity support + head-atom known */
 #define ID_BLOCK_LO 8                 /* candidate predicate-id one-hot block: head + body slots */
 #define ID_BLOCK_HI (8 + P + NSLOT*P) /* = 26 */
 static int g_goaldepth = 0;      /* 0 = default (HARD_GOALS compile flag), k>=1 = goals need k candidate steps */
 static int g_eval_budget = 4;
+static int g_label_rem_max = 4;  /* 0.0267: labels are defined at budget 4 regardless of
+                                  * the search budget (0.0268: rem = label_rem - step) */
 static int g_seed_base = 11;
 static const char *g_save_weights = (const char*)0;
 static const char *g_load_weights = (const char*)0;
@@ -81,7 +86,7 @@ static int g_holdout_mask = 0; /* predicate-held-out bitmask: train/val exclude,
 #define CAND_GOAL_FEAT 4                /* head match, head known, body supported, would derive */
 #define PATH_OFF (CAND_BASE + (RELOB ? GOAL_COUNT*CAND_GOAL_FEAT : 0) + (BINDTOK ? BIND_FEAT : 0))
 #define CAND_DIM (PATH_OFF + (INTEGRAL ? 3 : 0))
-#define STATE_DIM (STATE_BASE + (RELOB ? GOAL_COUNT*GOAL_FEAT : 0))
+#define STATE_DIM (STATE_BASE + (RELOB ? GOAL_COUNT*GOAL_FEAT : 0) + (REMFEAT ? 1 : 0))
 #define MAXLIVE POOL
 
 typedef struct { int head; int body[NSLOT]; int blen; } Rule;
@@ -252,7 +257,7 @@ static int holdout_ok(const World *w, int split){
 }
 
 static void state_features(const World *w, const int *rules, int nrules,
-                           const int *live, int nlive, double out[STATE_DIM]){
+                           const int *live, int nlive, double out[STATE_DIM], int rem){
   uint8_t known[WENT];
   closure(w->facts, rules, nrules, known);
   int known_n = 0;
@@ -279,12 +284,18 @@ static void state_features(const World *w, const int *rules, int nrules,
 #if RELOB
   {
     int k = STATE_BASE;
-    for (int i = 0; i < STATE_DIM - STATE_BASE; i++) out[i + STATE_BASE] = 0.0;
+    for (int i = 0; i < GOAL_COUNT*GOAL_FEAT; i++) out[i + STATE_BASE] = 0.0;
     for (int g = 0; g < w->ngoals; g++){
       for (int p = 0; p < P; p++) out[k++] = (w->goal_pred[g] == p) ? 1.0 : 0.0;
       for (int e = 0; e < WENT; e++) out[k++] = (w->goal_ent[g] == e) ? 1.0 : 0.0;
     }
   }
+#endif
+#if REMFEAT
+  /* 0.0269: the DP value label depends on the remaining budget, which the
+   * closure features do not encode (nrules miscounts it under contracts).
+   * This slot makes the identifiability gap explicit without recurrence. */
+  out[STATE_DIM-1] = (double)rem / (double)MAXBUDGET;
 #endif
 }
 
@@ -543,7 +554,8 @@ static int rollout(const World *w, Step *steps){
     Step *st = &steps[nsteps];
     st->world = w->idx; st->step = s; st->nlive = nlive;
     for (int i = 0; i < nlive; i++) st->live[i] = live[i];
-    state_features(w, rules, nrules, live, nlive, st->state);
+    state_features(w, rules, nrules, live, nlive, st->state,
+                   g_label_rem_max - s > 0 ? g_label_rem_max - s : 0);
     int best = 0;
     for (int i = 0; i < nlive; i++){
       cand_features(w, rules, nrules, live[i], st->cf[i]);
