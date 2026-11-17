@@ -1,0 +1,49 @@
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=train states=720 top_label_cands=1519 mean_top=2.11 mean_nlive=22.50 top_share=0.094
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=val states=240 top_label_cands=458 mean_top=1.91 mean_nlive=22.50 top_share=0.085
+HYBRID-AGG-FAIL dp stray line: LABELCENSUS valmode=1 labelset=1 split=test states=400 top_label_cands=863 mean_top=2.16 mean_nlive=22.50 top_share=0.096
+
+real	3m57.133s
+user	19m1.535s
+sys	0m1.769s

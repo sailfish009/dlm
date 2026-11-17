@@ -72,6 +72,9 @@ if grep -q 'PAIR-LEARN-NOT-DEMONSTRATED' out/pair_contrast.txt; then
   echo "PAIR-CLAIM-PASS verdict stated in docs/release-0261.md"
 fi
 
+echo "== documentation hygiene (review F6)"
+bash tools/doc_check.sh ../../docs/release-0261.md || { echo DOC-CHECK-FAIL; exit 1; }
+
 echo "== 5. aggregation schema, table identity, mutation regression"
 bash tools/hybrid_stats.sh verify out/pair.txt "$SEEDS"
 bash gate_regression_hybrid.sh out/pair.txt probes_p "$SEEDS"

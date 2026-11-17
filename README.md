@@ -1,3 +1,28 @@
+# DLM 0.0264 — minimal deductive core + transformer architecture search (null result)
+
+**0.0263/0.0264** pushed the native transformer itself: multi-register branching
+with a max readout (Screamer), and capacity scaling (width, depth, untied Rocq
+tactic phases). At 5 seeds width looked like +11.4 pp; **at 15 seeds on the same
+base it is +1.75 pp ± 3.96** — the gain was seed variance.
+
+```text
+axis                                  effect at 15 seeds   verdict
+width D32->D48 (+80 % params)         +1.75 pp ± 3.96      null
+depth L2->L3 (+43 %)                  +0.5 pp              null
+untied phase blocks (+86 %)           +1.00 pp ± 2.75      null
+multi-register B=2/3 + max readout    +1.3 pp (5 seeds)    null (0.0263)
+top-k attention / residual gate        -6 / -3 pp          null-negative (0259/0260)
+verified contract action space        +12…16 pp            positive
+search (DFS+subsumption vs beam)      dominating           positive
+```
+
+Conclusion: 19,939 parameters saturate this unary fixture; the binding constraint
+is the fixture and the label, not the transformer. Details:
+`docs/release-0264.md`, `docs/release-0263.md`; gates `verify_scale.sh`
+(`V0264-SCALE-PASS`), `verify_reg.sh` (`V0263-MULTIREG-PASS`). The 5-seed table is
+kept in the note to document the noise level (per-seed sd ≈ 0.20, so n=5 detects
+only ~18 pp at 2 SE).
+
 # DLM 0.0262 — minimal deductive core + hybrid reasoning layer (DP value labels)
 
 **0.0262** replaces the single-step utility label with a **budget-exact DP value**

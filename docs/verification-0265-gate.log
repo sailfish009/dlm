@@ -1,0 +1,30 @@
+== 1. gradient check across label regimes
+  util       GRADCHECK params=19939 loss=3.450934 max_abs=1.329e-10 max_grad=4.599e-01 rel_to_max_grad=2.890e-10 max_rel_small=1.864e-04
+  dp         GRADCHECK params=19939 loss=3.483977 max_abs=1.371e-10 max_grad=4.035e-01 rel_to_max_grad=3.399e-10 max_rel_small=2.468e-04
+  dpshuf     GRADCHECK params=19939 loss=3.586708 max_abs=1.363e-10 max_grad=2.797e-01 rel_to_max_grad=4.873e-10 max_rel_small=1.235e-04
+  onpath     GRADCHECK params=19939 loss=3.464413 max_abs=1.293e-10 max_grad=2.687e-01 rel_to_max_grad=4.812e-10 max_rel_small=3.281e-04
+  onpathlem  GRADCHECK params=19939 loss=3.464413 max_abs=1.293e-10 max_grad=2.687e-01 rel_to_max_grad=4.812e-10 max_rel_small=3.281e-04
+ONPATH-GRADCHECK-PASS
+== 2. label census (sharpness of the justified-derivation target)
+  ONPATH census states=1360 top_label_cands=5494 mean_top=4.04 mean_nlive=22.50 top_share=0.180
+ONPATH-LABEL-PASS 1360 states, top_share=0.180 (a usable but non-trivial target)
+== 3. VALMODE=0 conservation
+CONSERVATION-PASS
+== 4. the decisive contrasts (goal and scorer-only greedy)
+HYBRID-CONTRAST onpath-util goal mean=+0.1809 se1=0.0251 ci95=+-0.0501 n=15 SIGNIFICANT(2SE)
+HYBRID-CONTRAST onpath-util full mean=+0.2007 se1=0.0288 ci95=+-0.0576 n=15 SIGNIFICANT(2SE)
+HYBRID-CONTRAST onpath-util proof_model mean=+0.1053 se1=0.0264 ci95=+-0.0528 n=15 SIGNIFICANT(2SE)
+HYBRID-CONTRAST onpath-dp goal mean=+0.1275 se1=0.0249 ci95=+-0.0498 n=15 SIGNIFICANT(2SE)
+HYBRID-CONTRAST onpathlem-onpath goal mean=+0.1265 se1=0.0085 ci95=+-0.0171 n=15 SIGNIFICANT(2SE)
+HYBRID-CONTRAST onpathlem-util goal mean=+0.3074 se1=0.0211 ci95=+-0.0423 n=15 SIGNIFICANT(2SE)
+ONPATH-CLAIM-PASS PROOF-PATH-LABEL-DEMONSTRATED (goal and greedy both beyond 2 SE)
+== documentation hygiene
+DOC-PASS 1 release notes: prose only, tokens in context (fenced commands allowed)
+== 5. aggregation + mutation regression
+HYBRID-TABLE-PASS table equals per-seed recomputation (all arms, 15 seeds)
+GATE-REGRESSION-PASS 10 mutations rejected, baseline accepted
+== 6. weight header carries the label mode
+WHDR-PASS label mode in the header
+== 7. LLVM identity + sanitizers (onpath)
+LLVM-PASS O0/O2/O3 byte-identical; ASAN+UBSAN clean (onpath+contracts)
+V0265-ONPATH-PASS

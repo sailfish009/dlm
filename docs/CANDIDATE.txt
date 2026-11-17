@@ -1,1 +1,1 @@
-CANDIDATE — 0.0262 budget-exact DP value labels: DP-VALUE-NOT-DEMONSTRATED (dp-util +2.2pp inside 2SE); contracts stack +12.2pp.
+CANDIDATE — 0.0266 label decomposition: gain localised to removing the rule-cost term (+12.4pp at 2SE); length term inert; shuffle control collapses; ceiling 0.8492 goal.

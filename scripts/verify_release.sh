@@ -55,6 +55,33 @@ echo "LAB-GATE proof_state_transformer_maru: $(grep -c '^PARITY\|^GRADCHECK\|^LL
     && ./verify_hybrid.sh > /tmp/pst_hybrid_verify_0260.log 2>&1 ) \
   || { echo HYBRID-LAB-GATE-FAIL; tail -n 20 /tmp/pst_hybrid_run_0260.log /tmp/pst_hybrid_verify_0260.log; exit 1; }
 grep -q '^V0260-HYBRID-PASS$' /tmp/pst_hybrid_verify_0260.log || { echo HYBRID-LAB-GATE-FAIL; exit 1; }
+# --- 0.0266 label-decomposition gate ----------------------------------------
+( cd experiments/proof_state_transformer_maru && ./run_decomp.sh.0266 > /tmp/pst_decomp_run_0266.log 2>&1 \
+    && SEEDS=15 ./verify_decomp0266.sh > /tmp/pst_decomp_verify_0266.log 2>&1 ) \
+  || { echo DECOMP-LAB-GATE-FAIL; tail -n 20 /tmp/pst_decomp_run_0266.log /tmp/pst_decomp_verify_0266.log; exit 1; }
+grep -q '^V0266-LABELDECOMP-PASS$' /tmp/pst_decomp_verify_0266.log || { echo DECOMP-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE label decomposition: $(grep -c '^DECOMP-\|^CENSUS-TRAIN-PASS\|^SHUFFLE-CONTROL-PASS\|^COST-LOCALISATION-PASS\|^CEILING-PASS\|^HYBRID-TABLE-PASS\|^GATE-REGRESSION-PASS\|^WHDR-PASS\|^LLVM-PASS' /tmp/pst_decomp_verify_0266.log) checks, V0266-LABELDECOMP-PASS"
+
+# --- 0.0265 deductive-label gate --------------------------------------------
+( cd experiments/proof_state_transformer_maru && ./run_onpath.sh > /tmp/pst_onpath_run_0265.log 2>&1 \
+    && SEEDS=15 ./verify_onpath.sh > /tmp/pst_onpath_verify_0265.log 2>&1 ) \
+  || { echo ONPATH-LAB-GATE-FAIL; tail -n 20 /tmp/pst_onpath_run_0265.log /tmp/pst_onpath_verify_0265.log; exit 1; }
+grep -q '^V0265-ONPATH-PASS$' /tmp/pst_onpath_verify_0265.log || { echo ONPATH-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE deductive label: $(grep -c '^ONPATH-\|^CONSERVATION-PASS\|^HYBRID-TABLE-PASS\|^GATE-REGRESSION-PASS\|^WHDR-PASS\|^LLVM-PASS' /tmp/pst_onpath_verify_0265.log) checks, V0265-ONPATH-PASS ($(grep -o 'PROOF-PATH-LABEL-DEMONSTRATED' /tmp/pst_onpath_verify_0265.log | head -1))"
+
+# --- 0.0263/0.0264 architecture gates ---------------------------------------
+( cd experiments/proof_state_transformer_maru && ./run_reg.sh > /tmp/pst_reg_run_0263.log 2>&1 \
+    && ./verify_reg.sh > /tmp/pst_reg_verify_0263.log 2>&1 ) \
+  || { echo REG-LAB-GATE-FAIL; tail -n 20 /tmp/pst_reg_run_0263.log /tmp/pst_reg_verify_0263.log; exit 1; }
+grep -q '^V0263-MULTIREG-PASS$' /tmp/pst_reg_verify_0263.log || { echo REG-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE multi-register transformer: $(grep -c '^REG-\|^HYBRID-TABLE-PASS\|^GATE-REGRESSION-PASS\|^WHDR-PASS\|^LLVM-PASS' /tmp/pst_reg_verify_0263.log) checks, V0263-MULTIREG-PASS ($(grep -o 'MULTIREG-NOT-DEMONSTRATED' /tmp/pst_reg_verify_0263.log | head -1))"
+
+( cd experiments/proof_state_transformer_maru && ./run_scale15.sh > /tmp/pst_scale_run_0264.log 2>&1 \
+    && SEEDS=15 ./verify_scale.sh > /tmp/pst_scale_verify_0264.log 2>&1 ) \
+  || { echo SCALE-LAB-GATE-FAIL; tail -n 20 /tmp/pst_scale_run_0264.log /tmp/pst_scale_verify_0264.log; exit 1; }
+grep -q '^V0264-SCALE-PASS$' /tmp/pst_scale_verify_0264.log || { echo SCALE-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE capacity scaling: $(grep -c '^SCALE-\|^HYBRID-TABLE-PASS\|^GATE-REGRESSION-PASS\|^WHDR-PASS\|^LLVM-PASS' /tmp/pst_scale_verify_0264.log) checks, V0264-SCALE-PASS ($(grep -o 'SCALE-NOT-DEMONSTRATED' /tmp/pst_scale_verify_0264.log | head -1))"
+
 # --- 0.0262 DP-value gate ----------------------------------------------------
 ( cd experiments/proof_state_transformer_maru && ./run_value.sh > /tmp/pst_value_run_0262.log 2>&1 \
     && ./verify_value.sh > /tmp/pst_value_verify_0262.log 2>&1 ) \

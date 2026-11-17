@@ -50,6 +50,9 @@ rand  − pure    goal +21.6 pp ± 3.4   significant
 
 ## Verdict: PAIR-LEARN-NOT-DEMONSTRATED
 
+The learned contract proposer is **PAIR-LEARN-NOT-DEMONSTRATED**: the difference
+from the matched random proposer is inside 2 SE over five seeds.
+
 **The learned proposer does not beat a matched-count random proposer.** The
 difference is inside 2 SE and, if anything, points the other way. Two facts
 follow, and both matter for the programme:

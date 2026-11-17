@@ -1,5 +1,5 @@
 {
-  "version": "0.0262",
+  "version": "0.0266",
   "note": "Minimal-core capability ledger. Research snapshots are separate; the native scope is docs/native-scope-0243.md.",
   "removed_in_0_0205": [
     "d107 contract layer (d107-*.l, contract/unit/surface/plan/session modules)",
@@ -404,6 +404,26 @@
       "status": "experimental",
       "witness": "experiments/proof_state_transformer_maru/verify_value.sh",
       "note": "budget-exact V(mask,rem) label from the kernel oracle, audited against brute force; dp-util goal +2.2pp (inside 2SE) => DP-VALUE-NOT-DEMONSTRATED"
+    },
+    "multi_register_branching": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_reg.sh",
+      "note": "B state registers + per-register max readout: MULTIREG-NOT-DEMONSTRATED at 5 seeds (0.0263)"
+    },
+    "capacity_scaling": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_scale.sh",
+      "note": "width/depth/untied phases: SCALE-NOT-DEMONSTRATED at 15 seeds; 19,939 params saturate this fixture"
+    },
+    "proof_path_label": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_decomp0266.sh",
+      "note": "label decomposition (2x2 + shuffle) localises the 0.0265 gain to removing the rule-cost term (+12.4pp); the min-derivation-length term is inert (+0.3pp); mechanism narrative retracted"
+    },
+    "label_shuffle_control": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_decomp0266.sh",
+      "note": "shuffled-label arm collapses (onpath-onpathshuf +31.9pp at 2SE)"
     }
   }
 }

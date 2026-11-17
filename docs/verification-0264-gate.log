@@ -1,0 +1,31 @@
+== 1. gradient check across capacity variants
+  base    GRADCHECK params=19939 loss=3.450934 max_abs=1.329e-10 max_grad=4.599e-01 rel_to_max_grad=2.890e-10 max_rel_small=1.864e-04
+  w48     GRADCHECK params=35987 loss=3.486438 max_abs=1.321e-10 max_grad=3.513e-01 rel_to_max_grad=3.759e-10 max_rel_small=1.631e-04
+  d3      GRADCHECK params=28484 loss=3.612328 max_abs=1.456e-10 max_grad=4.831e-01 rel_to_max_grad=3.014e-10 max_rel_small=1.464e-04
+  w48d3   GRADCHECK params=51844 loss=3.599742 max_abs=1.372e-10 max_grad=3.759e-01 rel_to_max_grad=3.651e-10 max_rel_small=3.744e-04
+  untied  GRADCHECK params=37029 loss=3.502508 max_abs=1.529e-10 max_grad=4.013e-01 rel_to_max_grad=3.809e-10 max_rel_small=1.768e-04
+SCALE-GRADCHECK-PASS
+== 2. untied plumbing inert when phases are tied
+SCALE-OFF-PASS PHASEUNTIE with tied passes is identical to base
+== 3. parameter counts
+  SCALEPARAM base    19939
+  SCALEPARAM w48     35987
+  SCALEPARAM d3      28484
+  SCALEPARAM w48d3   51844
+  SCALEPARAM untied  37029
+SCALE-PARAMS-PASS base=19,939
+== 4. 15-seed contrasts (the 5-seed +11.4pp did not survive)
+HYBRID-CONTRAST w48-base goal mean=+0.0175 se=0.0396 n=15 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST w48-base full mean=+0.0180 se=0.0436 n=15 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST untied-base goal mean=+0.0100 se=0.0275 n=15 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST w48-untied goal mean=+0.0074 se=0.0308 n=15 INCONCLUSIVE(2SE)
+SCALE-CLAIM-VERDICT SCALE-NOT-DEMONSTRATED (width/depth/untied all inside 2SE over 15 seeds; the 5-seed +11.4pp was seed variance)
+SCALE-CLAIM-PASS verdict stated in docs/release-0264.md
+== 5. aggregation + mutation regression
+HYBRID-TABLE-PASS table equals per-seed recomputation (all arms, 15 seeds)
+GATE-REGRESSION-PASS 10 mutations rejected, baseline accepted
+== 6. capacity tag in the weight header
+WHDR-PASS width/depth/phase tags in the header; cross-capacity load refused
+== 7. LLVM identity + sanitizers (w48, untied)
+LLVM-PASS O0/O2/O3 byte-identical; ASAN+UBSAN clean (untied phases)
+V0264-SCALE-PASS

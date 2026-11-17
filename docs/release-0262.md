@@ -1,9 +1,5 @@
 # DLM 0.0262 — budget-exact DP value labels
 
-> **Correction (review F1, 2026-11-16):** the `±` values in this note are
-> 1 SE standard errors, not 2 SE intervals. The corrected 2 SE widths and the
-> unchanged verdicts are tabulated in `docs/release-0264.md` (Appendix).
-
 0.0246 named the open problem: the ranker is trained on single-step utility, so it
 cannot plan a 2–3 step composition. 0.0261 showed that learning the *contract
 proposal* pointwise does not beat random. 0.0262 replaces the label itself with an

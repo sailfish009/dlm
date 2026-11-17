@@ -16,6 +16,8 @@ typedef struct {
   int attmode, symgate, cert, focus, lemma;   /* 0260 hybrid-layer tag */
   int pairmode, pair_keep;                   /* 0261 contract proposer */
   int valmode;                               /* 0262 value label */
+  int branchtok, readmax, regshuf;           /* 0263 multi-register structure */
+  int md, mnl, phaseuntie;                   /* 0264 capacity */
   double lift_rho, path_gamma;
   double pchk;
 } WHeader;
@@ -68,7 +70,9 @@ static int g_pair_uses = 0, g_pair_viol = 0;   /* applied / kernel-mismatch */
 static double g_pairw[PAIRF];
 static int g_pair_learned = 0;
 static int g_valmode = VALMODE;   /* 0 utility, 1 DP value, 2 shuffled DP (control) */
-static long g_dp_states = 0, g_dp_masks = 0;
+static long g_dp_states = 0, g_dp_masks = 0, g_onpath_cands = 0, g_onpath_states = 0, g_onpath_distinct = 0;
+static long g_lab_states[3], g_lab_top[3], g_lab_nlive[3];
+static int g_lab_split = 0;
 static int g_cert_on = CERT;           /* independent certificate check on the DFS proof */
 static int g_cert_selftest = 0;        /* 1 = corrupt one parent (checker must fail) */
 static long g_dfs_nodes = 0, g_dfs_cands = 0, g_dfs_leafs = 0, g_dfs_pruned = 0;
@@ -95,7 +99,7 @@ static void pair_learn(void);
  * VALMODE=2 keeps the same label multiset with the correspondence to candidates
  * destroyed, so any gain from VALMODE=1 can be attributed to the labels. */
 #define DPMEMO 32768
-typedef struct { uint32_t mask; int8_t rem; int8_t used; int val; } DpCell;
+typedef struct { uint32_t mask; int8_t rem; int8_t used; int val; int8_t steps; } DpCell;
 static DpCell g_dp[DPMEMO];
 
 static int proved_mask(const World *w, uint32_t mask){
@@ -118,17 +122,19 @@ static uint32_t dp_hash(uint32_t mask, int rem){
 }
 
 static int dp_value(const World *w, uint32_t mask, int rem);
+static int dp_value_s(const World *w, uint32_t mask, int rem);  /* returns steps via *out */
 
-static int dp_lookup(uint32_t mask, int rem, int *val){
+static int dp_lookup(uint32_t mask, int rem, int *val, int *steps){
   uint32_t h = dp_hash(mask, rem);
   for (int i = 0; i < 64; i++){
     DpCell *e = &g_dp[(h+i) & (DPMEMO-1)];
     if (!e->used) return 0;
-    if (e->mask == mask && e->rem == rem){ *val = e->val; return 1; }
+    if (e->mask == mask && e->rem == rem){ *val = e->val; if (steps) *steps = e->steps; return 1; }
   }
   return 0;
 }
 static void dp_store(uint32_t mask, int rem, int val){
+  /* steps are stored by dp_store2 below when needed */
   uint32_t h = dp_hash(mask, rem);
   for (int i = 0; i < 64; i++){
     DpCell *e = &g_dp[(h+i) & (DPMEMO-1)];
@@ -140,7 +146,7 @@ static void dp_store(uint32_t mask, int rem, int val){
 
 static int dp_value(const World *w, uint32_t mask, int rem){
   int memo;
-  if (dp_lookup(mask, rem, &memo)) return memo;
+  if (dp_lookup(mask, rem, &memo, 0)) return memo;
   g_dp_masks++;
   int best = proved_mask(w, mask);
   if (rem > 0){
@@ -151,6 +157,37 @@ static int dp_value(const World *w, uint32_t mask, int rem){
     }
   }
   dp_store(mask, rem, best);
+  return best;
+}
+
+/* value with a proof-cost tie-break (0.0265): the same recursion, but the memo
+ * also carries the MINIMUM number of commits needed to reach that value, so two
+ * candidates with equal value are ordered by the length of the derivation they
+ * lead to (MDL / justification signal). */
+static int dp2[STATE_DIM];   /* scratch unused */
+static int dp_value_sx(const World *w, uint32_t mask, int rem, int *steps){
+  int memo, ms;
+  if (dp_lookup(mask, rem, &memo, &ms)){ if (steps) *steps = ms; return memo; }
+  g_dp_masks++;
+  int best = proved_mask(w, mask), bstep = 0;
+  if (rem > 0){
+    for (int c = 0; c < POOL; c++){
+      if (mask & (1u << c)) continue;
+      int s2 = 0;
+      int v = dp_value_sx(w, mask | (1u << c), rem-1, &s2);
+      int step = s2 + 1;
+      if (v > best || (v == best && (bstep == 0 || step < bstep))){ best = v; bstep = step; }
+    }
+  }
+  /* store both fields */
+  uint32_t h = dp_hash(mask, rem);
+  for (int i = 0; i < 64; i++){
+    DpCell *e = &g_dp[(h+i) & (DPMEMO-1)];
+    if (!e->used || (e->mask == mask && e->rem == rem)){
+      e->used = 1; e->mask = mask; e->rem = (int8_t)rem; e->val = best; e->steps = (int8_t)bstep; break;
+    }
+  }
+  if (steps) *steps = bstep;
   return best;
 }
 
@@ -183,17 +220,46 @@ static void dp_labels(const World *w, const int *rules, int nrules, const int *l
   memset(g_dp, 0, sizeof g_dp);
   g_dp_states++;
   int vals[POOL];
+  /* NOTE (review N1/N2): compute the value WITH its derivation length from one
+   * call. Mixing dp_value() and dp_value_sx() on the same memo cell returned
+   * steps=0 for every candidate, which silently made the steps term constant and
+   * reduced the 0.0265 label to "exact value, cost term dropped". */
   for (int k = 0; k < nlive; k++){
     uint32_t bit = 0;
     for (int c = 0; c < POOL; c++) if (w->cands[c] == live[k]) bit = (1u << c);
-    vals[k] = dp_value(w, mask | bit, rem > 0 ? rem-1 : 0);
-    /* scale: fraction of all goals reachable with the remaining budget, mapped to
-     * the same 5.0 range as the single-step goal term, so util/TEMP stays
-     * comparable across VALMODE */
+    int s2 = 0;
+    vals[k] = dp_value_sx(w, mask | bit, rem > 0 ? rem-1 : 0, &s2);
     util[k] = 5.0*(double)vals[k]/(double)(w->ngoals > 0 ? w->ngoals : 1)
               - rule_cost(&all_rules[live[k]]);
   }
-  if (g_valmode == 2){       /* control: same multiset, correspondence destroyed */
+  if (g_valmode >= 1){
+    /* label = value term (+ optional derivation-length term, + optional cost),
+     * 2x2 decomposition of the 0.0265 label (review N2). */
+    int st[POOL];
+    for (int k = 0; k < nlive; k++){
+      uint32_t bit = 0;
+      for (int c = 0; c < POOL; c++) if (w->cands[c] == live[k]) bit = (1u << c);
+      int s2 = 0;
+      dp_value_sx(w, mask | bit, rem > 0 ? rem-1 : 0, &s2);   /* memo hit: steps */
+      st[k] = s2;
+    }
+    for (int k = 0; k < nlive; k++){
+      double u = 5.0*(double)vals[k]/(double)(w->ngoals > 0 ? w->ngoals : 1);
+      if (LABEL_STEPS || g_valmode >= 3)
+        u += 0.5*(1.0 - (double)st[k]/(double)(g_eval_budget > 0 ? g_eval_budget : 1));
+      if (!(LABEL_NCOST || g_valmode >= 3)) u -= rule_cost(&all_rules[live[k]]);
+      util[k] = u;
+    }
+    /* census of the label actually used for training (review N1): how many
+     * candidates share the TOP label, per state and split */
+    double mxu = -1e30;
+    for (int k = 0; k < nlive; k++) if (util[k] > mxu) mxu = util[k];
+    int non = 0;
+    for (int k = 0; k < nlive; k++) if (util[k] >= mxu - 1e-9) non++;
+    g_lab_states[g_lab_split]++; g_lab_top[g_lab_split] += non;
+    g_lab_nlive[g_lab_split] += nlive;
+  }
+  if (g_valmode == 2 || g_valmode == 4){   /* control: same multiset, shuffled */
     for (int k = nlive-1; k > 0; k--){
       int j = (int)randbelow((uint64_t)k+1);
       double t = util[k]; util[k] = util[j]; util[j] = t;
@@ -231,6 +297,7 @@ static void dp_audit(void){
 
 static void build_dataset(void){
   for (int s = 0; s < 3; s++){
+    g_lab_split = s;
     g_data[s] = (WSteps*)calloc((size_t)g_nw[s], sizeof(WSteps));
     if (!g_data[s]){ fprintf(stderr, "alloc\n"); exit(2); }
     rng_state = (uint64_t)(11 + s);
@@ -298,6 +365,20 @@ static void build_dataset(void){
   }
 }
 
+static void onpath_report(void){
+  if (g_valmode == 0) return;
+  /* one line per split: this is the label the weights are trained on (review N1) */
+  for (int s = 0; s < 3; s++){
+    if (!g_lab_states[s]) continue;
+    const char *nm = (s == 0) ? "train" : (s == 1) ? "val" : "test";
+    printf("LABELCENSUS valmode=%d labelset=%d split=%s states=%ld top_label_cands=%ld "
+           "mean_top=%.2f mean_nlive=%.2f top_share=%.3f\n",
+           g_valmode, VALMODE, nm, g_lab_states[s], g_lab_top[s],
+           (double)g_lab_top[s]/(double)g_lab_states[s],
+           (double)g_lab_nlive[s]/(double)g_lab_states[s],
+           g_lab_nlive[s] ? (double)g_lab_top[s]/(double)g_lab_nlive[s] : 0.0);
+  }
+}
 static void dataset_stats(void){
   for (int s = 0; s < 3; s++){
     const char *nm = (s == 0) ? "train" : (s == 1) ? "val" : "test";
@@ -1645,6 +1726,7 @@ static void bootstrap_beam_diff(int seeds, int a, int b,
 
 static void run_variant(int seeds, int epochs, int verbose){
   build_dataset();
+  onpath_report();
   head_prior_from_train();
   rule_prior_from_train();
   if (g_dp_check){ dp_audit(); return; }
@@ -1716,15 +1798,18 @@ static void run_variant(int seeds, int epochs, int verbose){
           h.holdout != g_holdout_mask || h.lift_rho != LIFT_RHO || h.path_gamma != PATH_GAMMA ||
           h.attmode != ATTMODE || h.symgate != SYMGATE || h.cert != CERT ||
           h.focus != FOCUS || h.lemma != LEMMA ||
-          h.pairmode != PAIRMODE || h.pair_keep != g_pair_keep || h.valmode != VALMODE){
+          h.pairmode != PAIRMODE || h.pair_keep != g_pair_keep || h.valmode != VALMODE ||
+          h.branchtok != BRANCHTOK || h.readmax != READMAX || h.regshuf != REGSHUF ||
+          h.md != D || h.mnl != NL || h.phaseuntie != PHASEUNTIE){
         fprintf(stderr, "WEIGHTS-MISMATCH %s: header dims %d/%d variant %d hard %d relob %d bindtok %d "
                 "integral %d lifted %d holdout %d attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d, "
-                "binary dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d\n",
+                "binary dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d branchtok %d readmax %d regshuf %d md %d nl %d untie %d\n",
                 g_load_weights, h.state_dim, h.cand_dim, h.variant, h.hard, h.relob, h.bindtok,
                 h.integral, h.lifted, h.holdout, h.attmode, h.symgate, h.cert, h.focus, h.lemma,
                 h.pairmode, h.pair_keep, h.valmode,
                 STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, INTEGRAL, LIFTED, g_holdout_mask,
-                ATTMODE, SYMGATE, CERT, FOCUS, LEMMA, PAIRMODE, g_pair_keep, VALMODE);
+                ATTMODE, SYMGATE, CERT, FOCUS, LEMMA, PAIRMODE, g_pair_keep, VALMODE,
+                BRANCHTOK, READMAX, REGSHUF, D, NL, PHASEUNTIE);
         exit(4);
       }
       if (fread(g_p, sizeof(Params), 1, lf) != 1){ fprintf(stderr, "short weights\n"); exit(2); }
@@ -1739,6 +1824,7 @@ static void run_variant(int seeds, int epochs, int verbose){
         WHeader h = { W_MAGIC, STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, g_goaldepth, g_eval_budget,
                       INTEGRAL, LIFTED, PRIOR_SHUF, g_holdout_mask,
                       ATTMODE, SYMGATE, CERT, FOCUS, LEMMA, PAIRMODE, g_pair_keep, VALMODE,
+                      BRANCHTOK, READMAX, REGSHUF, D, NL, PHASEUNTIE,
                       LIFT_RHO, PATH_GAMMA, pchk };
         fwrite(&h, sizeof h, 1, sf);
         fwrite(g_p, sizeof(Params), 1, sf);
@@ -2051,6 +2137,7 @@ static double gradcheck(void){
   long n = param_count();
   double *pp = pv(g_p), *gg = pv(g_g);
   double eps = 1e-5, max_rel = 0, max_abs = 0, max_grad = 0;
+  long worst = -1; double worst_num = 0, worst_ana = 0;
   int checked = 0;
   for (long i = 0; i < n; i++){
     double orig = pp[i];
@@ -2063,7 +2150,7 @@ static double gradcheck(void){
     double ana = gg[i];
     double denom = fabs(num) + fabs(ana) + 1e-8;
     double rel = fabs(num - ana)/denom;
-    if (fabs(num - ana) > max_abs) max_abs = fabs(num - ana);
+    if (fabs(num - ana) > max_abs){ max_abs = fabs(num - ana); worst = i; worst_num = num; worst_ana = ana; }
     if (fabs(ana) > max_grad) max_grad = fabs(ana);
     if (rel > max_rel && fabs(num) + fabs(ana) > 1e-7) max_rel = rel;
     checked++;
@@ -2071,6 +2158,8 @@ static double gradcheck(void){
   double rel_to_max = max_abs / (max_grad > 0 ? max_grad : 1.0);
   printf("GRADCHECK params=%d loss=%.6f max_abs=%.3e max_grad=%.3e rel_to_max_grad=%.3e max_rel_small=%.3e\n",
          checked, base, max_abs, max_grad, rel_to_max, max_rel);
+  if (getenv("PST_GRADDEBUG"))
+    printf("GRADDEBUG worst_idx=%ld num=%.6e ana=%.6e\n", worst, worst_num, worst_ana);
   (void)gg;
   return rel_to_max;
 }

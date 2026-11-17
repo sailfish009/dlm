@@ -1,0 +1,36 @@
+== 1. gradient check across the five label regimes
+  dp          GRADCHECK params=19939 loss=3.483977 max_abs=1.371e-10 max_grad=4.035e-01 rel_to_max_grad=3.399e-10 max_rel_small=2.468e-04
+  dp_steps    GRADCHECK params=19939 loss=3.483977 max_abs=1.371e-10 max_grad=4.035e-01 rel_to_max_grad=3.399e-10 max_rel_small=2.468e-04
+  dp_nocost   GRADCHECK params=19939 loss=3.464413 max_abs=1.293e-10 max_grad=2.687e-01 rel_to_max_grad=4.812e-10 max_rel_small=3.281e-04
+  onpath      GRADCHECK params=19939 loss=3.464413 max_abs=1.293e-10 max_grad=2.687e-01 rel_to_max_grad=4.812e-10 max_rel_small=3.281e-04
+  onpathshuf  GRADCHECK params=19939 loss=3.464413 max_abs=1.293e-10 max_grad=2.687e-01 rel_to_max_grad=4.812e-10 max_rel_small=3.281e-04
+DECOMP-GRADCHECK-PASS
+== 2. census is read from the TRAINING log, per split (review N1)
+  dp          valmode=1 labelset=1 split=train states=720 top_label_cands=2840 mean_top=3.94 mean_nlive=22.50 top_share=0.175
+  dp_steps    valmode=1 labelset=1 split=train states=720 top_label_cands=2840 mean_top=3.94 mean_nlive=22.50 top_share=0.175
+  dp_nocost   valmode=1 labelset=1 split=train states=720 top_label_cands=8489 mean_top=11.79 mean_nlive=22.50 top_share=0.524
+  onpath      valmode=3 labelset=3 split=train states=720 top_label_cands=8489 mean_top=11.79 mean_nlive=22.50 top_share=0.524
+  onpathshuf  valmode=4 labelset=4 split=train states=720 top_label_cands=10313 mean_top=14.32 mean_nlive=22.50 top_share=0.637
+CENSUS-TRAIN-PASS
+== 3. shuffle control: the correspondence is used
+HYBRID-CONTRAST onpath-onpathshuf goal mean=+0.3185 se1=0.0375 2se=0.0750 n=15 SIGNIFICANT(2SE)
+HYBRID-CONTRAST dp_nocost-dp goal mean=+0.1243 se1=0.0257 2se=0.0514 n=15 SIGNIFICANT(2SE)
+HYBRID-CONTRAST dp_nocost-dp full mean=+0.1547 se1=0.0280 2se=0.0559 n=15 SIGNIFICANT(2SE)
+HYBRID-CONTRAST dp_nocost-dp proof_model mean=+0.0958 se1=0.0260 2se=0.0521 n=15 SIGNIFICANT(2SE)
+HYBRID-CONTRAST dp_steps-dp goal mean=+0.0026 se1=0.0026 2se=0.0053 n=15 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST onpath-dp_nocost goal mean=+0.0032 se1=0.0032 2se=0.0063 n=15 INCONCLUSIVE(2SE)
+SHUFFLE-CONTROL-PASS
+== 4. localisation: cost term carries the gain, length term is inert
+COST-LOCALISATION-PASS cost removal significant, length term inert
+== 5. ceiling at this protocol (review N4)
+CEILING-PASS best label arm 0.6645 <= bound 0.8492 (headroom 0.1847)
+== documentation hygiene
+DOC-PASS 1 release notes: prose only, tokens in context (fenced commands allowed)
+== 6. aggregation + mutation regression
+HYBRID-TABLE-PASS table equals per-seed recomputation (all arms, 15 seeds)
+GATE-REGRESSION-PASS 10 mutations rejected, baseline accepted
+== 7. weight header carries the label flags
+WHDR-PASS
+== 8. LLVM identity + sanitizers
+LLVM-PASS
+V0266-LABELDECOMP-PASS

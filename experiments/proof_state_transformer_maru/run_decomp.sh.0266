@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# 0.0266: decompose the 0.0265 label gain (review N2) and add its shuffle control.
+#   dp         value term + rule-cost
+#   dp_steps   value + min-derivation-length + rule-cost
+#   dp_nocost  value, cost term removed
+#   onpath     value + length, cost removed   (= 0.0265 arm)
+#   onpathshuf onpath labels shuffled (matched multiset control)
+set -euo pipefail
+cd "$(dirname "$0")"
+mkdir -p bin out probes_q
+SEEDS="${SEEDS:-15}"; EPOCHS="${EPOCHS:-40}"; SEED_BASE="${SEED_BASE:-51}"
+CFG="--collect full --sample sub --train-n 180 --val-n 60 --test-n 100 --goal-scan --balance-reward"
+EVAL="--goaldepth 4 --eval-budget 4 --beam 3 --dfs --branch 3 --subsume 1 --prop 1 --no-bound"
+declare -A FLAGS=(
+  [dp]="-DVALMODE=1"
+  [dp_steps]="-DVALMODE=1 -DLABEL_STEPS=1"
+  [dp_nocost]="-DVALMODE=1 -DLABEL_NCOST=1"
+  [onpath]="-DVALMODE=3"
+  [onpathshuf]="-DVALMODE=4"
+)
+ORDER="dp dp_steps dp_nocost onpath onpathshuf"
+arm_run () {
+  local a="$1"; mkdir -p "probes_q/$a"
+  for i in $(seq 0 $((SEEDS-1))); do
+    local s=$((SEED_BASE+i))
+    "bin/q_$a" --train --seeds 1 --seed-base "$s" --epochs "$EPOCHS" $CFG --goaldepth 2 \
+      --save-weights "probes_q/$a/w_$s.bin" --no-bound > "probes_q/$a/train_$s.log" 2>&1
+  done
+  : > "probes_q/$a/cfg_4_4.txt"
+  for i in $(seq 0 $((SEEDS-1))); do
+    local s=$((SEED_BASE+i))
+    "bin/q_$a" --train --seeds 1 --seed-base "$s" $CFG $EVAL \
+      --load-weights "probes_q/$a/w_$s.bin" >> "probes_q/$a/cfg_4_4.txt"
+  done
+}
+for a in $ORDER; do clang -O2 -DHARD_GOALS=1 -DRELOB=1 -Iinclude -Isrc ${FLAGS[$a]} src/pst.c -o "bin/q_$a" -lm; done
+for a in $ORDER; do arm_run "$a" & done
+wait
+PROBES=probes_q ARMS="$ORDER" bash tools/hybrid_stats.sh table "$SEEDS" | tee out/decomp0266.txt
+# label census from the TRAINING logs (review N1)
+grep -h 'split=train' probes_q/*/train_*.log | sort -u | sed 's/^/  /' | head -10

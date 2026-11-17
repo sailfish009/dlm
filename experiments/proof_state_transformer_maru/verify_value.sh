@@ -57,6 +57,9 @@ cmp -s out/val_cons_a.txt out/val_cons_b.txt || { echo "CONSERVATION-FAIL VALMOD
 grep -q 'DP-AUDIT' out/val_cons_a.txt && { echo "CONSERVATION-FAIL label audit ran without --dp-bruteforce-check"; exit 1; }
 echo "CONSERVATION-PASS VALMODE=0 deterministic and free of DP label work"
 
+echo "== documentation hygiene (review F6)"
+bash tools/doc_check.sh ../../docs/release-0262.md || { echo DOC-CHECK-FAIL; exit 1; }
+
 echo "== 5. aggregation schema, table identity, mutation regression"
 bash tools/hybrid_stats.sh verify out/value.txt "$SEEDS"
 bash gate_regression_hybrid.sh out/value.txt probes_v "$SEEDS"

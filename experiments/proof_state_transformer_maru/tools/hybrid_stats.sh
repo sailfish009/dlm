@@ -29,7 +29,7 @@ recompute () { # arm seeds -> one ARM row
     co[s]=num($0,"cert_ok")+0; cX[s]=num($0,"cert_fail")+0; cc[s]=num($0,"cert_checked")+0;
     lu[s]=num($0,"lemma_uses")+0; fs[s]=num($0,"focus_states")+0; fr[s]=num($0,"focus_removed")+0;
     pm[s]=num($0,"pairmode")+0; pu[s]=num($0,"pair_uses")+0; pv[s]=num($0,"pair_viol")+0 }
-  { if (length($0) > 0 && $0 !~ /^(SEED |DFS seed=|HYBRID seed=|LEMMA-MINE|PAIR-LEARN|MEAN |BOOT |BOUND-ASSERT|SEARCH-BUDGET|PARAMS |DATASET|CENSUS|EXPORT|TRAJ |REGRET)/){
+  { if (length($0) > 0 && $0 !~ /^(SEED |DFS seed=|HYBRID seed=|LEMMA-MINE|PAIR-LEARN|ONPATH|LABELCENSUS|MEAN |BOOT |BOUND-ASSERT|SEARCH-BUDGET|PARAMS |DATASET|CENSUS|EXPORT|TRAJ |REGRET)/){
       printf "HYBRID-AGG-FAIL %s stray line: %s\n", a, $0; bad=1 } }
   END{
     if (ns!=n || nd!=n || nh!=n){ printf "HYBRID-AGG-FAIL %s rows seedy=%d dfs=%d hybrid=%d need %d\n", a, ns, nd, nh, n; exit 1 }
@@ -85,9 +85,10 @@ if [ "$mode" = contrast ]; then
   join "$pa" "$pb" | awk -v a="$A" -v b="$B" -v f="$F" '
     { n++; d=$2-$3; s+=d; ss+=d*d }
     END{ if (n<2){ printf "HYBRID-CONTRAST %s-%s %s INSUFFICIENT n=%d\n", a, b, f, n; exit 1 }
-      m=s/n; v=(ss-n*m*m)/(n-1); se=sqrt(v/n);
-      verdict=(se>0 && (m>2*se || m<-2*se)) ? "SIGNIFICANT(2SE)" : "INCONCLUSIVE(2SE)";
-      printf "HYBRID-CONTRAST %s-%s %s mean=%+.4f se=%.4f n=%d %s\n", a, b, f, m, se, n, verdict }'
+      m=s/n; v=(ss-n*m*m)/(n-1); se=sqrt(v/n); d2=2*se;
+      verdict=(se>0 && (m>d2 || m<-d2)) ? "SIGNIFICANT(2SE)" : "INCONCLUSIVE(2SE)";
+      printf "HYBRID-CONTRAST %s-%s %s mean=%+.4f se1=%.4f 2se=%.4f n=%d %s\n",
+             a, b, f, m, se, d2, n, verdict }'
   rm -f "$pa" "$pb"
   exit 0
 fi

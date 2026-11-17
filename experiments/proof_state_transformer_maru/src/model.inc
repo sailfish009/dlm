@@ -47,9 +47,29 @@
 #ifndef PAIRMODE
 #define PAIRMODE 0       /* 0 = off; 1 = mined contracts; 2 = learned proposer; 3 = random control */
 #endif
+#ifndef PHASEUNTIE
+#define PHASEUNTIE 0     /* 1 = each VAR_LOOP pass has its own block parameters (Rocq tactic phases, untied) */
+#endif
+#ifndef BRANCHTOK
+#define BRANCHTOK 0      /* B >= 2: B state registers (Screamer branching) instead of 1 */
+#endif
+#ifndef READMAX
+#define READMAX 0        /* 1 = per-register output head, score = max over registers */
+#endif
+#ifndef REGSHUF
+#define REGSHUF 0        /* 1 = control: registers share one bias and one readout head */
+#endif
 #ifndef VALMODE
 #define VALMODE 0        /* 0 = single-step utility; 1 = budget-exact DP value;
-                          * 2 = same DP label multiset, shuffled across candidates */
+                          * 2 = same DP label multiset, shuffled across candidates;
+                          * 3 = DP value + proof-cost tie-break (no cost term);
+                          * 4 = VALMODE=3 with the correspondence shuffled (control) */
+#endif
+#ifndef LABEL_STEPS
+#define LABEL_STEPS 0    /* 1 = add the min-derivation-length term (2x2 decomposition) */
+#endif
+#ifndef LABEL_NCOST
+#define LABEL_NCOST 0    /* 1 = drop the rule-cost term (2x2 decomposition) */
 #endif
 /* census counters (kernel path condition / certificate / lemma), reset per run */
 static long g_pc_tokens = 0, g_pc_dropped = 0, g_pc_fallback = 0, g_pc_picks = 0;
@@ -76,10 +96,13 @@ static long g_lemma_uses = 0;
 #define NH MNH
 #define NL MNL
 #define DH (D/NH)
-#define MAXL (1+POOL)
+#define RB ((BRANCHTOK >= 2 || READMAX) ? 4 : 1)
+#define NREG (BRANCHTOK >= 2 ? BRANCHTOK : 1)
+#define MAXL (RB+POOL)
 #define NOUT (VAR_UTILHEAD ? 2 : 1)
 #define NPASS (VAR_LOOP ? 2 : 1)
-#define NBLK (NL*NPASS)
+#define NBLK (NL*NPASS)                 /* cache blocks (pass-major) */
+#define NBP (PHASEUNTIE ? NBLK : NL)    /* parameter blocks: untied phases add a full set */
 #define LN_EPS 1e-5
 #define TEMP 0.8
 #define PAIRW 0.5
@@ -93,15 +116,19 @@ typedef struct {
   double Ws[D*STATE_DIM], bs[D];
   double Wc[D*CAND_DIM], bc[D];
   double ts[D], tc[D];
-  double Wqkv[NL][3*D*D], bqkv[NL][3*D];
-  double Wo[NL][D*D], bo[NL][D];
-  double g1[NL][D], be1[NL][D];
-  double W1[NL][FE*D], b1[NL][FE];
-  double W2[NL][D*FE], b2[NL][D];
-  double g2[NL][D], be2[NL][D];
-  double gam[NL];
+  double Wqkv[NBP][3*D*D], bqkv[NBP][3*D];
+  double Wo[NBP][D*D], bo[NBP][D];
+  double g1[NBP][D], be1[NBP][D];
+  double W1[NBP][FE*D], b1[NBP][FE];
+  double W2[NBP][D*FE], b2[NBP][D];
+  double g2[NBP][D], be2[NBP][D];
+  double gam[NBP];
   double gf[D], bef[D];
   double Wout[NOUT*D], bout[NOUT];
+  /* 0.0263 multi-register structure: per-register bias and (READMAX) per-register
+   * readout head. RB is the compile-time register cap; only BRANCHTOK are used. */
+  double Rbias[RB][D];
+  double Wout_r[RB][NOUT*D], bout_r[RB][NOUT];
 } Params;
 
 typedef struct {
@@ -117,7 +144,7 @@ typedef struct {
 } LayerCache;
 
 typedef struct {
-  int L, nlive;
+  int L, nlive, nreg;
   int msk[POOL];
   int sym[MAXL];         /* symbolic path condition per token (1 = admissible) */
   double h[MAXL][D];
@@ -148,26 +175,38 @@ static void init_params(Params *p, uint64_t seed){
   s = 1.0/sqrt((double)CAND_DIM);
   for (int i = 0; i < D*CAND_DIM; i++) p->Wc[i] = xr()*s;
   for (int i = 0; i < D; i++) p->bc[i] = 0;
-  for (int l = 0; l < NL; l++){
+  for (int blk = 0; blk < NBP; blk++){
     s = 1.0/sqrt((double)D);
-    for (int i = 0; i < 3*D*D; i++) p->Wqkv[l][i] = xr()*s;
-    for (int i = 0; i < 3*D; i++) p->bqkv[l][i] = 0;
-    for (int i = 0; i < D*D; i++) p->Wo[l][i] = xr()*s;
-    for (int i = 0; i < D; i++){ p->bo[l][i] = 0; p->g1[l][i] = 1.0; p->be1[l][i] = 0; }
-    for (int i = 0; i < FE*D; i++) p->W1[l][i] = xr()*s;
-    for (int i = 0; i < FE; i++) p->b1[l][i] = 0;
+    for (int i = 0; i < 3*D*D; i++) p->Wqkv[blk][i] = xr()*s;
+    for (int i = 0; i < 3*D; i++) p->bqkv[blk][i] = 0;
+    for (int i = 0; i < D*D; i++) p->Wo[blk][i] = xr()*s;
+    for (int i = 0; i < D; i++){ p->bo[blk][i] = 0; p->g1[blk][i] = 1.0; p->be1[blk][i] = 0; }
+    for (int i = 0; i < FE*D; i++) p->W1[blk][i] = xr()*s;
+    for (int i = 0; i < FE; i++) p->b1[blk][i] = 0;
     s = 1.0/sqrt((double)FE);
-    for (int i = 0; i < D*FE; i++) p->W2[l][i] = xr()*s;
-    for (int i = 0; i < D; i++){ p->b2[l][i] = 0; p->g2[l][i] = 1.0; p->be2[l][i] = 0; }
-    p->gam[l] = 0.1;
+    for (int i = 0; i < D*FE; i++) p->W2[blk][i] = xr()*s;
+    for (int i = 0; i < D; i++){ p->b2[blk][i] = 0; p->g2[blk][i] = 1.0; p->be2[blk][i] = 0; }
+    p->gam[blk] = 0.1;
   }
   for (int i = 0; i < D; i++){ p->gf[i] = 1.0; p->bef[i] = 0; }
   s = 1.0/sqrt((double)D);
   for (int i = 0; i < NOUT*D; i++) p->Wout[i] = xr()*s;
   for (int i = 0; i < NOUT; i++) p->bout[i] = 0;
+  for (int b = 0; b < RB; b++){
+    for (int d = 0; d < D; d++) p->Rbias[b][d] = (b == 0 || REGSHUF) ? 0.0 : xr()*0.02;
+    for (int r = 0; r < NOUT; r++){
+      for (int d = 0; d < D; d++) p->Wout_r[b][r*D+d] = (b == 0 || REGSHUF) ? p->Wout[r*D+d] : xr()*s;
+      p->bout_r[b][r] = 0.0;
+    }
+  }
 }
 
-static long param_count(void){ return (long)(sizeof(Params)/sizeof(double)); }
+static long param_count(void){
+  /* the register block exists in the struct for every build, but it is only a
+   * parameter of the model when the multi-register structure is enabled */
+  if (BRANCHTOK >= 2 || READMAX) return (long)(sizeof(Params)/sizeof(double));
+  return (long)(offsetof(Params, Rbias)/sizeof(double));
+}
 static double *pv(Params *p){ return (double*)p; }
 
 /* ---- primitives ---- */
@@ -237,7 +276,8 @@ static double pred_shared(const double *fa, const double *fb){
 /* ---- forward ---- */
 static void model_forward(const Params *p, const double *state,
                           const double (*cf)[CAND_DIM], int nlive, Cache *c){
-  c->L = 1 + nlive;
+  c->nreg = NREG;
+  c->L = c->nreg + nlive;
   c->nlive = nlive;
   for (int j = 0; j < nlive; j++){
     c->msk[j] = (VAR_MASK && cf[j][6] < 0.5) ? 0 : 1;
@@ -248,20 +288,20 @@ static void model_forward(const Params *p, const double *state,
     for (int j = 0; j < nlive; j++) m += c->msk[j];
     if (m == 0) for (int j = 0; j < nlive; j++) c->msk[j] = 1;
   }
-  for (int i = 0; i <= nlive; i++) c->sym[i] = 1;
+  for (int i = 0; i < c->L; i++) c->sym[i] = 1;
 #if SYMGATE >= 1
   /* Silicon-style path condition: candidate j is admissible only when its body
    * is supported by the current kernel closure (feature 6). The state token is
    * always admissible. SYMGATE==1 gates the attention residual only (soft);
    * SYMGATE==2 additionally removes the token from the choice set (hard), so no
    * selection or backward pass can use it. */
-  for (int j = 0; j < nlive; j++) c->sym[1+j] = (cf[j][6] > 0.5) ? 1 : 0;
+  for (int j = 0; j < nlive; j++) c->sym[c->nreg+j] = (cf[j][6] > 0.5) ? 1 : 0;
 #endif
 #if SYMGATE >= 2
   {
     int adm = 0;
     for (int j = 0; j < nlive; j++){
-      c->msk[j] = c->sym[1+j];
+      c->msk[j] = c->sym[c->nreg+j];
       adm += c->msk[j];
     }
     if (adm == 0){
@@ -274,13 +314,14 @@ static void model_forward(const Params *p, const double *state,
   }
 #endif
   { /* census: fraction of tokens the path condition removes */
-    for (int i = 0; i <= nlive; i++){ g_pc_tokens++; if (SYMGATE >= 1 && !c->sym[i]) g_pc_dropped++; }
+    for (int i = 0; i < c->L; i++){ g_pc_tokens++; if (SYMGATE >= 1 && !c->sym[i]) g_pc_dropped++; }
   }
-  for (int i = 0; i < D; i++){
-    double s = p->bs[i] + p->ts[i];
-    for (int k = 0; k < STATE_DIM; k++) s += p->Ws[i*STATE_DIM+k]*state[k];
-    c->h[0][i] = s;
-  }
+  for (int b = 0; b < c->nreg; b++)
+    for (int i = 0; i < D; i++){
+      double s = p->bs[i] + p->ts[i];
+      for (int k = 0; k < STATE_DIM; k++) s += p->Ws[i*STATE_DIM+k]*state[k];
+      c->h[b][i] = s + p->Rbias[REGSHUF ? 0 : b][i];
+    }
   for (int j = 0; j < nlive; j++)
     for (int i = 0; i < D; i++){
       double s = p->bc[i] + p->tc[i];
@@ -291,7 +332,7 @@ static void model_forward(const Params *p, const double *state,
 #endif
         s += w*cf[j][k];
       }
-      c->h[1+j][i] = s;
+      c->h[c->nreg+j][i] = s;
     }
   for (int i = 0; i < c->L; i++)
     for (int j = 0; j < c->L; j++) c->bias[i][j] = 0;
@@ -302,15 +343,16 @@ static void model_forward(const Params *p, const double *state,
   for (int pass = 0; pass < NPASS; pass++){
     for (int l = 0; l < NL; l++){
       LayerCache *lc = &c->lc[pass*NL + l];
+      int blk = PHASEUNTIE ? (pass*NL + l) : l;
       for (int i = 0; i < L; i++) for (int d = 0; d < D; d++) lc->in[i][d] = c->h[i][d];
       for (int i = 0; i < L; i++){
         double xh[D], inv;
-        layer_norm_fwd(lc->in[i], p->g1[l], p->be1[l], lc->ln1[i], xh, &inv);
+        layer_norm_fwd(lc->in[i], p->g1[blk], p->be1[blk], lc->ln1[i], xh, &inv);
       }
       for (int i = 0; i < L; i++)
         for (int r = 0; r < 3*D; r++){
-          double s = p->bqkv[l][r];
-          for (int d = 0; d < D; d++) s += p->Wqkv[l][r*D+d]*lc->ln1[i][d];
+          double s = p->bqkv[blk][r];
+          for (int d = 0; d < D; d++) s += p->Wqkv[blk][r*D+d]*lc->ln1[i][d];
           lc->qkv[i][r] = s;
         }
       double scale = 1.0/sqrt((double)DH);
@@ -323,7 +365,7 @@ static void model_forward(const Params *p, const double *state,
             for (int d = 0; d < DH; d++)
               s += lc->qkv[i][hh*DH+d]*lc->qkv[j][D+hh*DH+d];
             s *= scale;
-            if (VAR_BIND) s += p->gam[l]*c->bias[i][j];
+            if (VAR_BIND) s += p->gam[blk]*c->bias[i][j];
             sc[j] = s;
             if (s > mx) mx = s;
           }
@@ -365,24 +407,24 @@ static void model_forward(const Params *p, const double *state,
       }
       for (int i = 0; i < L; i++)
         for (int d = 0; d < D; d++){
-          double s = p->bo[l][d];
-          for (int k = 0; k < D; k++) s += p->Wo[l][d*D+k]*lc->ao[i][k];
+          double s = p->bo[blk][d];
+          for (int k = 0; k < D; k++) s += p->Wo[blk][d*D+k]*lc->ao[i][k];
           lc->h1[i][d] = lc->in[i][d] + (c->sym[i] ? s : 0.0);
         }
       for (int i = 0; i < L; i++){
         double xh[D], inv;
-        layer_norm_fwd(lc->h1[i], p->g2[l], p->be2[l], lc->ln2[i], xh, &inv);
+        layer_norm_fwd(lc->h1[i], p->g2[blk], p->be2[blk], lc->ln2[i], xh, &inv);
       }
       for (int i = 0; i < L; i++){
         for (int f = 0; f < FE; f++){
-          double s = p->b1[l][f];
-          for (int d = 0; d < D; d++) s += p->W1[l][f*D+d]*lc->ln2[i][d];
+          double s = p->b1[blk][f];
+          for (int d = 0; d < D; d++) s += p->W1[blk][f*D+d]*lc->ln2[i][d];
           lc->pre[i][f] = s;
           lc->act[i][f] = gelu(s);
         }
         for (int d = 0; d < D; d++){
-          double s = p->b2[l][d];
-          for (int f = 0; f < FE; f++) s += p->W2[l][d*FE+f]*lc->act[i][f];
+          double s = p->b2[blk][d];
+          for (int f = 0; f < FE; f++) s += p->W2[blk][d*FE+f]*lc->act[i][f];
           c->h[i][d] = lc->h1[i][d] + s;
         }
       }
@@ -394,9 +436,23 @@ static void model_forward(const Params *p, const double *state,
   }
   for (int j = 0; j < nlive; j++){
     for (int r = 0; r < NOUT; r++){
+#if READMAX
+      /* per-register head; the candidate score is the max over registers
+       * (Screamer "some value": one surviving branch decides). The single
+       * global head is replaced, not mixed in, so its parameters are unused. */
+      double best = -1e30;
+      for (int b = 0; b < c->nreg; b++){
+        int hb = REGSHUF ? 0 : b;      /* control: one shared head for all registers */
+        double sb = p->bout_r[hb][r];
+        for (int d = 0; d < D; d++) sb += p->Wout_r[hb][r*D+d]*c->lnf[c->nreg+j][d];
+        if (sb > best) best = sb;
+      }
+      c->raw[j][r] = best;
+#else
       double s = p->bout[r];
-      for (int d = 0; d < D; d++) s += p->Wout[r*D+d]*c->lnf[1+j][d];
+      for (int d = 0; d < D; d++) s += p->Wout[r*D+d]*c->lnf[c->nreg+j][d];
       c->raw[j][r] = s;
+#endif
     }
 #if VAR_UTILHEAD
     c->score[j] = 5.0*softplus(c->raw[j][0]) + 0.15*softplus(c->raw[j][1]) - c->cost[j];
@@ -458,7 +514,7 @@ static double model_step(const double *statev, const double (*cf)[CAND_DIM],
 
   Params *g = g_g;
   static double dlnf[MAXL][D];
-  for (int i = 0; i <= nlive; i++) for (int d = 0; d < D; d++) dlnf[i][d] = 0;
+  for (int i = 0; i < c->L; i++) for (int d = 0; d < D; d++) dlnf[i][d] = 0;
   for (int j = 0; j < nlive; j++){
     if (!c->msk[j] && ds[j] == 0.0) continue;
 #if VAR_UTILHEAD
@@ -466,25 +522,45 @@ static double model_step(const double *statev, const double (*cf)[CAND_DIM],
       double dgr = ds[j]*5.0*sigmoid(c->raw[j][0]);
       double dnr = ds[j]*0.15*sigmoid(c->raw[j][1]);
       for (int d = 0; d < D; d++){
-        g->Wout[0*D+d] += dgr*c->lnf[1+j][d];
-        g->Wout[1*D+d] += dnr*c->lnf[1+j][d];
-        dlnf[1+j][d] += dgr*g_p->Wout[0*D+d] + dnr*g_p->Wout[1*D+d];
+        g->Wout[0*D+d] += dgr*c->lnf[c->nreg+j][d];
+        g->Wout[1*D+d] += dnr*c->lnf[c->nreg+j][d];
+        dlnf[c->nreg+j][d] += dgr*g_p->Wout[0*D+d] + dnr*g_p->Wout[1*D+d];
       }
       g->bout[0] += dgr;
       g->bout[1] += dnr;
     }
+#elif READMAX
+    {
+      /* route the gradient through the register head that produced the max */
+      for (int r = 0; r < NOUT; r++){
+        double dsr = ds[j];
+        if (dsr == 0.0) continue;
+        int bw = 0; double bv = -1e30;
+        for (int b = 0; b < c->nreg; b++){
+          int hb = REGSHUF ? 0 : b;
+          double sb = g_p->bout_r[hb][r];
+          for (int d = 0; d < D; d++) sb += g_p->Wout_r[hb][r*D+d]*c->lnf[c->nreg+j][d];
+          if (sb > bv){ bv = sb; bw = hb; }
+        }
+        for (int d = 0; d < D; d++){
+          g->Wout_r[bw][r*D+d] += dsr*c->lnf[c->nreg+j][d];
+          dlnf[c->nreg+j][d] += dsr*g_p->Wout_r[bw][r*D+d];
+        }
+        g->bout_r[bw][r] += dsr;
+      }
+    }
 #else
     {
       for (int d = 0; d < D; d++){
-        g->Wout[d] += ds[j]*c->lnf[1+j][d];
-        dlnf[1+j][d] += ds[j]*g_p->Wout[d];
+        g->Wout[d] += ds[j]*c->lnf[c->nreg+j][d];
+        dlnf[c->nreg+j][d] += ds[j]*g_p->Wout[d];
       }
       g->bout[0] += ds[j];
     }
 #endif
   }
-  for (int i = 0; i <= nlive; i++) for (int d = 0; d < D; d++) g_dh[i][d] = 0;
-  for (int i = 1; i <= nlive; i++){
+  for (int i = 0; i < c->L; i++) for (int d = 0; d < D; d++) g_dh[i][d] = 0;
+  for (int i = c->nreg; i < c->L; i++){
     double xh[D], inv, dx[D];
     layer_norm_fwd(c->h[i], g_p->gf, g_p->bef, c->lnf[i], xh, &inv);
     for (int d = 0; d < D; d++) dx[d] = 0;
@@ -498,6 +574,7 @@ static double model_step(const double *statev, const double (*cf)[CAND_DIM],
   for (int pass = NPASS-1; pass >= 0; pass--){
     for (int l = NL-1; l >= 0; l--){
       LayerCache *lc = &c->lc[pass*NL + l];
+      int blk = PHASEUNTIE ? (pass*NL + l) : l;
       for (int i = 0; i < L; i++){
         for (int d = 0; d < D; d++){ dout[i][d] = g_dh[i][d]; dao[i][d] = 0; }
         for (int f = 0; f < FE; f++) dact[i][f] = 0;
@@ -508,40 +585,40 @@ static double model_step(const double *statev, const double (*cf)[CAND_DIM],
       for (int i = 0; i < L; i++){
         for (int f = 0; f < FE; f++){
           double s = 0;
-          for (int d = 0; d < D; d++) s += g_p->W2[l][d*FE+f]*dout[i][d];
+          for (int d = 0; d < D; d++) s += g_p->W2[blk][d*FE+f]*dout[i][d];
           dact[i][f] = s;
           dpre[i][f] = s*gelu_d(lc->pre[i][f]);
         }
-        for (int d = 0; d < D; d++) g->b2[l][d] += dout[i][d];
+        for (int d = 0; d < D; d++) g->b2[blk][d] += dout[i][d];
         for (int d = 0; d < D; d++)
-          for (int f = 0; f < FE; f++) g->W2[l][d*FE+f] += dout[i][d]*lc->act[i][f];
+          for (int f = 0; f < FE; f++) g->W2[blk][d*FE+f] += dout[i][d]*lc->act[i][f];
         for (int f = 0; f < FE; f++){
-          g->b1[l][f] += dpre[i][f];
-          for (int d = 0; d < D; d++) g->W1[l][f*D+d] += dpre[i][f]*lc->ln2[i][d];
+          g->b1[blk][f] += dpre[i][f];
+          for (int d = 0; d < D; d++) g->W1[blk][f*D+d] += dpre[i][f]*lc->ln2[i][d];
         }
         for (int d = 0; d < D; d++){
           double s = 0;
-          for (int f = 0; f < FE; f++) s += g_p->W1[l][f*D+d]*dpre[i][f];
+          for (int f = 0; f < FE; f++) s += g_p->W1[blk][f*D+d]*dpre[i][f];
           dln2[i][d] = s;
         }
       }
       /* LN2 backward */
       for (int i = 0; i < L; i++){
         double xh[D], inv, dx[D];
-        layer_norm_fwd(lc->h1[i], g_p->g2[l], g_p->be2[l], lc->ln2[i], xh, &inv);
+        layer_norm_fwd(lc->h1[i], g_p->g2[blk], g_p->be2[blk], lc->ln2[i], xh, &inv);
         for (int d = 0; d < D; d++) dx[d] = 0;
-        layer_norm_bwd(dln2[i], xh, inv, g_p->g2[l], dx, g->g2[l], g->be2[l]);
+        layer_norm_bwd(dln2[i], xh, inv, g_p->g2[blk], dx, g->g2[blk], g->be2[blk]);
         for (int d = 0; d < D; d++) dh1[i][d] += dx[d];
       }
       /* attention out projection backward */
       for (int i = 0; i < L; i++){
         if (!c->sym[i]) continue;    /* symbolic path condition: this branch was gated off */
-        for (int d = 0; d < D; d++) g->bo[l][d] += dh1[i][d];
+        for (int d = 0; d < D; d++) g->bo[blk][d] += dh1[i][d];
         for (int d = 0; d < D; d++)
-          for (int k = 0; k < D; k++) g->Wo[l][d*D+k] += dh1[i][d]*lc->ao[i][k];
+          for (int k = 0; k < D; k++) g->Wo[blk][d*D+k] += dh1[i][d]*lc->ao[i][k];
         for (int k = 0; k < D; k++){
           double s = 0;
-          for (int d = 0; d < D; d++) s += g_p->Wo[l][d*D+k]*dh1[i][d];
+          for (int d = 0; d < D; d++) s += g_p->Wo[blk][d*D+k]*dh1[i][d];
           dao[i][k] = s;
         }
       }
@@ -573,43 +650,45 @@ static double model_step(const double *statev, const double (*cf)[CAND_DIM],
           }
         }
       }
-      if (VAR_BIND) g->gam[l] += dgam;
+      if (VAR_BIND) g->gam[blk] += dgam;
       /* qkv projection + LN1 backward */
       for (int i = 0; i < L; i++){
         for (int r = 0; r < 3*D; r++){
-          g->bqkv[l][r] += dqkv[i][r];
-          for (int d = 0; d < D; d++) g->Wqkv[l][r*D+d] += dqkv[i][r]*lc->ln1[i][d];
+          g->bqkv[blk][r] += dqkv[i][r];
+          for (int d = 0; d < D; d++) g->Wqkv[blk][r*D+d] += dqkv[i][r]*lc->ln1[i][d];
         }
         double dln1[D], dx[D], xh[D], inv;
         for (int d = 0; d < D; d++){
           double s = 0;
-          for (int r = 0; r < 3*D; r++) s += g_p->Wqkv[l][r*D+d]*dqkv[i][r];
+          for (int r = 0; r < 3*D; r++) s += g_p->Wqkv[blk][r*D+d]*dqkv[i][r];
           dln1[d] = s;
           dx[d] = 0;
         }
-        layer_norm_fwd(lc->in[i], g_p->g1[l], g_p->be1[l], lc->ln1[i], xh, &inv);
-        layer_norm_bwd(dln1, xh, inv, g_p->g1[l], dx, g->g1[l], g->be1[l]);
+        layer_norm_fwd(lc->in[i], g_p->g1[blk], g_p->be1[blk], lc->ln1[i], xh, &inv);
+        layer_norm_bwd(dln1, xh, inv, g_p->g1[blk], dx, g->g1[blk], g->be1[blk]);
         for (int d = 0; d < D; d++) din[i][d] = dh1[i][d] + dx[d];
       }
       for (int i = 0; i < L; i++) for (int d = 0; d < D; d++) g_dh[i][d] = din[i][d];
     }
   }
   /* embedding backward */
-  for (int d = 0; d < D; d++){
-    g->bs[d] += g_dh[0][d];
-    g->ts[d] += g_dh[0][d];
-    for (int k = 0; k < STATE_DIM; k++) g->Ws[d*STATE_DIM+k] += g_dh[0][d]*statev[k];
-  }
+  for (int b = 0; b < c->nreg; b++)
+    for (int d = 0; d < D; d++){
+      g->bs[d] += g_dh[b][d];
+      g->ts[d] += g_dh[b][d];
+      for (int k = 0; k < STATE_DIM; k++) g->Ws[d*STATE_DIM+k] += g_dh[b][d]*statev[k];
+      g->Rbias[REGSHUF ? 0 : b][d] += g_dh[b][d];
+    }
   for (int j = 0; j < nlive; j++)
     for (int d = 0; d < D; d++){
-      g->bc[d] += g_dh[1+j][d];
-      g->tc[d] += g_dh[1+j][d];
+      g->bc[d] += g_dh[c->nreg+j][d];
+      g->tc[d] += g_dh[c->nreg+j][d];
       for (int k = 0; k < CAND_DIM; k++){
         double sc = 1.0;
 #if LIFTED
         if (k >= ID_BLOCK_LO && k < ID_BLOCK_HI) sc = LIFT_RHO;
 #endif
-        g->Wc[d*CAND_DIM+k] += g_dh[1+j][d]*cf[j][k]*sc;
+        g->Wc[d*CAND_DIM+k] += g_dh[c->nreg+j][d]*cf[j][k]*sc;
       }
     }
   return loss;
