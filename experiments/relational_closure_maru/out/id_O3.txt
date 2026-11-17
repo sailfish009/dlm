@@ -1,0 +1,1 @@
+CENSUS split=0 depth=3 worlds=50 genuine=50 fallback=0 scans=85 mode=scan

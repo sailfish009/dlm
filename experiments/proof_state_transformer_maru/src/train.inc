@@ -8,10 +8,12 @@
 #define EPOCHS 40
 #define BATCH 32
 
-#define W_MAGIC 0x444C4D5730323531ULL
+#define W_MAGIC 0x444C4D5730323532ULL
 typedef struct {
   uint64_t magic;
   int state_dim, cand_dim, variant, hard, relob, bindtok, goaldepth, eval_budget;
+  int integral, lifted, prior_shuf, holdout;
+  double lift_rho, path_gamma;
   double pchk;
 } WHeader;
 
@@ -53,7 +55,7 @@ static void build_dataset(void){
       if (g_goal_scan){
         static int src[3] = {0,0,0};
         int guard = 0;
-        while (!ok && guard++ < 20000) ok = make_world(&ws->w, s, src[s]++);
+        while (!ok && guard++ < 20000){ ok = make_world(&ws->w, s, src[s]++) && holdout_ok(&ws->w, s); }
         if (!ok){ fprintf(stderr, "SCAN-FAIL split=%d world=%d depth=%d\n", s, i, g_goaldepth); exit(3); }
       } else {
         while (!ok) ok = make_world(&ws->w, s, i);
@@ -81,6 +83,7 @@ static void build_dataset(void){
           rs->util[k] = utility(&ws->w, rules, nrules, live[k]);
           if (rs->util[k] > rs->util[best]) best = k;
         }
+        fill_path_features(&ws->w, rules, nrules, live, nlive, rs->cf);
         rs->best = best;
         rs->reward_pos = (rs->util[best] > 0) ? 1 : 0;
         (void)used;
@@ -212,6 +215,8 @@ static void step_features(const World *w, const int *rules, int nrules,
     cand_features(w, rules, nrules, live[k], cf[k]);
     util[k] = utility(w, rules, nrules, live[k]);
   }
+  fill_path_features(w, rules, nrules, live, nlive, cf);
+  fill_prior_features(live, nlive, cf);
 }
 
 /* mode: 0 model, 1 support, 2 prior, 3 random, 4 untrained, 5 shuffled, 6 oracle */
@@ -572,6 +577,39 @@ static void head_prior_from_train(void){
   for (int q = 0; q < P; q++) g_head_prior[q] = counts[q] ? sums[q]/counts[q] : 0.0;
 }
 
+/* per-rule prior = mean utility over TRAIN states where the rule was live
+ * (0243-style empirical prior, finer than the per-head prior). Train split only:
+ * no val/test leakage. PRIOR_SHUF deranges the assignment (offset 37, coprime
+ * with 90) to destroy rule identity while preserving the value distribution. */
+static void rule_prior_from_train(void){
+  double sums[NRULES_ALL] = {0}, counts[NRULES_ALL] = {0};
+  for (int i = 0; i < g_nw[0]; i++)
+    for (int s = 0; s < g_data[0][i].nsteps; s++){
+      const RStep *rs = &g_data[0][i].st[s];
+      for (int k = 0; k < rs->nlive; k++){
+        int rid = rs->live[k];
+        sums[rid] += rs->util[k];
+        counts[rid] += 1;
+      }
+    }
+  for (int r = 0; r < NRULES_ALL; r++) g_rule_prior[r] = counts[r] ? sums[r]/counts[r] : 0.0;
+#if PRIOR_SHUF
+  { double tmp[NRULES_ALL];
+    for (int r = 0; r < NRULES_ALL; r++) tmp[r] = g_rule_prior[(r+37)%NRULES_ALL];
+    for (int r = 0; r < NRULES_ALL; r++) g_rule_prior[r] = tmp[r]; }
+#endif
+#if INTEGRAL
+  /* patch the stored dataset prior column now that the prior exists (utilities
+   * are prior-independent, so this is a clean two-pass fill, no circularity) */
+  for (int s = 0; s < 3; s++)
+    for (int i = 0; i < g_nw[s]; i++)
+      for (int q = 0; q < g_data[s][i].nsteps; q++){
+        RStep *rs = &g_data[s][i].st[q];
+        for (int k = 0; k < rs->nlive; k++) rs->cf[k][PATH_OFF+2] = g_rule_prior[rs->live[k]];
+      }
+#endif
+}
+
 /* ---- exact first-step regret (discovery criterion) ------------------------
  * For every live candidate at the root state, Q(a) = max goals reachable with
  * the remaining budget (a plus up to budget-1 further rules). The exact optimum
@@ -746,6 +784,7 @@ static void bootstrap_beam_diff(int seeds, int a, int b,
 static void run_variant(int seeds, int epochs, int verbose){
   build_dataset();
   head_prior_from_train();
+  rule_prior_from_train();
   g_untrained = (Params*)calloc(1, sizeof(Params));
   if (!g_untrained){ fprintf(stderr, "alloc\n"); exit(2); }
   init_params(g_untrained, 999);
@@ -788,11 +827,15 @@ static void run_variant(int seeds, int epochs, int verbose){
       WHeader h;
       if (fread(&h, sizeof h, 1, lf) != 1){ fprintf(stderr, "short header\n"); exit(2); }
       if (h.magic != W_MAGIC || h.state_dim != STATE_DIM || h.cand_dim != CAND_DIM ||
-          h.variant != NOUT || h.hard != HARD_GOALS || h.relob != RELOB || h.bindtok != BINDTOK){
-        fprintf(stderr, "WEIGHTS-MISMATCH %s: header dims %d/%d variant %d hard %d relob %d bindtok %d, "
-                "binary dims %d/%d variant %d hard %d relob %d bindtok %d\n",
+          h.variant != NOUT || h.hard != HARD_GOALS || h.relob != RELOB || h.bindtok != BINDTOK ||
+          h.integral != INTEGRAL || h.lifted != LIFTED || h.prior_shuf != PRIOR_SHUF ||
+          h.holdout != g_holdout_mask || h.lift_rho != LIFT_RHO || h.path_gamma != PATH_GAMMA){
+        fprintf(stderr, "WEIGHTS-MISMATCH %s: header dims %d/%d variant %d hard %d relob %d bindtok %d "
+                "integral %d lifted %d holdout %d, "
+                "binary dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d\n",
                 g_load_weights, h.state_dim, h.cand_dim, h.variant, h.hard, h.relob, h.bindtok,
-                STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK);
+                h.integral, h.lifted, h.holdout,
+                STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, INTEGRAL, LIFTED, g_holdout_mask);
         exit(4);
       }
       if (fread(g_p, sizeof(Params), 1, lf) != 1){ fprintf(stderr, "short weights\n"); exit(2); }
@@ -804,7 +847,8 @@ static void run_variant(int seeds, int epochs, int verbose){
         if (!sf){ fprintf(stderr, "cannot write %s\n", g_save_weights); exit(2); }
         double pchk = 0;
         { double *pp = pv(g_p); long np = param_count(); for (long i = 0; i < np; i++) pchk += pp[i]*(double)(i % 97); }
-        WHeader h = { W_MAGIC, STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, g_goaldepth, g_eval_budget, pchk };
+        WHeader h = { W_MAGIC, STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, g_goaldepth, g_eval_budget,
+                      INTEGRAL, LIFTED, PRIOR_SHUF, g_holdout_mask, LIFT_RHO, PATH_GAMMA, pchk };
         fwrite(&h, sizeof h, 1, sf);
         fwrite(g_p, sizeof(Params), 1, sf);
         fclose(sf);
@@ -964,6 +1008,7 @@ static void emit_vec(FILE *f, const char *name, const double *w, int n){
 static void export_maru(const char *path, int seed, int epochs, int ncases){
   build_dataset();
   head_prior_from_train();
+  rule_prior_from_train();
   rng_state = (uint64_t)(seed*7 + 1);
   train_seed(seed, epochs);
   FILE *f = fopen(path, "w");
@@ -1035,6 +1080,7 @@ static void export_maru(const char *path, int seed, int epochs, int ncases){
 static void dump_forward(const char *path, int seed, int epochs, int case_idx){
   build_dataset();
   head_prior_from_train();
+  rule_prior_from_train();
   rng_state = (uint64_t)(seed*7 + 1);
   train_seed(seed, epochs);
   FILE *f = fopen(path, "w");
@@ -1076,6 +1122,7 @@ static void dump_forward(const char *path, int seed, int epochs, int case_idx){
 /* ---- finite-difference gradient check ---- */
 static double gradcheck(void){
   build_dataset();
+  rule_prior_from_train();
   const RStep *rs = &g_data[0][0].st[0];
   init_params(g_p, 1234);
   memset(g_g, 0, sizeof(Params));
@@ -1106,4 +1153,58 @@ static double gradcheck(void){
          checked, base, max_abs, max_grad, rel_to_max, max_rel);
   (void)gg;
   return rel_to_max;
+}
+
+/* ---- path-integral consistency self-check (INTEGRAL) ----------------------
+ * Independently recomputes the path integral with an INCREMENTAL accumulator
+ * (different code path from fill_path_features's prefix replay) and compares to
+ * the stored training features. Guards the replay off-by-one. Also checks the
+ * prior column equals g_rule_prior (which is computed from split 0 only). */
+static int path_check(void){
+#if INTEGRAL
+  build_dataset();
+  rule_prior_from_train();
+  double maxdiff = 0, priordiff = 0;
+  int nchecked = 0;
+  for (int i = 0; i < g_nw[0] && i < 30; i++){
+    const WSteps *ws = &g_data[0][i];
+    double acc[NRULES_ALL] = {0}, root[NRULES_ALL] = {0}, wsum = 0;
+    int t = 0;
+    int rules[SEED_RULES + MAXBUDGET];
+    int nrules = SEED_RULES;
+    for (int k = 0; k < SEED_RULES; k++) rules[k] = ws->w.theory[k];
+    for (int s = 0; s < ws->nsteps; s++){
+      const RStep *rs = &ws->st[s];
+      uint8_t kn[WENT];
+      closure(ws->w.facts, rules, nrules, kn);
+      wsum = PATH_GAMMA*wsum + 1.0;
+      for (int c = 0; c < POOL; c++){
+        int rid = ws->w.cands[c];
+        double sup = (double)support(&all_rules[rid], kn)/(double)WENT;
+        if (t == 0) root[rid] = sup;
+        acc[rid] = PATH_GAMMA*acc[rid] + sup;
+      }
+      t++;
+      for (int k = 0; k < rs->nlive; k++){
+        int rid = rs->live[k];
+        double s_now = (double)support(&all_rules[rid], kn)/(double)WENT;
+        double d0 = fabs(acc[rid]/wsum - rs->cf[k][PATH_OFF+0]);
+        double d1 = fabs((s_now - root[rid]) - rs->cf[k][PATH_OFF+1]);
+        double d2 = fabs(g_rule_prior[rid] - rs->cf[k][PATH_OFF+2]);
+        if (d0 > maxdiff) maxdiff = d0;
+        if (d1 > maxdiff) maxdiff = d1;
+        if (d2 > priordiff) priordiff = d2;
+        nchecked++;
+      }
+      rules[nrules++] = rs->live[rs->best];
+    }
+  }
+  int ok = (maxdiff < 1e-12 && priordiff < 1e-12);
+  printf("PATH-CHECK checked=%d path_maxdiff=%.3e prior_maxdiff=%.3e %s\n",
+         nchecked, maxdiff, priordiff, ok ? "PASS" : "FAIL");
+  return ok ? 0 : 1;
+#else
+  printf("PATH-CHECK-SKIP (INTEGRAL=0)\n");
+  return 0;
+#endif
 }

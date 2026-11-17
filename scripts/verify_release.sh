@@ -47,8 +47,14 @@ echo "LAB-GATE native_integral: $(grep -c '^DISCRIMINATIVE\|^SIGNIFICANCE' /tmp/
 # --- proof-state transformer lab gate (0.0244) -------------------------------
 ( cd experiments/proof_state_transformer_maru && ./run.sh > /tmp/pst_run.log 2>&1 && ./verify.sh > /tmp/pst_verify.log 2>&1 ) \
   || { echo PST-LAB-GATE-FAIL; tail -20 /tmp/pst_run.log /tmp/pst_verify.log; exit 1; }
-grep -q '^V0251-PROOF-STATE-HARNESS-REPAIR-PASS$' /tmp/pst_verify.log || { echo PST-LAB-GATE-FAIL; exit 1; }
-echo "LAB-GATE proof_state_transformer_maru: $(grep -c '^PARITY\|^GRADCHECK\|^LLVM\|^F1-\|^F4-\|^F2\|^F6\|^F5-\|^GATE-REGRESSION-PASS' /tmp/pst_verify.log) checks, V0251-PROOF-STATE-HARNESS-REPAIR-PASS"
+grep -q '^V0252-INTEGRAL-LIFTED-PASS$' /tmp/pst_verify.log || { echo PST-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE proof_state_transformer_maru: $(grep -c '^PARITY\|^GRADCHECK\|^LLVM\|^F1-\|^F4-\|^F2\|^F6\|^F5-\|^GATE-REGRESSION-PASS' /tmp/pst_verify.log) checks, V0252-INTEGRAL-LIFTED-PASS"
+
+# --- relational closure lab gate (0.0253) ----------------------------------
+( cd experiments/relational_closure_maru && ./run.sh > /tmp/rc_run.log 2>&1 && ./verify.sh > /tmp/rc_verify.log 2>&1 ) \
+  || { echo RC-LAB-GATE-FAIL; tail -20 /tmp/rc_run.log /tmp/rc_verify.log; exit 1; }
+grep -q '^V0253-CLOSURE-PRIMITIVE-NEGATIVE-PASS$' /tmp/rc_verify.log || { echo RC-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE relational_closure_maru: V0253-CLOSURE-PRIMITIVE-NEGATIVE-PASS (closure primitive sound but not distinctive vs attention)"
 
 ./scripts/run.sh test
 ./scripts/compiler.sh verify "$ID"

@@ -192,4 +192,107 @@ BEGIN {
 }'
 awk '/^ladder /{print}' out/probes_bal.txt | sed 's/^/  final-ladder /'
 
-echo "V0251-PROOF-STATE-HARNESS-REPAIR-PASS"
+# ===== 0.0252 integration + lifted-token gates ==============================
+# Structural gates (must pass); measurement contrasts are reported with paired
+# 2SE verdicts (0251 convention: no directional gate on underpowered effects).
+clang -O2 -DHARD_GOALS=1 -DRELOB=1 -DINTEGRAL=1 -Iinclude -Isrc src/pst.c -o bin/pst_integral -lm
+clang -O2 -DHARD_GOALS=1 -DRELOB=1 -DLIFTED=1 -DLIFT_RHO=0.25 -Iinclude -Isrc src/pst.c -o bin/pst_lifted -lm
+clang -O2 -DHARD_GOALS=1 -DRELOB=1 -DINTEGRAL=1 -DLIFTED=1 -DLIFT_RHO=0.25 -Iinclude -Isrc src/pst.c -o bin/pst_both -lm
+clang -O2 -DHARD_GOALS=1 -DRELOB=1 -DLIFTED=1 -DLIFT_RHO=1.0 -Iinclude -Isrc src/pst.c -o bin/pst_lift1 -lm
+for v in pst_integral pst_lifted pst_both; do
+  "./bin/$v" --gradcheck | grep -q '^GRADCHECK-PASS$' || { echo "GRADCHECK-FAIL $v"; exit 1; }
+done
+echo "GRADCHECK integral/lifted/both PASS"
+
+# rho=1 lifted must be exactly the base model (same init, same objective)
+RA="--train --seeds 1 --epochs 3 --train-n 40 --val-n 40 --test-n 40 --eval-budget 4 --goaldepth 2 --goal-scan"
+./bin/pst_hard_relob $RA > out/rho_base.txt 2>/dev/null
+./bin/pst_lift1      $RA > out/rho_one.txt  2>/dev/null
+rb=$(grep -o 'pchk=[0-9.-]*' out/rho_base.txt | head -1)
+ro=$(grep -o 'pchk=[0-9.-]*' out/rho_one.txt | head -1)
+[ "$rb" = "$ro" ] || { echo "RHO1-EQUIV-FAIL $rb vs $ro"; exit 1; }
+echo "RHO1-EQUIV-PASS lifted(rho=1) == base ($rb)"
+
+# path-integral consistency (independent incremental vs prefix replay) + prior wiring
+./bin/pst_integral --path-check --goaldepth 2 --goal-scan --train-n 60 --val-n 20 --test-n 20 \
+  | grep -q '^PATH-CHECK .* PASS$' || { echo PATH-CHECK-FAIL; exit 1; }
+echo "PATH-CHECK exact (path + prior columns)"
+
+# default-build harness regression: bal arm must reproduce the pinned 0251 ladder
+awk '
+function val(file, cfg, key,   line,n,i,f,kv,v){ while((getline line<file)>0){ n=split(line,f," ");
+  if(f[1]!="ladder"||f[2]!=cfg) continue; for(i=3;i<=n;i++){split(f[i],kv,"="); if(kv[1]==key)v=kv[2]+0}} close(file); return v}
+BEGIN{ g=val("out/probes_bal.txt","2_4","goal");
+  if(!(g>0.7732 && g<0.7932)){ printf "HARNESS-REGRESSION-FAIL bal 2_4 goal=%.4f (pinned 0.7832)\n",g; exit 1 }
+  printf "HARNESS-REGRESSION-PASS bal 2_4 goal=%.4f (0251 pinned 0.7832)\n",g }' || exit 1
+
+# O0/O2/O3 identity + ASan for the combined arm
+for O in 0 2 3; do
+  clang -O$O -DHARD_GOALS=1 -DRELOB=1 -DINTEGRAL=1 -DLIFTED=1 -DLIFT_RHO=0.25 -Iinclude -Isrc src/pst.c -o bin/both_O$O -lm
+  ./bin/both_O$O --train --seeds 1 --epochs 3 --train-n 40 --val-n 40 --test-n 40 \
+    --eval-budget 6 --goaldepth 3 --goal-scan > out/both_id_O$O.txt 2>/dev/null
+done
+diff -q out/both_id_O0.txt out/both_id_O2.txt >/dev/null && diff -q out/both_id_O0.txt out/both_id_O3.txt >/dev/null \
+  || { echo BOTH-LLVM-IDENTITY-FAIL; exit 1; }
+clang -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -DHARD_GOALS=1 -DRELOB=1 -DINTEGRAL=1 -Iinclude -Isrc src/pst.c -o bin/integral_asan -lm
+./bin/integral_asan --train --seeds 1 --epochs 1 --train-n 20 --val-n 10 --test-n 10 \
+  --eval-budget 6 --goaldepth 4 --goal-scan > out/integral_asan.txt 2> out/integral_asan.err
+grep -q 'Sanitizer' out/integral_asan.err && { echo INTEGRAL-ASAN-FAIL; cat out/integral_asan.err; exit 1; }
+echo "BOTH-LLVM-MATRIX PASS O0/O2/O3; INTEGRAL-ASAN+UBSAN clean (budget 6, depth 4)"
+
+# holdout filter correctness: train excludes {4,5}, test all-in
+./bin/pst_integral --dump-test out/ho_test.txt --test-n 30 --seed 11 --goaldepth 2 --goal-scan --holdout 45 >/dev/null 2>&1
+./bin/pst_integral --dump out/ho_train.txt --worlds 30 --goaldepth 2 --goal-scan --holdout 45 >/dev/null 2>&1
+python3 - <<'PY' || { echo HOLDOUT-FILTER-FAIL; exit 1; }
+def goals(p):
+    return [[int(x.split(':')[0]) for x in l.split()[1:]] for l in open(p) if l.startswith('G ')]
+tg=goals('out/ho_test.txt'); tr=goals('out/ho_train.txt')[:30]
+assert tg and all(all(p in (4,5) for p in w) for w in tg), 'test goals not all held-out'
+assert tr and all(all(p not in (4,5) for p in w) for w in tr), 'train goals leak held-out'
+print('HOLDOUT-FILTER-PASS train excludes {4,5}, test all-in')
+PY
+
+# probe-log schema for every arm + held-out rung
+for arm in bal integral lifted both priorshuf lifted0; do
+  bash tools/probe_stats.sh check "probes/$arm" "${SEEDS:-5}" | sed "s/^/  $arm /"
+done
+for arm in bal integral lifted both lifted0; do
+  awk -v n="${SEEDS:-5}" -v dir="probes/ho_$arm" '
+  function num(line,key,  i,f,kv){split(line,f," ");for(i=1;i<=length(f);i++){split(f[i],kv,"=");if(kv[1]==key)return kv[2]+0}return ""}
+  BEGIN{ bad=0; cfgs[1]="2_4"; cfgs[2]="2_6";
+    for(c=1;c<=2;c++){ cfg=cfgs[c]; f=dir"/cfg_"cfg".txt"; ns=0;nm=0;delete seen;
+      while((getline line<f)>0){
+        if(line~/^SEED /){ns++;s=substr(line,6)+0;seen[s]++;
+          v=num(line,"proof_model"); if(v==""||v<0||v>1){printf "HOCHECK-FAIL %s bad field: %s\n",cfg,line;bad=1}}
+        else if(line~/^MEAN /){nm++}
+        else if(line~/^(REGRET|BOOT|BOUND-ASSERT|SEARCH-BUDGET|PARAMS|DATASET|CENSUS|EXPORT)/){}
+        else if(line!~/^#/&&length(line)>0){printf "HOCHECK-FAIL %s stray: %s\n",cfg,line;bad=1}}
+      close(f); if(ns!=n||nm!=n){printf "HOCHECK-FAIL %s rows %d/%d need %d\n",cfg,ns,nm,n;bad=1}
+      d=0;for(s in seen)d++; if(d!=n){printf "HOCHECK-FAIL %s distinct %d need %d\n",cfg,d,n;bad=1}}
+    if(bad)exit 1; printf "HOCHECK-PASS %s seeds=%d (cfgs 2_4,2_6)\n",dir,n }' || exit 1
+done
+
+# paired-by-seed contrasts (reported, 2SE verdict; no directional gate)
+echo "== integration / lifted contrasts (paired by seed, 2SE)"
+for c in "integral bal" "lifted bal" "both bal" "both integral" "priorshuf integral" "lifted0 lifted"; do
+  set -- $c
+  bash tools/probe_stats.sh contrast "$1" "$2" 4_6 proof_model | sed 's/^/  /'
+  bash tools/probe_stats.sh contrast "$1" "$2" 2_4 proof_model | sed 's/^/  /'
+done
+echo "== held-out predicate transfer (train d2 ho{4,5} -> test goals all {4,5})"
+grep -E '^holadder' out/integral_summary.txt | sed 's/^/  /'
+for c in "integral bal" "lifted bal" "lifted0 bal" "both bal"; do
+  set -- $c
+  fa="probes/ho_$1/cfg_2_4.txt"; fb="probes/ho_$2/cfg_2_4.txt"
+  pa=$(mktemp); pb=$(mktemp)
+  grep '^SEED ' "$fa" | awk '{for(i=1;i<=NF;i++){split($i,kv,"=");if(kv[1]=="proof_model")print $2,kv[2]}}' | sort > "$pa"
+  grep '^SEED ' "$fb" | awk '{for(i=1;i<=NF;i++){split($i,kv,"=");if(kv[1]=="proof_model")print $2,kv[2]}}' | sort > "$pb"
+  join "$pa" "$pb" | awk -v a="$1" -v b="$2" '
+    {n++;d=$2-$3;s+=d;ss+=d*d} END{ if(n<2){print "HOCONTRAST ho_"a"-"b"@2_4 INSUFFICIENT";exit}
+      m=s/n;v=(ss-n*m*m)/(n-1);se=sqrt(v/n);
+      verdict=(se>0&&(m>2*se||m<-2*se))?"SIGNIFICANT(2SE)":"INCONCLUSIVE(2SE)";
+      printf "HOCONTRAST ho_%s-%s@2_4 mean=%+.4f se=%.4f n=%d %s\n",a,b,m,se,n,verdict}'
+  rm -f "$pa" "$pb"
+done
+
+echo "V0252-INTEGRAL-LIFTED-PASS"

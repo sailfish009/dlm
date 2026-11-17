@@ -1,5 +1,5 @@
 {
-  "version": "0.0251",
+  "version": "0.0253",
   "note": "Minimal-core capability ledger. Research snapshots are separate; the native scope is docs/native-scope-0243.md.",
   "removed_in_0_0205": [
     "d107 contract layer (d107-*.l, contract/unit/surface/plan/session modules)",
@@ -309,6 +309,46 @@
     "weights_config_header": {
       "status": "implemented",
       "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "path_integral_credit_features": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/run_integral.sh"
+    },
+    "per_rule_prior_feature": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/run_integral.sh"
+    },
+    "lifted_predicate_embedding": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/run_integral.sh"
+    },
+    "predicate_heldout_rung": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/run_integral.sh"
+    },
+    "path_consistency_self_check": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify.sh"
+    },
+    "prior_identity_control": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/run_integral.sh"
+    },
+    "relational_closure_fixture": {
+      "status": "experimental",
+      "witness": "experiments/relational_closure_maru/run.sh"
+    },
+    "closure_primitive_soundness_gate": {
+      "status": "experimental",
+      "witness": "experiments/relational_closure_maru/verify.sh"
+    },
+    "closure_vs_attention_discrimination": {
+      "status": "experimental-negative",
+      "witness": "experiments/relational_closure_maru/verify.sh"
+    },
+    "search_composition_diagnosis": {
+      "status": "experimental",
+      "witness": "docs/diagnosis-0253.md"
     }
   }
 }

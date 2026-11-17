@@ -1,0 +1,5 @@
+ATTN-GRADCHECK params=20033 L=3 D=32 max_abs=1.309e-05 max_rel_small=7.714e-05 PASS
+ATTN-EXTRAP train L2-4 (n=400) test short/long (n=200) L=3 D=32 params=20033 decoy=20
+  epoch   0 train=0.330 test_short=0.360 test_long=0.310
+  epoch   5 train=0.902 test_short=0.870 test_long=0.930
+ATTN-EXTRAP-DONE short=0.870 long=0.930 gap=-0.060

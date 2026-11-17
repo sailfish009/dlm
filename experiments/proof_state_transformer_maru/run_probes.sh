@@ -20,7 +20,7 @@ for i in $(seq 0 $((SEEDS-1))); do
 done
 
 out="out/probes_${PREFIX#probes/}.txt"
-echo "# ladder: trained d=2,b=4 extra='$TRAIN_EXTRA'; rows are evaluation configs" | tee "$out"
+echo "# ladder: trained d=2,b=4 bin=$BIN extra='$TRAIN_EXTRA'; rows are evaluation configs" | tee "$out"
 for cfg in "2 4" "3 4" "4 4" "2 6" "4 6"; do
   set -- $cfg; d=$1; b=$2
   : > "$PREFIX/cfg_${d}_${b}.txt"

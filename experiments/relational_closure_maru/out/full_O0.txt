@@ -1,0 +1,10 @@
+KERNEL-MATCH worlds=50 atoms_checked=5400 violations=0 PASS
+DEPTH-SCALING worlds=50 mismatches=0 PASS (hard L layers == depth<=L)
+SOFT-SANITY worlds=50 violations=0 PASS (monotone + beta64~hard)
+CLOSURE-PRIMITIVE-GATES PASS
+GRADCHECK rules=27 L=3 max_abs=6.017e-09 max_rel_small=1.253e-08 PASS
+TRAIN worlds=20 L=4 beta=8.0 epochs=20
+  epoch   0 loss=20.80272
+  epoch  10 loss=13.48399
+  epoch  19 loss=7.60482
+TRAIN-DONE final_alpha_range=[0.712,0.747] CHECK

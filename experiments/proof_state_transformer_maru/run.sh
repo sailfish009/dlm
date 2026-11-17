@@ -16,6 +16,13 @@ clang -O2 -DHARD_GOALS=1 -DRELOB=1 -DBINDTOK=1 -Iinclude -Isrc src/pst.c -o bin/
 clang -O2 tools/world_audit.c -o bin/world_audit -lm
 clang -O2 tools/gate_check.c -o bin/gate_check -lm
 clang -O2 tools/alias_audit.c -o bin/alias_audit -lm
+# 0.0252 integration/lifted arms used by run_integral.sh (must be built here so the
+# release is self-contained from a clean bin/).
+clang -O2 -DHARD_GOALS=1 -DRELOB=1 -DINTEGRAL=1 -Iinclude -Isrc src/pst.c -o bin/pst_integral -lm
+clang -O2 -DHARD_GOALS=1 -DRELOB=1 -DLIFTED=1 -DLIFT_RHO=0.25 -Iinclude -Isrc src/pst.c -o bin/pst_lifted -lm
+clang -O2 -DHARD_GOALS=1 -DRELOB=1 -DINTEGRAL=1 -DLIFTED=1 -DLIFT_RHO=0.25 -Iinclude -Isrc src/pst.c -o bin/pst_both -lm
+clang -O2 -DHARD_GOALS=1 -DRELOB=1 -DINTEGRAL=1 -DPRIOR_SHUF=1 -Iinclude -Isrc src/pst.c -o bin/pst_priorshuf -lm
+clang -O2 -DHARD_GOALS=1 -DRELOB=1 -DLIFTED=1 -DLIFT_RHO=0.0 -Iinclude -Isrc src/pst.c -o bin/pst_lifted0 -lm
 
 ./bin/pst --dump out/worlds.txt --worlds 8 | tee out/gen.txt
 /usr/bin/python3 tools/check_parity.py out/worlds.txt | tee out/parity.txt
@@ -53,4 +60,8 @@ SEEDS="$SEEDS" PREFIX=probes/bindshuf BIN=./bin/pst_hard_bindshuf TRAIN_EXTRA="-
 for f in unbal bal bindtok bindshuf; do echo "PROBE-$f"; grep -E '^ladder|^regret' out/probes_$f.txt; done
 grep '^MEAN' out/2x2_A_root_agg.txt
 grep '^MEAN' out/2x2_D_full_relob.txt
+
+# 0.0252 integration + lifted-token arms and the predicate-held-out rung
+SEEDS="$SEEDS" EPOCHS="$EPOCHS" ./run_integral.sh > out/integral_run.log 2>&1
+tail -1 out/integral_run.log
 echo "RUN-DONE"

@@ -35,13 +35,31 @@
 #ifndef BINDTOK
 #define BINDTOK 0                /* 0 off, 1 aligned binding tokens, 2 entity-shifted (control) */
 #endif
+#ifndef INTEGRAL
+#define INTEGRAL 0               /* 1 = path-integral support (avg/growth) + per-rule prior features */
+#endif
+#ifndef LIFTED
+#define LIFTED 0                 /* 1 = scale the predicate-id one-hot block by LIFT_RHO (lifted token) */
+#endif
+#ifndef LIFT_RHO
+#define LIFT_RHO 1.0             /* residual scale on predicate identity; 1.0 == base, 0 = type-only */
+#endif
+#ifndef PRIOR_SHUF
+#define PRIOR_SHUF 0             /* 1 = derange the per-rule prior (identity-destroying control) */
+#endif
+#ifndef PATH_GAMMA
+#define PATH_GAMMA 1.0           /* retention decay on the path integral; 1.0 = monotone accumulation */
+#endif
 #define BIND_FEAT (NSLOT*WENT + WENT)   /* body slot x entity support + head-atom known */
+#define ID_BLOCK_LO 8                 /* candidate predicate-id one-hot block: head + body slots */
+#define ID_BLOCK_HI (8 + P + NSLOT*P) /* = 26 */
 static int g_goaldepth = 0;      /* 0 = default (HARD_GOALS compile flag), k>=1 = goals need k candidate steps */
 static int g_eval_budget = 4;
 static int g_seed_base = 11;
 static const char *g_save_weights = (const char*)0;
 static const char *g_load_weights = (const char*)0;
 static int g_no_bound = 0;    /* policy/bound step budget; equals NSTEPS by default */
+static int g_holdout_mask = 0; /* predicate-held-out bitmask: train/val exclude, test all-in */
 
 #define P 6                      /* unary predicates */
 #define NSLOT 2
@@ -56,7 +74,8 @@ static int g_no_bound = 0;    /* policy/bound step budget; equals NSTEPS by defa
 #define STATE_BASE 8
 #define GOAL_FEAT (P + WENT)            /* per goal: predicate one-hot + entity-slot one-hot */
 #define CAND_GOAL_FEAT 4                /* head match, head known, body supported, would derive */
-#define CAND_DIM (CAND_BASE + (RELOB ? GOAL_COUNT*CAND_GOAL_FEAT : 0) + (BINDTOK ? BIND_FEAT : 0))
+#define PATH_OFF (CAND_BASE + (RELOB ? GOAL_COUNT*CAND_GOAL_FEAT : 0) + (BINDTOK ? BIND_FEAT : 0))
+#define CAND_DIM (PATH_OFF + (INTEGRAL ? 3 : 0))
 #define STATE_DIM (STATE_BASE + (RELOB ? GOAL_COUNT*GOAL_FEAT : 0))
 #define MAXLIVE POOL
 
@@ -86,6 +105,7 @@ typedef struct {
 } Step;
 
 static Rule all_rules[NRULES_ALL];
+static double g_rule_prior[NRULES_ALL]; /* per-rule mean train utility (INTEGRAL prior feature) */
 
 static void build_all_rules(void){
   /* Order must match the reference ALL_RULES (m1_proof_state/world.py):
@@ -163,6 +183,67 @@ static int support(const Rule *r, const uint8_t known[WENT]){
   int c = 0;
   for (int e = 0; e < WENT; e++) if ((known[e] & bm) == bm) c++;
   return c;
+}
+
+/* ---- path-integral retention state (INTEGRAL) -----------------------------
+ * A_t(r) = sum_{tau<=t} gamma^{t-tau} support_tau(r), accumulated over the
+ * committed-rule prefix. This is a kernel-consistent state function: train
+ * (oracle prefix) and eval (policy prefix) recompute it identically from the
+ * committed set, so there is no teacher/policy exposure confound. gamma=1 is
+ * monotone accumulation (retention); gamma<1 is the decay ablation. */
+typedef struct { double acc[NRULES_ALL]; double root[NRULES_ALL]; double wsum; int t; } PathState;
+#if INTEGRAL
+static void path_init(PathState *ps){ memset(ps, 0, sizeof *ps); }
+static void path_update(PathState *ps, const World *w, const uint8_t known[WENT]){
+  double g = PATH_GAMMA;
+  ps->wsum = g*ps->wsum + 1.0;
+  for (int i = 0; i < POOL; i++){
+    int c = w->cands[i];
+    double s = (double)support(&all_rules[c], known)/(double)WENT;
+    if (ps->t == 0) ps->root[c] = s;
+    ps->acc[c] = g*ps->acc[c] + s;
+  }
+  ps->t++;
+}
+static void path_features(const PathState *ps, int cand, const uint8_t known[WENT], double *out){
+  double s_now = (double)support(&all_rules[cand], known)/(double)WENT;
+  out[PATH_OFF+0] = ps->acc[cand]/ps->wsum;      /* time-averaged past support */
+  out[PATH_OFF+1] = s_now - ps->root[cand];      /* support growth over the path */
+}
+/* Recompute the path integral by replaying the committed prefix (theory + the
+ * rules committed so far). A pure function of (facts, committed set), so train
+ * and eval agree by construction and beam branches need no inherited state. */
+static void fill_path_features(const World *w, const int *rules, int nrules,
+                               const int *live, int nlive, double (*cf)[CAND_DIM]){
+  PathState ps; path_init(&ps);
+  uint8_t kn[WENT];
+  for (int m = SEED_RULES; m <= nrules; m++){
+    closure(w->facts, rules, m, kn);
+    path_update(&ps, w, kn);
+  }
+  for (int k = 0; k < nlive; k++) path_features(&ps, live[k], kn, cf[k]);
+}
+static void fill_prior_features(const int *live, int nlive, double (*cf)[CAND_DIM]){
+  for (int k = 0; k < nlive; k++) cf[k][PATH_OFF+2] = g_rule_prior[live[k]];
+}
+#else
+static void path_init(PathState *ps){ (void)ps; }
+static void path_update(PathState *ps, const World *w, const uint8_t known[WENT]){ (void)ps;(void)w;(void)known; }
+static void path_features(const PathState *ps, int cand, const uint8_t known[WENT], double *out){ (void)ps;(void)cand;(void)known;(void)out; }
+static void fill_path_features(const World *w, const int *rules, int nrules,
+                               const int *live, int nlive, double (*cf)[CAND_DIM]){ (void)w;(void)rules;(void)nrules;(void)live;(void)nlive;(void)cf; }
+static void fill_prior_features(const int *live, int nlive, double (*cf)[CAND_DIM]){ (void)live;(void)nlive;(void)cf; }
+#endif
+
+/* predicate-held-out acceptance: train/val worlds must have NO held-out goal,
+ * test worlds must have ALL goals held-out (pure transfer rung). */
+static int holdout_ok(const World *w, int split){
+  if (!g_holdout_mask) return 1;
+  int any = 0, all = 1;
+  for (int g = 0; g < w->ngoals; g++){
+    if ((1u << w->goal_pred[g]) & (unsigned)g_holdout_mask) any = 1; else all = 0;
+  }
+  return (split == 2) ? all : !any;
 }
 
 static void state_features(const World *w, const int *rules, int nrules,
@@ -277,6 +358,10 @@ static void cand_features(const World *w, const int *rules, int nrules,
       out[k++] = (r->head == gp && body_at) ? 1.0 : 0.0;
     }
   }
+#endif
+#if INTEGRAL
+  /* prior column PATH_OFF+2 is filled by rule_prior_from_train (stored data)
+   * or fill_prior_features (eval), AFTER the prior is computed from train. */
 #endif
 }
 
@@ -521,7 +606,7 @@ static int build_split(int split, int nworlds, uint64_t seed, FILE *dump, long *
       /* genuine depth: advance the structure index until the exact-depth pool is
        * non-empty (each structure is keyed by its own (split, index) stream) */
       int guard = 0;
-      while (!ok && guard++ < 20000){ ok = make_world(&g_world, split, src++); scans++; }
+      while (!ok && guard++ < 20000){ ok = make_world(&g_world, split, src++) && holdout_ok(&g_world, split); scans++; }
       if (!ok){ fprintf(stderr, "SCAN-FAIL split=%d world=%d general=%d\n", split, i, g_goaldepth); exit(3); }
     } else {
       while (!ok) ok = make_world(&g_world, split, i);
@@ -584,12 +669,17 @@ int main(int argc, char **argv){
     else if (!strcmp(argv[i], "--balance-reward")) g_balance = 1;
     else if (!strcmp(argv[i], "--regret")) g_regret = 1;
     else if (!strcmp(argv[i], "--goal-scan")) g_goal_scan = 1;
+    else if (!strcmp(argv[i], "--holdout") && i+1 < argc){
+      const char *h = argv[++i]; g_holdout_mask = 0;
+      while (*h){ if (*h >= '0' && *h < '0'+P) g_holdout_mask |= 1 << (*h - '0'); h++; }
+    }
     else if (!strcmp(argv[i], "--emit-worlds")) g_emit_worlds = 1;
     else if (!strcmp(argv[i], "--export-maru") && i+1 < argc){ mode = "export"; dump = argv[++i]; }
     else if (!strcmp(argv[i], "--cases") && i+1 < argc) nworlds = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--dump-forward") && i+1 < argc){ mode = "dumph"; dump = argv[++i]; }
     else if (!strcmp(argv[i], "--case") && i+1 < argc) nworlds = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--gradcheck")) mode = "gradcheck";
+    else if (!strcmp(argv[i], "--path-check")) mode = "pathcheck";
     else if (!strcmp(argv[i], "--train")) mode = "train";
   }
   if (mode && !strcmp(mode, "dumph")){
@@ -624,6 +714,9 @@ int main(int argc, char **argv){
            (unsigned long long)seed, dump);
     return 0;
   }
+  if (g_holdout_mask && !g_goal_scan){
+    fprintf(stderr, "HOLDOUT-REQUIRES-GOAL-SCAN\n"); return 2;
+  }
   alloc_globals();
   if (!strcmp(mode, "dsstats")){
     build_dataset();
@@ -635,6 +728,7 @@ int main(int argc, char **argv){
     printf(rel < 1e-5 ? "GRADCHECK-PASS\n" : "GRADCHECK-FAIL\n");
     return rel < 1e-5 ? 0 : 1;
   }
+  if (!strcmp(mode, "pathcheck")) return path_check();
   run_variant(seeds, epochs, 1);
   return 0;
 }

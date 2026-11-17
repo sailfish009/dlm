@@ -1,0 +1,7 @@
+MLP-EXTRAP train L2-4 (n=400), test short L2-4 / long L6-10 (n=200 each), H=64, decoy=0
+  epoch   0 train=0.507 test_short=0.505 test_long=0.575
+  epoch 100 train=0.540 test_short=0.570 test_long=0.645
+  epoch 200 train=0.557 test_short=0.560 test_long=0.610
+  epoch 300 train=0.593 test_short=0.545 test_long=0.625
+  epoch 400 train=0.623 test_short=0.560 test_long=0.595
+MLP-EXTRAP-DONE short=0.560 long=0.595 gap=-0.035

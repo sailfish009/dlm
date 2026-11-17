@@ -228,7 +228,13 @@ static void model_forward(const Params *p, const double *state,
   for (int j = 0; j < nlive; j++)
     for (int i = 0; i < D; i++){
       double s = p->bc[i] + p->tc[i];
-      for (int k = 0; k < CAND_DIM; k++) s += p->Wc[i*CAND_DIM+k]*cf[j][k];
+      for (int k = 0; k < CAND_DIM; k++){
+        double w = p->Wc[i*CAND_DIM+k];
+#if LIFTED
+        if (k >= ID_BLOCK_LO && k < ID_BLOCK_HI) w *= LIFT_RHO;  /* predicate-id residual */
+#endif
+        s += w*cf[j][k];
+      }
       c->h[1+j][i] = s;
     }
   for (int i = 0; i < c->L; i++)
@@ -520,7 +526,13 @@ static double model_step(const double *statev, const double (*cf)[CAND_DIM],
     for (int d = 0; d < D; d++){
       g->bc[d] += g_dh[1+j][d];
       g->tc[d] += g_dh[1+j][d];
-      for (int k = 0; k < CAND_DIM; k++) g->Wc[d*CAND_DIM+k] += g_dh[1+j][d]*cf[j][k];
+      for (int k = 0; k < CAND_DIM; k++){
+        double sc = 1.0;
+#if LIFTED
+        if (k >= ID_BLOCK_LO && k < ID_BLOCK_HI) sc = LIFT_RHO;
+#endif
+        g->Wc[d*CAND_DIM+k] += g_dh[1+j][d]*cf[j][k]*sc;
+      }
     }
   return loss;
 }

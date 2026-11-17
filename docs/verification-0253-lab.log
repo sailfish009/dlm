@@ -1,0 +1,14 @@
+KERNEL confluence + hand-transitive PASS
+CLOSURE-PRIMITIVE sound (beta->inf==kernel, 0 viol) + expressible (L layers==depth<=L)
+GRADCHECK closure-primitive + attention PASS
+PRIMITIVE-SCALING solves L=2..10 constructively
+LLVM O0/O2/O3 identity + ASan enforced by run.sh (set -e; diffs/sanitizer abort on failure)
+== closure-vs-attention length-extrapolation (primitive=1.000 constructive)
+  decoy=0 ATTN-EXTRAP-DONE short=1.000 long=1.000 gap=0.000
+  decoy=20 ATTN-EXTRAP-DONE short=0.860 long=0.935 gap=-0.075
+  decoy=40 ATTN-EXTRAP-DONE short=1.000 long=0.995 gap=0.005
+  MLP (uninformative) MLP-EXTRAP-DONE short=0.560 long=0.595 gap=-0.035
+DISCRIMINATION-VERDICT attention learns closure + length-extrapolation (test_long 0.935-1.000);
+  closure primitive is sound/expressible but NOT distinctive => closure computation is not the bottleneck.
+  See docs/closure-discrimination-0253.md and docs/diagnosis-0253.md (search/composition is the target).
+V0253-CLOSURE-PRIMITIVE-NEGATIVE-PASS

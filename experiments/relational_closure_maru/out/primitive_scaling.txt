@@ -1,0 +1,11 @@
+PRIMITIVE-SCALING (hard join layers to derive query, by path length)
+  L= 2 solved=30/30 max_layers=1
+  L= 3 solved=30/30 max_layers=2
+  L= 4 solved=30/30 max_layers=2
+  L= 5 solved=30/30 max_layers=3
+  L= 6 solved=30/30 max_layers=3
+  L= 7 solved=30/30 max_layers=3
+  L= 8 solved=30/30 max_layers=3
+  L= 9 solved=30/30 max_layers=3
+  L=10 solved=30/30 max_layers=4
+PRIMITIVE-SCALING PASS (primitive derives every length with <=NENT layers)
