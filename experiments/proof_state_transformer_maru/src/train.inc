@@ -20,8 +20,14 @@ typedef struct {
   int branchtok, readmax, regshuf;           /* 0263 multi-register structure */
   int md, mnl, phaseuntie;                   /* 0264 capacity */
   int loopcell, celldetach, cellshuf, remfeat, eptrain;  /* 0269 loop cell */
+  int relatom;                                           /* 0270 relational fixture */
+  int typed, oblread;                                    /* 0270 S1/S2 */
+  int entfeat, typedshuf;                                /* 0270 controls */
+  int assertf;                                           /* 0270 assert invention */
+  int assertunion;
   double lift_rho, path_gamma;
   double predw;                              /* 0269 world-model auxiliary weight */
+  double assertw;                            /* 0270 assert auxiliary weight */
   double pchk;
 } WHeader;
 
@@ -33,6 +39,10 @@ typedef struct {
   double util[POOL];
   int best;
   int reward_pos;      /* best utility > 0 (goal reward present) */
+#if TYPED
+  int fatoms[NA], nfact;          /* known atoms at this state (fact tokens) */
+  int oatoms[GOAL_COUNT], nobl;   /* unproved goals (obligation tokens) */
+#endif
 } RStep;
 
 typedef struct {
@@ -41,6 +51,13 @@ typedef struct {
   RStep st[NSTEPS];
 } WSteps;
 
+#if ASSERT
+static long g_assert_states = 0, g_assert_adopt = 0, g_assert_fallback = 0;
+static long g_assert_raw_adopt = 0;   /* unconditional top-1 proposal accepted by kernel */
+#endif
+#if ASSERT
+static void assert_report(const Params *p, int split, const char *tag);
+#endif
 static int g_collect = 0;       /* 0 = stop when best utility <= 0 (0245), 1 = full budget */
 static int g_sample = 0;        /* 0 = all collected states, 1 = root only, 2 = root + subsample */
 static int g_balance = 0;       /* 1 = reward-bearing states first, then fill to the same count */
@@ -117,7 +134,7 @@ static int proved_mask(const World *w, uint32_t mask){
   closure(w->facts, rules, n, known);
   int gp = 0;
   for (int g = 0; g < w->ngoals; g++)
-    if (known[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) gp++;
+    if (GOAL_KNOWN(w,g,known)) gp++;
   return gp;
 }
 
@@ -336,6 +353,14 @@ static void build_dataset(void){
         for (int k = 0; k < nlive; k++) rs->live[k] = live[k];
         state_features(&ws->w, rules, nrules, live, nlive, rs->state,
                        g_label_rem_max - st > 0 ? g_label_rem_max - st : 0);
+#if TYPED
+        {
+          uint8_t kn[WENT];
+          closure(ws->w.facts, rules, nrules, kn);
+          rs->nfact = atoms_from_known(kn, rs->fatoms);
+          rs->nobl = obligs_from_goals(&ws->w, kn, rs->oatoms);
+        }
+#endif
         int best = 0;
         for (int k = 0; k < nlive; k++){
           cand_features(&ws->w, rules, nrules, live[k], rs->cf[k]);
@@ -419,7 +444,7 @@ static double loss_eval(const Params *p, const double *state,
  * kernel DP labels, plus PREDW * MSE of the next-state value predicted from
  * (z_t, emb(a_t)) alone. The trainer and the finite-difference checker share
  * episode_forward, so the checked scalar IS the trained scalar. */
-#if EPTRAIN || LOOPCELL
+#if EPTRAIN || LOOPCELL || TYPED
 static Cache g_epc[NSTEPS];
 static double g_epds[NSTEPS][POOL];
 #if LOOPCELL
@@ -442,8 +467,36 @@ static double episode_forward(const Params *p, const WSteps *ws, int grad){
   double total = 0;
   for (int t = 0; t < ws->nsteps; t++){
     const RStep *rs = &ws->st[t];
+#if TYPED
+    model_forward_typed(p, rs->state, rs->cf, rs->nlive, rs->live,
+                        rs->fatoms, rs->nfact, rs->oatoms, rs->nobl, (const double*)0, &g_epc[t]);
+#else
     model_forward_z(p, rs->state, rs->cf, rs->nlive, LOOPCELL ? z : (const double*)0, &g_epc[t]);
+#endif
     total += loss_from_cache(&g_epc[t], rs->util, rs->best, rs->nlive, grad ? g_epds[t] : (double*)0);
+#if ASSERT
+    if (ASSERTW > 0){
+      /* kernel adoption targets: the model proposes, the kernel decides */
+      int rules[MAXRULE];
+      int nr = 0;
+      for (int q = 0; q < SEED_RULES; q++) rules[nr++] = ws->w.theory[q];
+      for (int q = 0; q < t; q++) rules[nr++] = ws->st[q].live[ws->st[q].best];
+      uint8_t kn[WENT];
+      closure(ws->w.facts, rules, nr, kn);
+      AssertCtx ax;
+      assert_ctx(&ws->w, rules, nr, rs->live, rs->nlive, kn, &ax);
+      int rem = g_label_rem_max - t; if (rem < 0) rem = 0;
+      double bce = 0;
+      for (int a = 0; a < NA; a++){
+        int why;
+        double y = assert_adopt(&ax, a, rem, &why) ? 1.0 : 0.0;
+        double x = g_epc[t].prop[a];
+        bce += y*softplus(-x) + (1.0-y)*softplus(x);
+        if (grad) g_epc[t].dprop[a] = ASSERTW*(sigmoid(x) - y)/(double)NA;
+      }
+      total += ASSERTW*bce/(double)NA;
+    }
+#endif
 #if LOOPCELL
     g_epcsrc[t] = CELLSHUF ? (t+1) % ws->nsteps : t;
     action_embed(p, rs->cf[rs->best], g_epea[t]);
@@ -566,7 +619,12 @@ static void eval_steps(const Params *p, int split, Metrics *out){
 #endif
     for (int s = 0; s < ws->nsteps; s++){
       const RStep *rs = &ws->st[s];
+#if TYPED
+      model_forward_typed(p, rs->state, rs->cf, rs->nlive, rs->live,
+                          rs->fatoms, rs->nfact, rs->oatoms, rs->nobl, (const double*)0, g_c);
+#else
       model_forward_z(p, rs->state, rs->cf, rs->nlive, LOOPCELL ? z : (const double*)0, g_c);
+#endif
       int arg = 0;
       for (int j = 1; j < rs->nlive; j++) if (g_c->score[j] > g_c->score[arg]) arg = j;
       u += rs->util[arg];
@@ -604,7 +662,7 @@ static void eval_steps_base(int split, int mode, Metrics *out){
         if (mode == 1) scr[j] = rs->cf[j][3] + 0.5*rs->cf[j][5];
         else if (mode == 2){
           int head = 0;
-          for (int q = 0; q < P; q++) if (rs->cf[j][8+q] > 0.5) head = q;
+          for (int q = 0; q < HP; q++) if (rs->cf[j][8+q] > 0.5) head = q;
           scr[j] = g_head_prior[head] - 0.2*2.0*rs->cf[j][1];
         } else if (mode == 3) scr[j] = (double)((j*2654435761u) % 1000) / 1000.0;
         else scr[j] = 0.0;
@@ -660,8 +718,8 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
       if (!u) live[nlive++] = r;
     }
     if (!nlive) break;
+    uint8_t known[WENT];
     {
-      uint8_t known[WENT];
       closure(w->facts, rules, nrules, known);
       nlive = focus_filter(w, known, live, nlive);   /* Rocq obligation focus */
       pc_filter(known, live, &nlive);                /* Silicon path condition */
@@ -682,6 +740,16 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
       static double cfp[POOL][CAND_DIM];
       for (int k = 0; k < nlive; k++)
         for (int d = 0; d < CAND_DIM; d++) cfp[k][d] = cf2[perm[k]][d];
+#if TYPED
+      {
+        int livep[POOL], fa[NA], oa[GOAL_COUNT];
+        for (int k = 0; k < nlive; k++) livep[k] = live[perm[k]];
+        int nf = atoms_from_known(known, fa);
+        int no = obligs_from_goals(w, known, oa);
+        model_forward_typed(mp, state, (const double (*)[CAND_DIM])cfp, nlive, livep,
+                            fa, nf, oa, no, (const double*)0, g_c);
+      }
+#else
       model_forward_z(mp, state, (const double (*)[CAND_DIM])cfp, nlive,
 #if LOOPCELL
                       z,
@@ -689,7 +757,31 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
                       (const double*)0,
 #endif
                       g_c);
+#endif
       for (int k = 1; k < nlive; k++) if (g_c->score[k] > g_c->score[pick]) pick = k;
+#if ASSERT
+      {
+        AssertCtx ax;
+        assert_ctx(w, rules, nrules, live, nlive, known, &ax);
+        int a_star = assert_top(&ax, g_c->prop, g_eval_budget - st);
+        int focal[POOL], nf = assert_focus_filter(w, &ax, a_star, live, nlive, focal);
+        g_assert_states++;
+        if (a_star >= 0) g_assert_adopt++; else g_assert_fallback++;
+        { int rb = 0, why;
+          for (int a = 1; a < NA; a++) if (g_c->prop[a] > g_c->prop[rb]) rb = a;
+          if (assert_adopt(&ax, rb, g_eval_budget - st, &why)) g_assert_raw_adopt++; }
+        if (nf > 0){
+          int pk = -1;
+          for (int k = 0; k < nlive; k++){
+            int inf = 0;
+            for (int q = 0; q < nf; q++) if (focal[q] == live[k]) inf = 1;
+            if (!inf) continue;
+            if (pk < 0 || g_c->score[k] > g_c->score[pk]) pk = k;
+          }
+          if (pk >= 0) pick = pk;
+        }
+      }
+#endif
 #if SYMGATE >= 1
       /* path-condition census at the actual selection point: the soft residual
        * gate can still select an inadmissible candidate, the hard gate cannot. */
@@ -702,7 +794,7 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
       double sb = -1e30;
       for (int k = 0; k < nlive; k++){
         int head = 0;
-        for (int q = 0; q < P; q++) if (cf2[k][8+q] > 0.5) head = q;
+        for (int q = 0; q < HP; q++) if (cf2[k][8+q] > 0.5) head = q;
         double s = g_head_prior[head] - 0.2*2.0*cf2[k][1];
         if (s > sb){ sb = s; pick = k; }
       }
@@ -726,7 +818,7 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
   closure(w->facts, rules, nrules, known);
   int gp = 0;
   for (int g = 0; g < w->ngoals; g++)
-    if (known[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) gp++;
+    if (GOAL_KNOWN(w,g,known)) gp++;
   *goals_proved = gp;
   *steps_used = used_steps;
   *full_success = (gp == w->ngoals) ? 1 : 0;
@@ -748,15 +840,23 @@ static int subs_n = 0;
 
 static uint64_t pack_facts_u64(const uint8_t m[WENT]){
   uint64_t s = 0;
+#if RELATOM
+  for (int e = 0; e < WENT; e++) s |= (uint64_t)m[e] << (8*e);
+#else
   for (int e = 0; e < WENT; e++) s |= (uint64_t)m[e] << (6*e);
+#endif
   return s;
 }
 static int is_subset_mask(uint64_t a, uint64_t b){   /* a subset of b */
+#if RELATOM
+  return (a & ~b) == 0;
+#else
   for (int e = 0; e < WENT; e++){
     uint64_t am = (a >> (6*e)) & 0x3f, bm = (b >> (6*e)) & 0x3f;
     if ((am & ~bm) != 0) return 0;
   }
   return 1;
+#endif
 }
 static int dominated(uint64_t mask, int depth){
   for (int i = 0; i < subs_n; i++)
@@ -864,12 +964,22 @@ static void pc_filter(const uint8_t *known, int *live, int *nlive){
 static long g_focus_states = 0, g_focus_removed = 0;
 static int focus_filter(const World *w, const uint8_t *known, int *live, int nlive){
   if (!g_focus) return nlive;
+#if RELATOM
+  /* obligation focus over ATOMS: seed the unproved goal atoms, propagate
+   * backwards through candidate bodies, keep candidates whose head is focal.
+   * Binding-sensitive: unlike the unary fixture this can remove candidates. */
+  int rel[NA];
+  for (int i = 0; i < NA; i++) rel[i] = 0;
+  for (int g = 0; g < w->ngoals; g++)
+    if (!GOAL_KNOWN(w,g,known)) rel[GOAL_ATOM(w,g)] = 1;
+#else
   int rel[P];
   for (int p = 0; p < P; p++) rel[p] = 0;
   for (int g = 0; g < w->ngoals; g++){
     int e = w->goal_ent[g], p = w->goal_pred[g];
     if (!(known[e] & (uint8_t)(1u << p))) rel[p] = 1;
   }
+#endif
   int changed = 1;
   while (changed){
     changed = 0;
@@ -915,7 +1025,11 @@ static void lemma_mine(void){
       uint8_t kn[WENT];
       closure(ws->w.facts, ws->w.theory, SEED_RULES, kn);
       int ok = 0;
+#if RELATOM
+      ok = ATOM_KNOWN(kn, a->body[0]) ? 1 : 0;
+#else
       for (int e = 0; e < WENT; e++) if (kn[e] & (uint8_t)(1u << a->body[0])) ok = 1;
+#endif
       if (!ok) continue;
       int dup = 0;
       for (int q = 0; q < g_nlem; q++) if (g_lem[q].r1 == r1 && g_lem[q].r2 == r2) dup = 1;
@@ -944,6 +1058,16 @@ static void pair_features(const World *w, const uint8_t *known, int r1, int r2,
                           double *f){
   const Rule *a = &all_rules[r1], *b = &all_rules[r2];
   int sup_body = 0, sup_head = 0, goal1 = 0, goal2 = 0;
+#if RELATOM
+  sup_body = (a->blen && ATOM_KNOWN(known, a->body[0])) ? 1 : 0;
+  sup_head = ATOM_KNOWN(known, a->head) ? 1 : 0;
+  for (int g = 0; g < w->ngoals; g++){
+    if (w->goal_pred[g] == atom_pred(a->head)) goal1 = 1;
+    if (w->goal_pred[g] == atom_pred(b->head)) goal2 = 1;
+  }
+  f[0] = (double)sup_body;
+  f[1] = (double)sup_head;
+#else
   for (int e = 0; e < WENT; e++){
     if (a->blen && (known[e] & (uint8_t)(1u << a->body[0]))) sup_body++;
     if (known[e] & (uint8_t)(1u << a->head)) sup_head++;
@@ -954,11 +1078,16 @@ static void pair_features(const World *w, const uint8_t *known, int r1, int r2,
   }
   f[0] = (double)sup_body / (double)WENT;
   f[1] = (double)sup_head / (double)WENT;
+#endif
   f[2] = (double)goal1;
   f[3] = (double)goal2;
   f[4] = rule_cost(a) / 2.0;
   f[5] = rule_cost(b) / 2.0;
+#if RELATOM
+  f[6] = g_head_prior[atom_pred(b->head)];
+#else
   f[6] = g_head_prior[b->head];
+#endif
   f[7] = 1.0;                       /* bias */
 }
 
@@ -983,12 +1112,19 @@ static double pair_label(const World *w, const int *rules, int nrules, int r1, i
   uint8_t kn[WENT], k0[WENT];
   closure(w->facts, rules, nrules, k0);
   closure(w->facts, rr, n, kn);
+#if RELATOM
+  int rel[NA];
+  for (int i = 0; i < NA; i++) rel[i] = 0;
+  for (int g = 0; g < w->ngoals; g++)
+    if (!GOAL_KNOWN(w,g,k0)) rel[GOAL_ATOM(w,g)] = 1;
+#else
   int rel[P];
   for (int p = 0; p < P; p++) rel[p] = 0;
   for (int g = 0; g < w->ngoals; g++){
     int e = w->goal_ent[g], p = w->goal_pred[g];
     if (!(k0[e] & (uint8_t)(1u << p))) rel[p] = 1;
   }
+#endif
   for (int it = 0; it < 4; it++)
     for (int c = 0; c < POOL; c++){
       const Rule *r = &all_rules[w->cands[c]];
@@ -997,9 +1133,20 @@ static double pair_label(const World *w, const int *rules, int nrules, int r1, i
     }
   int g0 = 0, g1 = 0, a0 = 0, a1 = 0;
   for (int g = 0; g < w->ngoals; g++){
-    if (k0[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) g0++;
-    if (kn[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) g1++;
+    if (GOAL_KNOWN(w,g,k0)) g0++;
+    if (GOAL_KNOWN(w,g,kn)) g1++;
   }
+#if RELATOM
+  {
+    uint64_t m0 = fs_load(k0), m1 = fs_load(kn);
+    for (int id = 0; id < NA; id++){
+      if (!rel[id]) continue;                /* goal-reachable atoms only */
+      if ((m0 >> id) & 1ULL) a0++;
+      if ((m1 >> id) & 1ULL) a1++;
+    }
+    return 4.0*(double)(g1 - g0) + (double)(a1 - a0)/(double)NA;
+  }
+#else
   for (int e = 0; e < WENT; e++){
     for (int p = 0; p < P; p++){
       if (!rel[p]) continue;                 /* goal-reachable predicates only */
@@ -1008,6 +1155,7 @@ static double pair_label(const World *w, const int *rules, int nrules, int r1, i
     }
   }
   return 4.0*(double)(g1 - g0) + (double)(a1 - a0)/(double)(WENT*P);
+#endif
 }
 
 static void pair_learn(void){
@@ -1144,7 +1292,7 @@ static void dfs_world_z(const World *w, int *rules, int nrules, int depth, int b
   closure(w->facts, rules, nrules, known);
   int proven = 0;
   for (int g = 0; g < w->ngoals; g++)
-    if (known[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) proven++;
+    if (GOAL_KNOWN(w,g,known)) proven++;
   if (proven > g_best_seen) g_best_seen = proven;
   if (depth >= budget){
     g_dfs_leafs++;
@@ -1182,7 +1330,17 @@ static void dfs_world_z(const World *w, int *rules, int nrules, int depth, int b
   static double cf2[POOL][CAND_DIM];
   static double util[POOL];
   step_features(w, rules, nrules, live, nlive, state, cf2, util, budget - depth);
+#if TYPED
+  {
+    int fa[NA], oa[GOAL_COUNT];
+    int nf = atoms_from_known(known, fa);
+    int no = obligs_from_goals(w, known, oa);
+    model_forward_typed(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, live,
+                        fa, nf, oa, no, (const double*)0, g_c);
+  }
+#else
   model_forward_z(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, z, g_c);
+#endif
   g_dfs_cands += nlive;
   int order[POOL];
   for (int a = 0; a < nlive; a++) order[a] = a;
@@ -1244,6 +1402,34 @@ static void dfs_world_z(const World *w, int *rules, int nrules, int depth, int b
     if (ti >= 0 && !g_c->sym[1+ti]) g_pc_picks++;
   }
 #endif
+#if ASSERT
+  {
+    AssertCtx ax;
+    assert_ctx(w, rules, nrules, live, nlive, known, &ax);
+    int a_star = assert_top(&ax, g_c->prop, budget - depth);
+    int focal[POOL], nf = assert_focus_filter(w, &ax, a_star, live, nlive, focal);
+    g_assert_states++;
+    if (a_star >= 0) g_assert_adopt++; else g_assert_fallback++;
+    { int rb = 0, why;
+      for (int a = 1; a < NA; a++) if (g_c->prop[a] > g_c->prop[rb]) rb = a;
+      if (assert_adopt(&ax, rb, budget - depth, &why)) g_assert_raw_adopt++; }
+    if (nf > 0){
+      int nn = 0;
+      for (int a = 0; a < nact; a++){
+        int keep_a = 1;
+        if (act_kind[a] == 0){
+          keep_a = 0;
+          for (int q = 0; q < nf; q++) if (focal[q] == act_val[a]) keep_a = 1;
+        }
+        if (keep_a){
+          act_kind[nn] = act_kind[a]; act_val[nn] = act_val[a]; act_score[nn] = act_score[a];
+          nn++;
+        }
+      }
+      nact = nn;
+    }
+  }
+#endif
   int keep = (g_branch < nact) ? g_branch : nact;
   for (int a = 0; a < keep; a++){
     if (act_kind[a] == 0){
@@ -1276,10 +1462,15 @@ static void dfs_world_z(const World *w, int *rules, int nrules, int depth, int b
       uint8_t kn[WENT];
       closure(w->facts, rr, n, kn);
       int held = 0, derived = 0;
+#if RELATOM
+      held = (ar->blen && ATOM_KNOWN(kn, ar->body[0])) ? 1 : 0;
+      derived = ATOM_KNOWN(kn, br->head) ? 1 : 0;
+#else
       for (int e = 0; e < WENT; e++){
         if (ar->blen && (kn[e] & (uint8_t)(1u << ar->body[0]))) held = 1;
         if (kn[e] & (uint8_t)(1u << br->head)) derived = 1;
       }
+#endif
       if (!held || !derived){ g_pair_viol++; continue; }
       rules[nrules] = r1; rules[nrules+1] = r2;
       g_pair_uses++; g_lemma_uses++;
@@ -1350,7 +1541,7 @@ static void bound_rec(const World *w, const uint8_t base[WENT], const int *pick,
     closure(w->facts, rules, SEED_RULES+k, known);
     int gp = 0;
     for (int g = 0; g < w->ngoals; g++)
-      if (known[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) gp++;
+      if (GOAL_KNOWN(w,g,known)) gp++;
     if (gp > bnd_best) bnd_best = gp;
     return;
   }
@@ -1364,7 +1555,7 @@ static int bound_world(const World *w){
   closure(w->facts, w->theory, SEED_RULES, base);
   bnd_best = 0;
   for (int g = 0; g < w->ngoals; g++)
-    if (base[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) bnd_best++;
+    if (GOAL_KNOWN(w,g,base)) bnd_best++;
   int pick[MAXBUDGET];
   for (int i = 0; i < MAXBUDGET; i++) pick[i] = 0;
   int bmax = g_eval_budget < MAXBUDGET ? g_eval_budget : MAXBUDGET;
@@ -1389,16 +1580,33 @@ static const char *g_scorer_name[NSCORE] = {
 /* score nlive candidates under a scorer; returns 1 if scores came from a net */
 static int score_candidates(int scorer, const Params *p, const double *state,
                             const double (*cf)[CAND_DIM], int nlive, double *out,
-                            Counters *ctr, const double *z){
+                            Counters *ctr, const double *z,
+                            const int *live, const uint8_t *known, const World *w){
+#if TYPED
+  int fa[NA], oa[GOAL_COUNT];
+  int nf = known ? atoms_from_known(known, fa) : 0;
+  int no = (w && known) ? obligs_from_goals(w, known, oa) : 0;
+#else
+  (void)w;
+#endif
   if (scorer == SC_MODEL_RAW || scorer == SC_UNTRAINED){
     const Params *mp = (scorer == SC_UNTRAINED) ? g_untrained : p;
+#if TYPED
+    model_forward_typed(mp, state, cf, nlive, live, fa, nf, oa, no, (const double*)0, g_c);
+#else
+    (void)live; (void)known; (void)w;
     model_forward_z(mp, state, cf, nlive, z, g_c);
+#endif
     ctr->forwards++;
     for (int j = 0; j < nlive; j++) out[j] = g_c->score[j];
     return 1;
   }
   if (scorer == SC_MODEL_LOGP){
+#if TYPED
+    model_forward_typed(p, state, cf, nlive, live, fa, nf, oa, no, (const double*)0, g_c);
+#else
     model_forward_z(p, state, cf, nlive, z, g_c);
+#endif
     ctr->forwards++;
     double mx = -1e30;
     for (int j = 0; j < nlive; j++) if (g_c->score[j] > mx) mx = g_c->score[j];
@@ -1412,7 +1620,7 @@ static int score_candidates(int scorer, const Params *p, const double *state,
     if (scorer == SC_SUPPORT) out[j] = cf[j][3] + 0.5*cf[j][5];
     else if (scorer == SC_PRIOR){
       int head = 0;
-      for (int q = 0; q < P; q++) if (cf[j][8+q] > 0.5) head = q;
+      for (int q = 0; q < HP; q++) if (cf[j][8+q] > 0.5) head = q;
       out[j] = g_head_prior[head] - 0.2*2.0*cf[j][1];
     } else out[j] = (double)randbelow(1000);
   }
@@ -1450,8 +1658,8 @@ static void policy_world_beam(const World *w, const Params *p, int scorer, uint6
         if (!u) live[nlive++] = r;
       }
       if (!nlive) continue;
+      uint8_t known[WENT];
       {
-        uint8_t known[WENT];
         closure(w->facts, seq[bi], nrules, known);
         nlive = focus_filter(w, known, live, nlive);  /* Rocq obligation focus */
         pc_filter(known, live, &nlive);               /* Silicon path condition */
@@ -1461,13 +1669,32 @@ static void policy_world_beam(const World *w, const Params *p, int scorer, uint6
       double sc[POOL];
       score_candidates(scorer, p, state, (const double (*)[CAND_DIM])cf2, nlive, sc, ctr,
 #if LOOPCELL
-                       bz[bi]
+                       bz[bi],
 #else
-                       (const double*)0
+                       (const double*)0,
 #endif
-                       );
+                       live, known, w);
       ctr->states++;
       ctr->cands += nlive;
+#if ASSERT
+      {
+        AssertCtx ax;
+        assert_ctx(w, seq[bi], nrules, live, nlive, known, &ax);
+        int a_star = assert_top(&ax, g_c->prop, g_eval_budget - d);
+        int focal[POOL], nf = assert_focus_filter(w, &ax, a_star, live, nlive, focal);
+        g_assert_states++;
+        if (a_star >= 0) g_assert_adopt++; else g_assert_fallback++;
+        if (nf > 0){
+          int nn = 0;
+          for (int k = 0; k < nlive; k++){
+            int inf = 0;
+            for (int q = 0; q < nf; q++) if (focal[q] == live[k]) inf = 1;
+            if (inf) live[nn++] = live[k];
+          }
+          nlive = nn;
+        }
+      }
+#endif
       int order[POOL];
       for (int k = 0; k < nlive; k++) order[k] = k;
       for (int k = 0; k < nlive; k++)
@@ -1516,7 +1743,7 @@ static void policy_world_beam(const World *w, const Params *p, int scorer, uint6
     ctr->closes++;
     int gp = 0;
     for (int g = 0; g < w->ngoals; g++)
-      if (known[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) gp++;
+      if (GOAL_KNOWN(w,g,known)) gp++;
     int full = (gp == w->ngoals) ? 1 : 0;
     if (full > bestfull || (full == bestfull && gp > bestgp)){ bestfull = full; bestgp = gp; }
   }
@@ -1537,12 +1764,41 @@ static double permutation_invariance(void){
   static double s1[POOL], s2[POOL];
   static double cf[POOL][CAND_DIM];
   for (int k = 0; k < rs->nlive; k++) for (int d = 0; d < CAND_DIM; d++) cf[k][d] = rs->cf[k][d];
+#if TYPED
+  {
+    int lv[POOL], fa[NA], oa[GOAL_COUNT], fb[NA];
+    for (int k = 0; k < rs->nlive; k++) lv[k] = rs->live[k];
+    for (int f = 0; f < rs->nfact; f++) fa[f] = rs->fatoms[f];
+    for (int o = 0; o < rs->nobl; o++) oa[o] = rs->oatoms[o];
+    model_forward_typed(g_p, rs->state, (const double (*)[CAND_DIM])cf, rs->nlive, lv,
+                        fa, rs->nfact, oa, rs->nobl, (const double*)0, g_c);
+    for (int k = 0; k < rs->nlive; k++) s1[k] = g_c->score[k];
+    for (int k = 0; k < rs->nlive; k++)
+      for (int d = 0; d < CAND_DIM; d++) cf[k][d] = rs->cf[rs->nlive-1-k][d];
+    for (int k = 0; k < rs->nlive; k++) lv[k] = rs->live[rs->nlive-1-k];
+    for (int f = 0; f < rs->nfact; f++) fb[f] = rs->fatoms[rs->nfact-1-f];  /* fact order too */
+    model_forward_typed(g_p, rs->state, (const double (*)[CAND_DIM])cf, rs->nlive, lv,
+                        fb, rs->nfact, oa, rs->nobl, (const double*)0, g_c);
+    for (int k = 0; k < rs->nlive; k++) s2[k] = g_c->score[rs->nlive-1-k];
+  }
+#else
+#if TYPED
+  model_forward_typed(g_p, rs->state, (const double (*)[CAND_DIM])cf, rs->nlive, rs->live,
+                      rs->fatoms, rs->nfact, rs->oatoms, rs->nobl, (const double*)0, g_c);
+#else
   model_forward(g_p, rs->state, (const double (*)[CAND_DIM])cf, rs->nlive, g_c);
+#endif
   for (int k = 0; k < rs->nlive; k++) s1[k] = g_c->score[k];
   for (int k = 0; k < rs->nlive; k++)
     for (int d = 0; d < CAND_DIM; d++) cf[k][d] = rs->cf[rs->nlive-1-k][d];
+#if TYPED
+  model_forward_typed(g_p, rs->state, (const double (*)[CAND_DIM])cf, rs->nlive, rs->live,
+                      rs->fatoms, rs->nfact, rs->oatoms, rs->nobl, (const double*)0, g_c);
+#else
   model_forward(g_p, rs->state, (const double (*)[CAND_DIM])cf, rs->nlive, g_c);
+#endif
   for (int k = 0; k < rs->nlive; k++) s2[k] = g_c->score[rs->nlive-1-k];
+#endif
   double mx = 0;
   for (int k = 0; k < rs->nlive; k++){
     double d = fabs(s1[k] - s2[k]);
@@ -1558,6 +1814,11 @@ static double permutation_invariance(void){
     for (int t = 0; t < ws->nsteps; t++){
       const RStep *r0 = &ws->st[t]; RStep *rp = &wp.st[t];
       rp->nlive = r0->nlive; rp->reward_pos = r0->reward_pos;
+#if TYPED
+      rp->nfact = r0->nfact; rp->nobl = r0->nobl;
+      for (int f = 0; f < r0->nfact; f++) rp->fatoms[f] = r0->fatoms[f];
+      for (int o = 0; o < r0->nobl; o++) rp->oatoms[o] = r0->oatoms[o];
+#endif
       for (int d = 0; d < STATE_DIM; d++) rp->state[d] = r0->state[d];
       for (int k = 0; k < r0->nlive; k++){
         int rk = r0->nlive-1-k;
@@ -1584,6 +1845,9 @@ static double permutation_invariance(void){
 
 /* ---- training ---- */
 static void train_seed(int seed, int epochs){
+#if TYPEDSHUF
+  factperm_init();
+#endif
   init_params(g_p, (uint64_t)seed);
   Params *best = (Params*)calloc(1, sizeof(Params));
   if (!best){ fprintf(stderr, "alloc\n"); exit(2); }
@@ -1630,7 +1894,7 @@ static void train_seed(int seed, int epochs){
     fprintf(stderr, "BALANCE train_samples=%ld reward_states=%ld total_states=%ld\n", ntr, npos, n_all);
     free(bal);
   }
-#if EPTRAIN || LOOPCELL
+#if EPTRAIN || LOOPCELL || TYPED
   /* episode-batched protocol (0.0269): shuffle WORLDS, batch EPB worlds per
    * update, average the gradient over the states in the batch. Every 0269 arm
    * uses this schedule so cell-vs-baseline contrasts are protocol-matched.
@@ -1669,6 +1933,10 @@ static void train_seed(int seed, int epochs){
       }
       eval_steps(g_p, 1, &vm);
       if (vm.top1 > best_val){ best_val = vm.top1; *best = *g_p; }
+#if ASSERT
+      if (ASSERTW > 0 && (ep % 10 == 0 || ep == epochs-1))
+        assert_report(g_p, 0, "TRAIN");
+#endif
 #if LOOPCELL
       if (PREDW > 0 && (ep % 10 == 0 || ep == epochs-1)){
         /* world-model learning curve on TRAIN episodes (directional evidence
@@ -1734,10 +2002,55 @@ static void train_seed(int seed, int epochs){
 #if LOOPCELL
   pred_val_report(g_p);
 #endif
+#if ASSERT
+  assert_report(g_p, 0, "FINAL-TRAIN");
+  assert_report(g_p, 1, "VAL");
+#endif
   free(best);
   free(idx);
   free(idx_root);
 }
+
+#if ASSERT
+/* kernel-judged proposal quality: top-1 adoption rate + rejection reasons */
+static void assert_report(const Params *p, int split, const char *tag){
+  long n = 0, adopt = 0, r_known = 0, r_irrel = 0, r_unreach = 0, r_deep = 0;
+  for (int i = 0; i < g_nw[split]; i++){
+    const WSteps *ws = &g_data[split][i];
+    int rules[MAXRULE];
+    int nr = 0;
+    for (int q = 0; q < SEED_RULES; q++) rules[nr++] = ws->w.theory[q];
+    for (int t = 0; t < ws->nsteps; t++){
+      const RStep *rs = &ws->st[t];
+      uint8_t kn[WENT];
+      closure(ws->w.facts, rules, nr, kn);
+      model_forward_typed(p, rs->state, rs->cf, rs->nlive, rs->live,
+                          rs->fatoms, rs->nfact, rs->oatoms, rs->nobl, (const double*)0, g_c);
+      AssertCtx ax;
+      assert_ctx(&ws->w, rules, nr, rs->live, rs->nlive, kn, &ax);
+      int rem = g_label_rem_max - t; if (rem < 0) rem = 0;
+      /* the model proposes UNCONDITIONALLY (argmax over all atoms); the
+       * kernel then accepts or rejects — that verdict is the learning signal */
+      int best = 0;
+      for (int a = 1; a < NA; a++) if (g_c->prop[a] > g_c->prop[best]) best = a;
+      int why;
+      int ok = assert_adopt(&ax, best, rem, &why);
+      for (int a = 0; a < NA; a++){
+        int w2;
+        if (!assert_adopt(&ax, a, rem, &w2)){
+          if (w2 == 0) r_known++; else if (w2 == 1) r_irrel++;
+          else if (w2 == 2) r_unreach++; else r_deep++;
+        }
+      }
+      n++;
+      if (ok) adopt++;
+      rules[nr++] = rs->live[rs->best];
+    }
+  }
+  printf("ASSERT-%s states=%ld top1_adopt=%.4f reject_known=%ld reject_irrel=%ld reject_unreach=%ld reject_deep=%ld\n",
+         tag, n, n ? (double)adopt/(double)n : 0, r_known, r_irrel, r_unreach, r_deep);
+}
+#endif
 
 /* ---- reporting ---- */
 static void head_prior_from_train(void){
@@ -1747,7 +2060,7 @@ static void head_prior_from_train(void){
       const RStep *rs = &g_data[0][i].st[s];
       for (int k = 0; k < rs->nlive; k++){
         int head = 0;
-        for (int q = 0; q < P; q++) if (rs->cf[k][8+q] > 0.5) head = q;
+        for (int q = 0; q < HP; q++) if (rs->cf[k][8+q] > 0.5) head = q;
         sums[head] += rs->util[k];
         counts[head] += 1;
       }
@@ -1804,7 +2117,7 @@ static int q_closure_goals(const World *w, const int *rules, int nrules, const i
   closure(w->facts, all, m, known);
   int gp = 0;
   for (int g = 0; g < w->ngoals; g++)
-    if (known[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) gp++;
+    if (GOAL_KNOWN(w,g,known)) gp++;
   return gp;
 }
 
@@ -1878,7 +2191,15 @@ static void traj_profile(int seed){
       }
       if (!nlive) break;
       step_features(wd, rules, nrules, live, nlive, state, cf2, util, nstep - st);
+#if TYPED
+      { uint8_t kn[WENT]; int fa[NA], oa[GOAL_COUNT];
+        closure(wd->facts, rules, nrules, kn);
+        model_forward_typed(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, live,
+                            fa, atoms_from_known(kn, fa), oa, obligs_from_goals(wd, kn, oa),
+                            (const double*)0, g_c); }
+#else
       model_forward(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, g_c);
+#endif
       int pick = 0;
       for (int a = 1; a < nlive; a++) if (g_c->score[a] > g_c->score[pick]) pick = a;
       int rem = nstep - st;
@@ -1924,7 +2245,15 @@ static void first_step_regret(double *r_model, double *h_model,
     }
     if (!nlive) continue;
     step_features(w, rules, SEED_RULES, live, nlive, state, cf2, util, g_eval_budget);
+#if TYPED
+    { uint8_t kn[WENT]; int fa[NA], oa[GOAL_COUNT];
+      closure(w->facts, rules, SEED_RULES, kn);
+      model_forward_typed(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, live,
+                          fa, atoms_from_known(kn, fa), oa, obligs_from_goals(w, kn, oa),
+                          (const double*)0, g_c); }
+#else
     model_forward(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, g_c);
+#endif
     int am = 0, asup = 0, aug = 0;
     for (int a = 1; a < nlive; a++){
       if (g_c->score[a] > g_c->score[am]) am = a;
@@ -1971,7 +2300,15 @@ static void serve(void){
     if (!nlive){ printf("0\n"); fflush(stdout); continue; }
     step_features(wd, rules, n, live, nlive, state, cf2, util,
                   g_eval_budget - (n - SEED_RULES) > 0 ? g_eval_budget - (n - SEED_RULES) : 0);
+#if TYPED
+    { uint8_t kn[WENT]; int fa[NA], oa[GOAL_COUNT];
+      closure(wd->facts, rules, n, kn);
+      model_forward_typed(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, live,
+                          fa, atoms_from_known(kn, fa), oa, obligs_from_goals(wd, kn, oa),
+                          (const double*)0, g_c); }
+#else
     model_forward(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, g_c);
+#endif
     printf("%d", nlive);
     for (int a = 0; a < nlive; a++) printf(" %d %.9f", live[a], g_c->score[a]);
     printf("\n");
@@ -2086,7 +2423,7 @@ static void run_variant(int seeds, int epochs, int verbose){
         uint8_t kn[WENT]; closure(w->facts, rr, SEED_RULES+1, kn);
         int gp1 = 0;
         for (int g = 0; g < w->ngoals; g++)
-          if (kn[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) gp1++;
+          if (GOAL_KNOWN(w,g,kn)) gp1++;
         if (gp1 > wmax) wmax = gp1;
       }
       if (wmax >= 2) viol++;
@@ -2123,27 +2460,30 @@ static void run_variant(int seeds, int epochs, int verbose){
           h.label_ncost != LABEL_NCOST || h.label_steps != LABEL_STEPS || h.label_rem != g_label_rem_max ||
           h.loopcell != LOOPCELL || h.celldetach != CELLDETACH || h.cellshuf != CELLSHUF ||
           h.remfeat != REMFEAT || h.eptrain != EPTRAIN || h.predw != (double)PREDW ||
+          h.relatom != RELATOM || h.typed != TYPED || h.oblread != OBLREAD ||
+          h.entfeat != ENTFEAT || h.typedshuf != TYPEDSHUF ||
+          h.assertf != ASSERT || h.assertw != (double)ASSERTW || h.assertunion != ASSERTUNION ||
           h.md != D || h.mnl != NL || h.phaseuntie != PHASEUNTIE){
         fprintf(stderr, "WEIGHTS-MISMATCH %s\n", g_load_weights);
         fprintf(stderr, "  weights: dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d "
                         "attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d "
                         "ncost %d steps %d label_rem %d branchtok %d readmax %d regshuf %d md %d nl %d untie %d "
-                        "cell %d detach %d shuf %d remfeat %d eptrain %d predw %.3f\n",
+                        "cell %d detach %d shuf %d remfeat %d eptrain %d predw %.3f assert %d assertw %.3f\n",
                 h.state_dim, h.cand_dim, h.variant, h.hard, h.relob, h.bindtok,
                 h.integral, h.lifted, h.holdout, h.attmode, h.symgate, h.cert, h.focus, h.lemma,
                 h.pairmode, h.pair_keep, h.valmode,
                 h.label_ncost, h.label_steps, h.label_rem,
                 h.branchtok, h.readmax, h.regshuf, h.md, h.mnl, h.phaseuntie,
-                h.loopcell, h.celldetach, h.cellshuf, h.remfeat, h.eptrain, h.predw);
+                h.loopcell, h.celldetach, h.cellshuf, h.remfeat, h.eptrain, h.predw, h.assertf, h.assertw);
         fprintf(stderr, "  binary : dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d "
                         "attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d "
                         "ncost %d steps %d label_rem %d branchtok %d readmax %d regshuf %d md %d nl %d untie %d "
-                        "cell %d detach %d shuf %d remfeat %d eptrain %d predw %.3f\n",
+                        "cell %d detach %d shuf %d remfeat %d eptrain %d predw %.3f assert %d assertw %.3f\n",
                 STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK,
                 INTEGRAL, LIFTED, g_holdout_mask, ATTMODE, SYMGATE, CERT, FOCUS, LEMMA,
                 PAIRMODE, g_pair_keep, VALMODE, LABEL_NCOST, LABEL_STEPS, g_label_rem_max,
                 BRANCHTOK, READMAX, REGSHUF, D, NL, PHASEUNTIE,
-                LOOPCELL, CELLDETACH, CELLSHUF, REMFEAT, EPTRAIN, (double)PREDW);
+                LOOPCELL, CELLDETACH, CELLSHUF, REMFEAT, EPTRAIN, (double)PREDW, ASSERT, (double)ASSERTW);
         exit(4);
       }
       if (fread(g_p, sizeof(Params), 1, lf) != 1){ fprintf(stderr, "short weights\n"); exit(2); }
@@ -2160,18 +2500,24 @@ static void run_variant(int seeds, int epochs, int verbose){
                       ATTMODE, SYMGATE, CERT, FOCUS, LEMMA, PAIRMODE, g_pair_keep, VALMODE,
                       LABEL_NCOST, LABEL_STEPS, g_label_rem_max,
                       BRANCHTOK, READMAX, REGSHUF, D, NL, PHASEUNTIE,
-                      LOOPCELL, CELLDETACH, CELLSHUF, REMFEAT, EPTRAIN,
-                      LIFT_RHO, PATH_GAMMA, (double)PREDW, pchk };
+                      LOOPCELL, CELLDETACH, CELLSHUF, REMFEAT, EPTRAIN, RELATOM, TYPED, OBLREAD, ENTFEAT, TYPEDSHUF, ASSERT, ASSERTUNION,
+                      LIFT_RHO, PATH_GAMMA, (double)PREDW, (double)ASSERTW, pchk };
         fwrite(&h, sizeof h, 1, sf);
         fwrite(g_p, sizeof(Params), 1, sf);
         fclose(sf);
       }
     }
+#if TYPEDSHUF
+    factperm_init();
+#endif
     if (g_pairmode == 1 && g_lemmas) lemma_mine();   /* hand-designed: teacher-rollout pairs */
     if (g_pairmode == 2) pair_learn();               /* learned: kernel-labelled pair scorer */
     g_pc_tokens = g_pc_dropped = g_pc_fallback = g_pc_picks = 0;
     g_cert_ok = g_cert_fail = g_cert_checked = g_cert_mutfail = 0;
     g_focus_states = g_focus_removed = 0;
+#if ASSERT
+    g_assert_states = g_assert_adopt = g_assert_fallback = g_assert_raw_adopt = 0;
+#endif
     g_pair_uses = g_pair_viol = 0;
     Metrics m;
     eval_steps(g_p, 2, &m);
@@ -2253,6 +2599,11 @@ static void run_variant(int seeds, int epochs, int verbose){
              g_cert_ok, g_cert_fail, g_cert_checked, g_cert_mutfail, g_lemma_uses, g_nlem,
              g_focus_states, g_focus_removed, g_pairmode, g_pair_uses, g_pair_viol,
              g_pair_keep, g_lemma_uses);
+#if ASSERT
+      printf("ASSERT seed=%d states=%ld adopt=%ld fallback=%ld raw_adopt=%ld raw_rate=%.4f\n",
+             seed, g_assert_states, g_assert_adopt, g_assert_fallback,
+             g_assert_raw_adopt, g_assert_states ? (double)g_assert_raw_adopt/(double)g_assert_states : 0);
+#endif
     }
     double perm = permutation_invariance();
     Metrics vt, bs, bp, br; eval_steps(g_p, 1, &vt);
@@ -2347,7 +2698,11 @@ static void emit_vec(FILE *f, const char *name, const double *w, int n){
 }
 
 static void export_maru(const char *path, int seed, int epochs, int ncases){
-#if LOOPCELL
+#if RELATOM
+  fprintf(stderr, "EXPORT-FAIL: RELATOM Maru Q16 export is not implemented yet "
+                  "(relational fixture port is a follow-up); gate Maru parity on the unary base build\n");
+  exit(2);
+#elif LOOPCELL
   fprintf(stderr, "EXPORT-FAIL: LOOPCELL Maru Q16 export is not implemented yet "
                   "(the latent chain needs a multi-step pst_infer port); "
                   "gate Maru parity on the base build\n");
@@ -2474,7 +2829,7 @@ static double gradcheck(void){
   if (g_dp_check) dp_audit();
   init_params(g_p, 1234);
   memset(g_g, 0, sizeof(Params));
-#if EPTRAIN || LOOPCELL
+#if EPTRAIN || LOOPCELL || TYPED
   /* the checked scalar is the EPISODE objective (BPTT through the cell),
    * exactly what the episode trainer optimises */
   const WSteps *ws = &g_data[0][0];
@@ -2530,6 +2885,29 @@ static double gradcheck(void){
   double rel_to_max = max_abs / (max_grad > 0 ? max_grad : 1.0);
   printf("GRADCHECK params=%d loss=%.6f max_abs=%.3e max_grad=%.3e rel_to_max_grad=%.3e max_rel_small=%.3e\n",
          checked, base, max_abs, max_grad, rel_to_max, max_rel);
+#if TYPED
+  { /* typed-structure liveness: embeddings/typed-attention must carry gradient,
+     * else a dead typed path would pass the finite-difference check vacuously */
+    double tmax = 0;
+    long off = (long)(offsetof(Params, Pemb)/sizeof(double));
+    long end = (long)(offsetof(Params, abias)/sizeof(double)) + NH*16;
+    for (long i = off; i < end; i++) if (fabs(gg[i]) > tmax) tmax = fabs(gg[i]);
+    printf("TYPED-GRAD max=%.3e %s\n", tmax, tmax > 1e-8 ? "OK" : "DEAD");
+    if (tmax <= 1e-8) return 1e9;
+  }
+#endif
+#if ASSERT
+  { /* proposal-head liveness: trained head must carry gradient; the ASSERTW=0
+     * mechanism control must carry NONE (untrained by construction) */
+    double amax = 0;
+    long off = (long)(offsetof(Params, Wprop)/sizeof(double));
+    long end = (long)(sizeof(Params)/sizeof(double));
+    for (long i = off; i < end; i++) if (fabs(gg[i]) > amax) amax = fabs(gg[i]);
+    int ok = (ASSERTW > 0) ? (amax > 1e-8) : (amax < 1e-12);
+    printf("ASSERT-GRAD max=%.3e assertw=%.3f %s\n", amax, (double)ASSERTW, ok ? "OK" : "DEAD");
+    if (!ok) return 1e9;
+  }
+#endif
 #if LOOPCELL
   { /* BPTT liveness: the transition matrices must carry nonzero gradient,
      * otherwise a dead recurrence would pass the finite-difference check

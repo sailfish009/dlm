@@ -1,0 +1,55 @@
+== 1. gradient check (episode scalar = trained scalar; small dataset for speed)
+REL-GRADCHECK-PASS (8 builds; typed + assert liveness asserted)
+== 2. independent oracle parity (rules/features/utility/witness/DP labels)
+RULES-PASS 63 ground rules match the independent schema construction
+FEATURES checked=66600 utility=2160 maxerr=4.44e-07
+WITNESS-REACH goals=181 reachability=181 violations=0
+DP-LABELS checked=1080 mismatches=0 maxerr=3.33e-07
+PARITY-REL-PASS
+== 3. fixture discriminative power: binding aliases at eval depth
+ALIAS-CENSUS states=240 alias_groups=759 cands_in_alias=2145 label_diff=99 top_mixed=99
+ALIAS-RATES group_rate=3.1625 label_diff_rate=0.1304 top_mixed_rate=0.1304
+ALIAS-PASS top-mixed alias groups at depth 4: 99
+== 4. permutation equivariance (candidates AND fact-token order)
+PERM-PASS
+== 5. label-budget independence (typed arm, behavioural)
+LABEL-INDEPENDENT-PASS (pchk=12865.086406)
+== 6. header cross-loads
+HEADER-PASS
+== 7. contrasts (pre-registered: S1/S2 may beat S0 ONLY if binding info matters)
+HYBRID-CONTRAST S1-S0 goal mean=+0.0182 se1=0.0219 2se=0.0439 n=5 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST S2-S1 goal mean=-0.0083 se1=0.0252 2se=0.0504 n=5 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST S0e-S0 goal mean=+0.0000 se1=0.0243 2se=0.0485 n=5 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST S1-S1shuf goal mean=+0.0116 se1=0.0221 2se=0.0442 n=5 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST S2-S0 goal mean=+0.0099 se1=0.0112 2se=0.0224 n=5 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST S1_assert-S1_focus goal mean=-0.1620 se1=0.0315 2se=0.0631 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST S1_assert-S1_assert_rand goal mean=-0.0116 se1=0.0300 2se=0.0600 n=5 INCONCLUSIVE(2SE)
+HYBRID-CONTRAST S1_assert-S1 goal mean=-0.1207 se1=0.0294 2se=0.0588 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST S1_assert_union-S1_focus goal mean=+0.0066 se1=0.0031 2se=0.0062 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST S1_assert_union-S1 goal mean=+0.0479 se1=0.0132 2se=0.0264 n=5 SIGNIFICANT(2SE)
+CONTRASTS-REPORTED (directions are findings, not gate requirements)
+== 8. ceilings: no-contract exhaustive (branch 24 = POOL), per-seed, all arms below
+CEILING-PASS mean=0.8182 [0.8182, 0.8182, 0.8182, 0.8182, 0.8182]; all arms below per-seed exhaustive
+== 9. FOCUS re-measurement (vacuous on unary at d4/b4; binding-sensitive here?)
+FOCUS S0_focus states=49745 removed=807491
+FOCUS S1_focus states=49899 removed=809796
+== 9b. assert invention: kernel-judged adoption learning curve
+ASSERT-LEARN-PASS (top-1 kernel adoption 0.1681 -> 0.6472; chance ~0.07)
+ASSERT-EVAL S1_assert states=40440 adopt=40440 fallback=0 rate=1.0000
+ASSERT-EVAL S1_assert_rand states=38710 adopt=38710 fallback=0 rate=1.0000
+== documentation hygiene
+DOC-PASS 1 release notes: prose only, tokens in context (fenced commands allowed)
+== 10. aggregation + mutation regression
+HYBRID-TABLE-PASS table equals per-seed recomputation (all arms, 5 seeds)
+GATE-REGRESSION-PASS 10 mutations rejected, baseline accepted
+== 11. LLVM identity + sanitizers (S2 arm)
+LLVM-PASS
+== 12. unary regression (default build unaffected)
+UNARY-REGRESSION-PASS
+== 13. 15-seed confirmation table == recomputation
+CONFIRM-TABLE-PASS 15-seed means == per-seed recomputation (9 arms)
+V0270-RELATIONAL-PASS
+
+real	15m26.643s
+user	15m17.961s
+sys	0m1.997s

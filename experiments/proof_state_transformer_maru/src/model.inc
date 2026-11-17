@@ -88,6 +88,46 @@
 #ifndef REMFEAT
 #define REMFEAT 0        /* 1 = remaining-budget slot appended to the state features */
 #endif
+/* 0.0270 S1/S2: typed tokens (fact/candidate/obligation) + typed-pair attention.
+ * TYPED requires RELATOM. Token layout keeps candidates at offset nreg so the
+ * existing readout/backward indexing is unchanged: [state, cands, facts, obligs].
+ * OBLREAD (S2) conditions the candidate readout on the obligation context. */
+#ifndef TYPED
+#define TYPED 0
+#endif
+#ifndef OBLREAD
+#define OBLREAD 0
+#endif
+#if TYPED && !RELATOM
+#error "TYPED requires RELATOM=1"
+#endif
+#if OBLREAD && !TYPED
+#error "OBLREAD requires TYPED"
+#endif
+#if TYPED && LOOPCELL
+#error "TYPED arms are static (0269: recurrence null on Markov-sufficient states)"
+#endif
+#if TYPED && !EPTRAIN
+#error "TYPED requires EPTRAIN (episode trainer supplies fact/obligation lists)"
+#endif
+/* 0.0270 assert invention (Rocq assert/cut, T7): the model PROPOSES an
+ * intermediate atom; the KERNEL decides adoption (unknown, goal-relevant,
+ * reachable with the live candidates, AND-OR depth <= remaining budget).
+ * The proposal head is trained by BCE on kernel adoption (ASSERTW); at
+ * inference the top adoptable proposal seeds obligation focus (subgoal
+ * decomposition). ASSERTW=0 keeps the head untrained: mechanism control. */
+#ifndef ASSERT
+#define ASSERT 0
+#endif
+#ifndef ASSERTW
+#define ASSERTW 0.0
+#endif
+#if ASSERT && !TYPED
+#error "ASSERT requires TYPED (atom-level grounding)"
+#endif
+#ifndef ASSERTUNION
+#define ASSERTUNION 0    /* 1 = soft variant: asserted subgoal UNION goal focus */
+#endif
 #if LOOPCELL && (BRANCHTOK >= 2 || READMAX)
 #error "LOOPCELL requires a single state register (BRANCHTOK<2, READMAX=0)"
 #endif
@@ -134,7 +174,11 @@ static long g_lemma_uses = 0;
 #define RB ((BRANCHTOK >= 2 || READMAX) ? 4 : 1)
 #define NREG (BRANCHTOK >= 2 ? BRANCHTOK : 1)
 #define ZTOK (LOOPCELL ? 1 : 0)
+#if TYPED
+#define MAXL (1+POOL+NA+GOAL_COUNT)   /* state + cands + facts + obligs = 64 */
+#else
 #define MAXL (RB+POOL+1)
+#endif
 #define NOUT (VAR_UTILHEAD ? 2 : 1)
 #define NPASS (VAR_LOOP ? 2 : 1)
 #define NBLK (NL*NPASS)                 /* cache blocks (pass-major) */
@@ -171,6 +215,22 @@ typedef struct {
   double Wu[D*2*D], bu[D];
   double Wn[D*2*D], bn[D];
   double Wv[D*2*D], bv[D], wv[D];
+#if TYPED
+  /* 0.0270 typed structure: atom embeddings (predicate + entity + role),
+   * type embeddings, typed-pair attention scale/bias. Appended LAST so the
+   * trainable span is the whole struct (0269 param_count lesson). */
+  double Pemb[(PU+PB)*D];
+  double Eemb[EREL*D];
+  double Remb[3*D];
+  double temb[4*D];             /* state, fact, candidate, obligation */
+  double ascale[NH*16], abias[NH*16];
+#if OBLREAD
+  double Wobl[D];
+#endif
+#if ASSERT
+  double Wprop[NA*D], bprop[NA];   /* atom proposal head on the state token */
+#endif
+#endif
 } Params;
 
 typedef struct { double x[2*D], u[D], n[D], z[D]; } CellCache;
@@ -189,6 +249,17 @@ typedef struct {
 
 typedef struct {
   int L, nlive, nreg;
+#if TYPED
+  int ttype[MAXL];      /* 0 state, 1 fact, 2 candidate, 3 obligation */
+  int tokatom[MAXL];    /* atom id for fact/oblig/candidate-head tokens, -1 state */
+  int nfact, nobl;
+  double aemb[MAXL][D]; /* atom-embedding input (for backward) */
+  double oblctx[D];     /* S2: mean obligation final-LN context */
+#if ASSERT
+  double prop[NA];      /* proposal logits over atoms */
+  double dprop[NA];     /* BCE gradient wrt logits (filled by the episode loss) */
+#endif
+#endif
   int msk[POOL];
   int sym[MAXL];         /* symbolic path condition per token (1 = admissible) */
   double h[MAXL][D];
@@ -243,6 +314,23 @@ static void init_params(Params *p, uint64_t seed){
       p->bout_r[b][r] = 0.0;
     }
   }
+#if TYPED
+  {
+    double se = 1.0/sqrt((double)D);
+    for (int i = 0; i < (PU+PB)*D; i++) p->Pemb[i] = xr()*se;
+    for (int i = 0; i < EREL*D; i++) p->Eemb[i] = xr()*se;
+    for (int i = 0; i < 3*D; i++) p->Remb[i] = xr()*se;
+    for (int i = 0; i < 4*D; i++) p->temb[i] = xr()*0.02;
+    for (int i = 0; i < NH*16; i++){ p->ascale[i] = 1.0; p->abias[i] = 0.0; }
+#if OBLREAD
+    for (int i = 0; i < D; i++) p->Wobl[i] = xr()*se;
+#endif
+#if ASSERT
+    for (int i = 0; i < NA*D; i++) p->Wprop[i] = xr()*se;
+    for (int i = 0; i < NA; i++) p->bprop[i] = 0;
+#endif
+  }
+#endif
 #if LOOPCELL
   /* cell initialisation is gated so non-cell builds keep the exact RNG stream */
   for (int i = 0; i < D; i++) p->z0[i] = xr()*0.02;
@@ -390,7 +478,7 @@ static long param_count(void){
    * trainable span is the whole struct (counting base+cell while skipping the
    * register gap silently froze wv and the tail of Wv/bv — dev probe caught it
    * via a flatlined prediction head; gradcheck must cover the same span). */
-  if (LOOPCELL) return (long)(sizeof(Params)/sizeof(double));
+  if (LOOPCELL || TYPED || ASSERT) return (long)(sizeof(Params)/sizeof(double));
   if (BRANCHTOK >= 2 || READMAX) return (long)(offsetof(Params, z0)/sizeof(double));
   return (long)(offsetof(Params, Rbias)/sizeof(double));
 }
@@ -399,6 +487,9 @@ static double *pv(Params *p){ return (double*)p; }
 
 /* shared-predicate role overlap, used by VAR_BIND as an attention bias value */
 static double pred_shared(const double *fa, const double *fb){
+#if RELATOM
+  (void)fa; (void)fb; return 0.0;   /* VAR_BIND layout is unary-specific */
+#else
   int ah = -1, bh = -1, ab[2] = {-1,-1}, bb[2] = {-1,-1};
   for (int p = 0; p < P; p++){
     if (fa[8+p] > 0.5) ah = p;
@@ -414,14 +505,52 @@ static double pred_shared(const double *fa, const double *fb){
   if ((ah >= 0 && (ah == bb[0] || ah == bb[1])) ||
       (bh >= 0 && (bh == ab[0] || bh == ab[1]))) return 2.0;
   return 0.0;
+#endif
 }
 
 /* ---- forward ---- */
-static void model_forward_z(const Params *p, const double *state,
-                            const double (*cf)[CAND_DIM], int nlive,
+#if TYPED
+/* atom embedding: predicate + entity/role identity (design item 2: "which
+ * entity fills which argument slot", replacing positional encoding) */
+static void atom_emb(const Params *p, int a, double *out){
+  int pr = atom_pred(a);
+  for (int d = 0; d < D; d++) out[d] = p->Pemb[pr*D+d];
+  if (a < PU*EREL){
+    int e = atom_e1(a);
+    for (int d = 0; d < D; d++) out[d] += p->Eemb[e*D+d] + p->Remb[0*D+d];
+  } else {
+    int e1 = atom_e1(a), e2 = atom_e2(a);
+    for (int d = 0; d < D; d++) out[d] += p->Eemb[e1*D+d] + p->Remb[1*D+d]
+                                       + p->Eemb[e2*D+d] + p->Remb[2*D+d];
+  }
+}
+static void atom_emb_bwd(Params *g, int a, const double *de){
+  int pr = atom_pred(a);
+  for (int d = 0; d < D; d++) g->Pemb[pr*D+d] += de[d];
+  if (a < PU*EREL){
+    int e = atom_e1(a);
+    for (int d = 0; d < D; d++){ g->Eemb[e*D+d] += de[d]; g->Remb[0*D+d] += de[d]; }
+  } else {
+    int e1 = atom_e1(a), e2 = atom_e2(a);
+    for (int d = 0; d < D; d++){
+      g->Eemb[e1*D+d] += de[d]; g->Remb[1*D+d] += de[d];
+      g->Eemb[e2*D+d] += de[d]; g->Remb[2*D+d] += de[d];
+    }
+  }
+}
+#endif
+static void model_forward_core(const Params *p, const double *state,
+                            const double (*cf)[CAND_DIM], int nlive, const int *live,
+                            const int *fatoms, int nfact, const int *oatoms, int nobl,
                             const double *z, Cache *c){
   c->nreg = NREG + ZTOK;
+#if TYPED
+  c->nfact = nfact; c->nobl = nobl;
+  c->L = c->nreg + nlive + nfact + nobl;
+#else
+  (void)fatoms; (void)nfact; (void)oatoms; (void)nobl; (void)live;
   c->L = c->nreg + nlive;
+#endif
   c->nlive = nlive;
   for (int j = 0; j < nlive; j++){
     c->msk[j] = (VAR_MASK && cf[j][6] < 0.5) ? 0 : 1;
@@ -471,9 +600,12 @@ static void model_forward_z(const Params *p, const double *state,
       double s = p->bs[i] + p->ts[i];
       for (int k = 0; k < STATE_DIM; k++) s += p->Ws[i*STATE_DIM+k]*state[k];
       c->h[b][i] = s + p->Rbias[REGSHUF ? 0 : (b - ZTOK)][i];
+#if TYPED
+      c->h[b][i] += p->temb[0*D+i];
+#endif
     }
   }
-  for (int j = 0; j < nlive; j++)
+  for (int j = 0; j < nlive; j++){
     for (int i = 0; i < D; i++){
       double s = p->bc[i] + p->tc[i];
       for (int k = 0; k < CAND_DIM; k++){
@@ -485,6 +617,41 @@ static void model_forward_z(const Params *p, const double *state,
       }
       c->h[c->nreg+j][i] = s;
     }
+#if TYPED
+    if (live){
+      double ae[D];
+      atom_emb(p, all_rules[live[j]].head, ae);
+      for (int i = 0; i < D; i++){
+        c->h[c->nreg+j][i] += ae[i] + p->temb[2*D+i];
+        c->aemb[c->nreg+j][i] = ae[i];
+      }
+      c->tokatom[c->nreg+j] = all_rules[live[j]].head;
+    }
+#endif
+  }
+#if TYPED
+  for (int i = 0; i < c->L; i++) c->ttype[i] = 2;
+  c->ttype[0] = 0;
+  for (int i = 0; i < c->nreg; i++) c->tokatom[i] = -1;
+  /* candidate tokatom was set in the embedding loop above when live != NULL;
+   * cover the diagnostics path (live == NULL) without resetting valid ids */
+  for (int j = 0; j < nlive; j++)
+    c->tokatom[c->nreg+j] = live ? all_rules[live[j]].head : -1;
+  for (int f = 0; f < nfact; f++){
+    int tok = c->nreg + nlive + f;
+    double ae[D];
+    atom_emb(p, fatoms[f], ae);
+    for (int d = 0; d < D; d++){ c->h[tok][d] = ae[d] + p->temb[1*D+d]; c->aemb[tok][d] = ae[d]; }
+    c->ttype[tok] = 1; c->tokatom[tok] = fatoms[f];
+  }
+  for (int o = 0; o < nobl; o++){
+    int tok = c->nreg + nlive + nfact + o;
+    double ae[D];
+    atom_emb(p, oatoms[o], ae);
+    for (int d = 0; d < D; d++){ c->h[tok][d] = ae[d] + p->temb[3*D+d]; c->aemb[tok][d] = ae[d]; }
+    c->ttype[tok] = 3; c->tokatom[tok] = oatoms[o];
+  }
+#endif
   for (int i = 0; i < c->L; i++)
     for (int j = 0; j < c->L; j++) c->bias[i][j] = 0;
   if (VAR_BIND)
@@ -516,6 +683,12 @@ static void model_forward_z(const Params *p, const double *state,
             for (int d = 0; d < DH; d++)
               s += lc->qkv[i][hh*DH+d]*lc->qkv[j][D+hh*DH+d];
             s *= scale;
+#if TYPED
+            {
+              int tp = c->ttype[i]*4 + c->ttype[j];
+              s = p->ascale[hh*16+tp]*s + p->abias[hh*16+tp];
+            }
+#endif
             if (VAR_BIND) s += p->gam[blk]*c->bias[i][j];
             sc[j] = s;
             if (s > mx) mx = s;
@@ -585,6 +758,24 @@ static void model_forward_z(const Params *p, const double *state,
     double xh[D], inv;
     layer_norm_fwd(c->h[i], p->gf, p->bef, c->lnf[i], xh, &inv);
   }
+#if ASSERT
+  for (int a = 0; a < NA; a++) c->dprop[a] = 0;
+  for (int a = 0; a < NA; a++){
+    double s = p->bprop[a];
+    for (int d = 0; d < D; d++) s += p->Wprop[a*D+d]*c->lnf[0][d];
+    c->prop[a] = s;
+  }
+#endif
+#if OBLREAD
+  for (int d = 0; d < D; d++) c->oblctx[d] = 0;
+  if (c->nobl > 0){
+    for (int o = 0; o < c->nobl; o++){
+      int tok = c->nreg + nlive + c->nfact + o;
+      for (int d = 0; d < D; d++) c->oblctx[d] += c->lnf[tok][d];
+    }
+    for (int d = 0; d < D; d++) c->oblctx[d] /= (double)c->nobl;
+  }
+#endif
   for (int j = 0; j < nlive; j++){
     for (int r = 0; r < NOUT; r++){
 #if READMAX
@@ -602,6 +793,10 @@ static void model_forward_z(const Params *p, const double *state,
 #else
       double s = p->bout[r];
       for (int d = 0; d < D; d++) s += p->Wout[r*D+d]*c->lnf[c->nreg+j][d];
+#if OBLREAD
+      if (r == 0)
+        for (int d = 0; d < D; d++) s += p->Wobl[d]*c->oblctx[d];
+#endif
       c->raw[j][r] = s;
 #endif
     }
@@ -612,6 +807,18 @@ static void model_forward_z(const Params *p, const double *state,
 #endif
     if (!c->msk[j]) c->score[j] = -1e30;
   }
+}
+static void model_forward_typed(const Params *p, const double *state,
+                                const double (*cf)[CAND_DIM], int nlive, const int *live,
+                                const int *fatoms, int nfact, const int *oatoms, int nobl,
+                                const double *z, Cache *c){
+  model_forward_core(p, state, cf, nlive, live, fatoms, nfact, oatoms, nobl, z, c);
+}
+static void model_forward_z(const Params *p, const double *state,
+                            const double (*cf)[CAND_DIM], int nlive,
+                            const double *z, Cache *c){
+  /* untyped context (diagnostics only under TYPED; policy paths use _typed) */
+  model_forward_core(p, state, cf, nlive, (const int*)0, (const int*)0, 0, (const int*)0, 0, z, c);
 }
 static void model_forward(const Params *p, const double *state,
                           const double (*cf)[CAND_DIM], int nlive, Cache *c){
@@ -681,6 +888,10 @@ static void model_backward_ds(Cache *c, const double *statev,
                               const double *ds){
   Params *g = g_g;
   static double dlnf[MAXL][D];
+#if OBLREAD
+  double doblctx[D];
+  for (int d = 0; d < D; d++) doblctx[d] = 0;
+#endif
   for (int i = 0; i < c->L; i++) for (int d = 0; d < D; d++) dlnf[i][d] = 0;
   for (int j = 0; j < nlive; j++){
     if (!c->msk[j] && ds[j] == 0.0) continue;
@@ -723,11 +934,38 @@ static void model_backward_ds(Cache *c, const double *statev,
         dlnf[c->nreg+j][d] += ds[j]*g_p->Wout[d];
       }
       g->bout[0] += ds[j];
+#if OBLREAD
+      for (int d = 0; d < D; d++){
+        g->Wobl[d] += ds[j]*c->oblctx[d];
+        doblctx[d] += ds[j]*g_p->Wobl[d];
+      }
+#endif
     }
 #endif
   }
+#if OBLREAD
+  if (c->nobl > 0)
+    for (int o = 0; o < c->nobl; o++){
+      int tok = c->nreg + nlive + c->nfact + o;
+      for (int d = 0; d < D; d++) dlnf[tok][d] += doblctx[d]/(double)c->nobl;
+    }
+#endif
+#if ASSERT
+  /* proposal-head backward: logits read lnf[0] (state token) */
+  for (int a = 0; a < NA; a++){
+    double dp = c->dprop[a];
+    if (dp == 0.0) continue;
+    g->bprop[a] += dp;
+    for (int d = 0; d < D; d++){
+      g->Wprop[a*D+d] += dp*c->lnf[0][d];
+      dlnf[0][d] += dp*g_p->Wprop[a*D+d];
+    }
+  }
+#endif
   for (int i = 0; i < c->L; i++) for (int d = 0; d < D; d++) g_dh[i][d] = 0;
-  for (int i = c->nreg; i < c->L; i++){
+  /* registers carry zero readout gradient unless ASSERT feeds the state token;
+   * starting at 0 adds exact +0 terms for them (byte-identical otherwise) */
+  for (int i = 0; i < c->L; i++){
     double xh[D], inv, dx[D];
     layer_norm_fwd(c->h[i], g_p->gf, g_p->bef, c->lnf[i], xh, &inv);
     for (int d = 0; d < D; d++) dx[d] = 0;
@@ -791,6 +1029,10 @@ static void model_backward_ds(Cache *c, const double *statev,
       }
       double scale = 1.0/sqrt((double)DH);
       double dgam = 0;
+#if TYPED
+      double dascale[NH*16], dabias[NH*16];
+      for (int i = 0; i < NH*16; i++){ dascale[i] = 0; dabias[i] = 0; }
+#endif
       for (int hh = 0; hh < NH; hh++){
         for (int i = 0; i < L; i++)
           for (int j = 0; j < L; j++) datt[i][j] = 0;
@@ -810,14 +1052,33 @@ static void model_backward_ds(Cache *c, const double *statev,
             double dsij = lc->att[hh][i][j]*(datt[i][j] - sdot);
             if (dsij == 0.0) continue;
             if (VAR_BIND) dgam += c->bias[i][j]*dsij;
+#if TYPED
+            {
+              int tp = c->ttype[i]*4 + c->ttype[j];
+              double dot = 0;
+              for (int d = 0; d < DH; d++)
+                dot += lc->qkv[i][hh*DH+d]*lc->qkv[j][D+hh*DH+d];
+              dascale[hh*16+tp] += dsij*dot*scale;
+              dabias[hh*16+tp] += dsij;
+              double gs = dsij*g_p->ascale[hh*16+tp];
+              for (int d = 0; d < DH; d++){
+                dqkv[i][hh*DH+d] += gs*scale*lc->qkv[j][D+hh*DH+d];
+                dqkv[j][D+hh*DH+d] += gs*scale*lc->qkv[i][hh*DH+d];
+              }
+            }
+#else
             for (int d = 0; d < DH; d++){
               dqkv[i][hh*DH+d] += dsij*scale*lc->qkv[j][D+hh*DH+d];
               dqkv[j][D+hh*DH+d] += dsij*scale*lc->qkv[i][hh*DH+d];
             }
+#endif
           }
         }
       }
       if (VAR_BIND) g->gam[blk] += dgam;
+#if TYPED
+      for (int i = 0; i < NH*16; i++){ g->ascale[i] += dascale[i]; g->abias[i] += dabias[i]; }
+#endif
       /* qkv projection + LN1 backward */
       for (int i = 0; i < L; i++){
         for (int r = 0; r < 3*D; r++){
@@ -848,8 +1109,19 @@ static void model_backward_ds(Cache *c, const double *statev,
       g->ts[d] += g_dh[b][d];
       for (int k = 0; k < STATE_DIM; k++) g->Ws[d*STATE_DIM+k] += g_dh[b][d]*statev[k];
       g->Rbias[REGSHUF ? 0 : (b - ZTOK)][d] += g_dh[b][d];
+#if TYPED
+      g->temb[0*D+d] += g_dh[b][d];
+#endif
     }
   }
+#if TYPED
+  /* fact/obligation tokens and the candidate atom-embedding path */
+  for (int tok = c->nreg; tok < c->L; tok++){
+    if (c->tokatom[tok] >= 0) atom_emb_bwd(g, c->tokatom[tok], g_dh[tok]);
+    int ty = c->ttype[tok];
+    for (int d = 0; d < D; d++) g->temb[ty*D+d] += g_dh[tok][d];
+  }
+#endif
   for (int j = 0; j < nlive; j++)
     for (int d = 0; d < D; d++){
       g->bc[d] += g_dh[c->nreg+j][d];

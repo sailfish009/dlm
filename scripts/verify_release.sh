@@ -69,6 +69,13 @@ echo "LAB-GATE simple loop: $(grep -c 'PASS$' /tmp/pst_s269_verify.log) checks, 
 grep -q '^V0269-LOOPCELL-PASS$' /tmp/pst_l269_verify.log || { echo L269-LAB-GATE-FAIL; exit 1; }
 echo "LAB-GATE loop cell: $(grep -c 'PASS' /tmp/pst_l269_verify.log) checks, V0269-LOOPCELL-PASS"
 
+# --- 0.0270 relational fixture + typed structure gate ------------------------
+( cd experiments/proof_state_transformer_maru && ./run_rel0270.sh > /tmp/pst_rel270_run.log 2>&1 \
+    && SEEDS=5 ./verify_rel0270.sh > /tmp/pst_rel270_verify.log 2>&1 ) \
+  || { echo REL270-LAB-GATE-FAIL; tail -n 20 /tmp/pst_rel270_run.log /tmp/pst_rel270_verify.log; exit 1; }
+grep -q '^V0270-RELATIONAL-PASS$' /tmp/pst_rel270_verify.log || { echo REL270-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE relational typed: $(grep -c 'PASS' /tmp/pst_rel270_verify.log) checks, V0270-RELATIONAL-PASS"
+
 # --- 0.0268 corrected recombination gate ------------------------------------
 ( cd experiments/proof_state_transformer_maru && ./run_recomb0268.sh > /tmp/pst_r268_run.log 2>&1 \
     && SEEDS=5 ./verify_recomb0268.sh > /tmp/pst_r268_verify.log 2>&1 ) \

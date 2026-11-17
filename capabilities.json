@@ -1,5 +1,5 @@
 {
-  "version": "0.0269",
+  "version": "0.0270",
   "note": "Minimal-core capability ledger. Research snapshots are separate; the native scope is docs/native-scope-0243.md.",
   "removed_in_0_0205": [
     "d107 contract layer (d107-*.l, contract/unit/surface/plan/session modules)",
@@ -449,6 +449,21 @@
       "status": "experimental",
       "witness": "experiments/proof_state_transformer_maru/verify_loop0269.sh",
       "note": "recurrent proof-step cell (GRU latent over commits, episode BPTT, gradcheck 2.6e-9 incl. cell liveness): policy gain NULL at 5 seeds (D_cell-D +1.4pp ns; D_cell-D_detach +0.2pp ns; corrupted-history D_shuf beats D_cell by 1.9pp at 2SE). World-model aux loss trains (train mse 14.3->0.43) but val targets near-constant. Budget-4 gap is search width (branch 8 = 98.8% of ceiling), not model structure."
+    },
+    "relational_fixture": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_rel0270.sh",
+      "note": "ground binary atoms (3 entities, 3 unary + 3 binary preds, 36 atoms), join schema B(r2,e1,e3)<-B(r0,e1,e2),B(r1,e2,e3); independent Python oracle parity (rules/features/utility/witness/DP labels); depth-4 alias census: ~40% of states mix optimal/non-optimal candidates under identical entity-blind feature rows"
+    },
+    "typed_attention_structure": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_rel0270.sh",
+      "note": "S1 typed tokens (fact/candidate/obligation) + typed-pair attention + entity/role embeddings; S2 obligation-conditional readout; controls S0e (numeric entity features) and S1shuf (fact-identity derangement); gradcheck 26,660/26,692 params rel 1.5e-10 with typed-liveness gate; results in docs/release-0270.md; 15-seed: S1-S0 -0.27pp ns (typed attention null), S0_focus-S0 +5.29pp significant at 98.8% of ceiling with 54% nodes"
+    },
+    "assert_invention_kernel_gate": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_rel0270.sh",
+      "note": "proposal head invents intermediate atoms; kernel decides adoption (unknown, goal-relevant, reachable, AND-OR depth <= rem); adoption learnable 17%->65% (chance 7%) but hard subgoal focus HURTS policy (-15.7pp at 15 seeds, learned==random), soft union neutral (+0.2pp ns); obligation focus alone remains the working principle"
     }
   }
 }

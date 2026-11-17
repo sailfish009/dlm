@@ -1,0 +1,12 @@
+ARM S0      greedy=0.2397 beam=0.3504 dfs=0.7438 dfs_full=0.7420 nodes=6474 cands=28114 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=0 focus_removed=0 pair_uses=0 pair_viol=0 n=5
+ARM S0e     greedy=0.2314 beam=0.3239 dfs=0.7438 dfs_full=0.7340 nodes=6639 cands=28840 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=0 focus_removed=0 pair_uses=0 pair_viol=0 n=5
+ARM S1      greedy=0.1835 beam=0.2843 dfs=0.7620 dfs_full=0.7600 nodes=7237 cands=31452 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=0 focus_removed=0 pair_uses=0 pair_viol=0 n=5
+ARM S2      greedy=0.2050 beam=0.3124 dfs=0.7537 dfs_full=0.7400 nodes=6048 cands=26228 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=0 focus_removed=0 pair_uses=0 pair_viol=0 n=5
+ARM S1shuf  greedy=0.2000 beam=0.2876 dfs=0.7504 dfs_full=0.7440 nodes=7209 cands=31325 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=0 focus_removed=0 pair_uses=0 pair_viol=0 n=5
+ARM S0_focus greedy=0.4165 beam=0.5141 dfs=0.8050 dfs_full=0.7980 nodes=3514 cands=4819 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=9949 focus_removed=161498 pair_uses=0 pair_viol=0 n=5
+ARM S1_focus greedy=0.4297 beam=0.4992 dfs=0.8033 dfs_full=0.7960 nodes=3659 cands=5030 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=9980 focus_removed=161959 pair_uses=0 pair_viol=0 n=5
+CEILING DFS seed=71 variant=base d=4 b=4 branch=24 subsume=1 prop=1 goal=0.8182 full=0.8000 nodes=42558 cands=42458 leafs=12684 pruned=27943
+CEILING DFS seed=72 variant=base d=4 b=4 branch=24 subsume=1 prop=1 goal=0.8182 full=0.8000 nodes=39245 cands=39145 leafs=10143 pruned=27327
+CEILING DFS seed=73 variant=base d=4 b=4 branch=24 subsume=1 prop=1 goal=0.8182 full=0.8000 nodes=39078 cands=38978 leafs=10332 pruned=26978
+CEILING DFS seed=74 variant=base d=4 b=4 branch=24 subsume=1 prop=1 goal=0.8182 full=0.8000 nodes=38563 cands=38463 leafs=10017 pruned=26802
+CEILING DFS seed=75 variant=base d=4 b=4 branch=24 subsume=1 prop=1 goal=0.8182 full=0.8000 nodes=39721 cands=39621 leafs=10353 pruned=27571

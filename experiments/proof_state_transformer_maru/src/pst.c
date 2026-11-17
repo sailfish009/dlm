@@ -54,6 +54,21 @@
 #ifndef REMFEAT
 #define REMFEAT 0                /* 0.0269: remaining-budget slot in the state features */
 #endif
+#ifndef ENTFEAT
+#define ENTFEAT 0                /* 0.0270 S0e control: absolute entity/role one-hots in
+                                  * candidate features (binding info WITHOUT typed tokens) */
+#endif
+#ifndef TYPEDSHUF
+#define TYPEDSHUF 0              /* 0.0270 S1shuf control: fact-token atom identities passed
+                                  * through a fixed derangement (content destroyed, counts and
+                                  * type structure preserved; candidates/goals stay true) */
+#endif
+#if ENTFEAT && !RELATOM
+#error "ENTFEAT requires RELATOM"
+#endif
+#if TYPEDSHUF && !TYPED
+#error "TYPEDSHUF requires TYPED"
+#endif
 #define BIND_FEAT (NSLOT*WENT + WENT)   /* body slot x entity support + head-atom known */
 #define ID_BLOCK_LO 8                 /* candidate predicate-id one-hot block: head + body slots */
 #define ID_BLOCK_HI (8 + P + NSLOT*P) /* = 26 */
@@ -79,13 +94,66 @@ static int g_holdout_mask = 0; /* predicate-held-out bitmask: train/val exclude,
 #define POOL 24                  /* candidate rules per world */
 #define NSTEPS 4
 #define GOAL_COUNT 3
-#define NRULES_ALL 90            /* 30 unary + 60 binary */
+/* 0.0270 relational fixture: ground binary atoms, binding-sensitive goals.
+ * The kernel stays propositional (small trusted checker); bindings live in the
+ * ground rule instances. Facts are stored in the same WENT=6 bytes (48 bits >=
+ * NA=36 atoms) so every FactSet signature in the lab is unchanged. */
+#ifndef RELATOM
+#define RELATOM 0
+#endif
+#if RELATOM && (CERT || BINDTOK || LIFTED || INTEGRAL || SYMGATE)
+#error "RELATOM 0.0270 supports the S0/S1 core only: CERT/BINDTOK/LIFTED/INTEGRAL/SYMGATE ports are follow-ups"
+#endif
+#if RELATOM
+#define EREL 3
+#define PU 3
+#define PB 3
+#define NA (PU*EREL + PB*EREL*EREL)      /* 36 atoms: unary p*E+e, binary 9+r*9+e1*E+e2 */
+#define BINMASK 0xFFFFFFFFE00ULL       /* bits 9..35 */
+#if !HARD_GOALS
+#error "RELATOM requires HARD_GOALS=1"
+#endif
+static uint64_t fs_load(const uint8_t f[WENT]){
+  uint64_t m = 0; for (int i = 0; i < WENT; i++) m |= (uint64_t)f[i] << (8*i); return m;
+}
+static void fs_store(uint64_t m, uint8_t f[WENT]){
+  for (int i = 0; i < WENT; i++) f[i] = (uint8_t)(m >> (8*i));
+}
+static int atom_pred(int id){ return id < PU*EREL ? id/EREL : (id-PU*EREL)/(EREL*EREL); }
+static int atom_e1(int id){ return id < PU*EREL ? id%EREL : ((id-PU*EREL)%(EREL*EREL))/EREL; }
+static int atom_e2(int id){ return id < PU*EREL ? id%EREL : (id-PU*EREL)%EREL; }
+#define GOAL_ATOM(w,g) (PU*EREL + (w)->goal_pred[g]*(EREL*EREL) + (w)->goal_ent[g])
+#define GOAL_KNOWN(w,g,fs) ((fs_load(fs) >> GOAL_ATOM(w,g)) & 1ULL)
+#define ATOM_KNOWN(fs,id) ((fs_load(fs) >> (id)) & 1ULL)
+#define GPRED PB
+#define GENT (EREL*EREL)
+#define HP PB
+#else
+#define GOAL_KNOWN(w,g,fs) ((fs)[(w)->goal_ent[g]] & (uint8_t)(1u << (w)->goal_pred[g]))
+#define GPRED P
+#define GENT WENT
+#define HP P
+#endif
+#if RELATOM
+#define NRULES_ALL 63            /* 18 unary chains + 27 compositions + 18 bridges */
+#else
+#define NRULES_ALL 90            /* 30 unary + 60 two-body */
+#endif
+#if RELATOM
+#define CAND_BASE (8 + PB + NSLOT*PB)   /* 17: head + 2 body predicate one-hots (PB=3) */
+#else
 #define CAND_BASE (8 + P + NSLOT*P)     /* 26 */
+#endif
 #define STATE_BASE 8
-#define GOAL_FEAT (P + WENT)            /* per goal: predicate one-hot + entity-slot one-hot */
+#define GOAL_FEAT (GPRED + GENT)        /* per goal: predicate one-hot + binding one-hot */
 #define CAND_GOAL_FEAT 4                /* head match, head known, body supported, would derive */
 #define PATH_OFF (CAND_BASE + (RELOB ? GOAL_COUNT*CAND_GOAL_FEAT : 0) + (BINDTOK ? BIND_FEAT : 0))
+#define ENT_OFF (PATH_OFF + (INTEGRAL ? 3 : 0))
+#if RELATOM
+#define CAND_DIM (ENT_OFF + (ENTFEAT ? 6*EREL : 0))   /* head e1/e2 + 2 body slots e1/e2 */
+#else
 #define CAND_DIM (PATH_OFF + (INTEGRAL ? 3 : 0))
+#endif
 #define STATE_DIM (STATE_BASE + (RELOB ? GOAL_COUNT*GOAL_FEAT : 0) + (REMFEAT ? 1 : 0))
 #define MAXLIVE POOL
 
@@ -117,6 +185,7 @@ typedef struct {
 static Rule all_rules[NRULES_ALL];
 static double g_rule_prior[NRULES_ALL]; /* per-rule mean train utility (INTEGRAL prior feature) */
 
+#if !RELATOM
 static void build_all_rules(void){
   /* Order must match the reference ALL_RULES (m1_proof_state/world.py):
    * per head predicate, the unary rules first, then the binary rules. */
@@ -133,6 +202,7 @@ static void build_all_rules(void){
   }
   if (k != NRULES_ALL){ fprintf(stderr, "rule table %d\n", k); exit(2); }
 }
+#endif
 
 /* ---------------- deterministic integer PRNG (xorshift64*) ---------------- */
 static uint64_t rng_state;
@@ -147,6 +217,7 @@ static int chance_pct(int pct){ return randbelow(100) < pct; }
 static uint64_t mix64(uint64_t x){ x ^= x>>12; x ^= x<<25; x ^= x>>27; return x*2685821657736338717ULL; }
 
 /* ---------------- closure over 6-bit masks ---------------- */
+#if !RELATOM
 static void closure(const uint8_t facts[WENT], const int *rules, int nrules, uint8_t out[WENT]){
   for (int e = 0; e < WENT; e++) out[e] = facts[e];
   int changed = 1;
@@ -162,11 +233,13 @@ static void closure(const uint8_t facts[WENT], const int *rules, int nrules, uin
     }
   }
 }
+#endif
 static int popcount6(uint8_t x){ return __builtin_popcount((unsigned)x); }
 
 static double rule_cost(const Rule *r){ return 0.5 + 0.75 * (double)r->blen; }
 
 /* utility = 5*new_goals + 0.15*new_atoms - cost */
+#if !RELATOM
 static double utility(const World *w, const int *rules, int nrules, int cand){
   uint8_t before[WENT], after[WENT];
   closure(w->facts, rules, nrules, before);
@@ -185,8 +258,10 @@ static double utility(const World *w, const int *rules, int nrules, int cand){
   for (int e = 0; e < WENT; e++) new_atoms += popcount6((uint8_t)(after[e] & ~before[e]));
   return 5.0*goal_new + 0.15*(double)new_atoms - rule_cost(&all_rules[cand]);
 }
+#endif
 
 /* ---------------- features (M1 formulas) ---------------- */
+#if !RELATOM
 static int support(const Rule *r, const uint8_t known[WENT]){
   uint8_t bm = 0;
   for (int s = 0; s < r->blen; s++) bm |= (uint8_t)(1u << r->body[s]);
@@ -194,6 +269,7 @@ static int support(const Rule *r, const uint8_t known[WENT]){
   for (int e = 0; e < WENT; e++) if ((known[e] & bm) == bm) c++;
   return c;
 }
+#endif
 
 /* ---- path-integral retention state (INTEGRAL) -----------------------------
  * A_t(r) = sum_{tau<=t} gamma^{t-tau} support_tau(r), accumulated over the
@@ -256,6 +332,7 @@ static int holdout_ok(const World *w, int split){
   return (split == 2) ? all : !any;
 }
 
+#if !RELATOM
 static void state_features(const World *w, const int *rules, int nrules,
                            const int *live, int nlive, double out[STATE_DIM], int rem){
   uint8_t known[WENT];
@@ -298,7 +375,9 @@ static void state_features(const World *w, const int *rules, int nrules,
   out[STATE_DIM-1] = (double)rem / (double)MAXBUDGET;
 #endif
 }
+#endif
 
+#if !RELATOM
 static void cand_features(const World *w, const int *rules, int nrules,
                           int cand, double out[CAND_DIM]){
   uint8_t known[WENT];
@@ -380,6 +459,10 @@ static void cand_features(const World *w, const int *rules, int nrules,
    * or fill_prior_features (eval), AFTER the prior is computed from train. */
 #endif
 }
+#endif
+#if RELATOM
+#include "rel_stage.inc"
+#endif
 
 /* ---------------- world + rollout generation ---------------- */
 static void sample_ents(int split, int ents[WENT]){
@@ -412,6 +495,23 @@ static int make_world(World *w, int split, int idx){
   /* R250-2: world structure comes from a stream seeded ONLY by (split, idx), so
    * facts/seed-rules/candidates are identical at every goal depth. */
   rng_state = mix64((uint64_t)(split*7919u + (uint64_t)idx*104729u) ^ 0x5DEECE66DULL) | 1ULL;
+#if RELATOM
+  for (int e = 0; e < WENT; e++) w->ents[e] = e;
+  {
+    uint64_t fm = 0;
+    for (int p = 0; p < PU; p++)
+      for (int e = 0; e < EREL; e++) if (chance_pct(30)) fm |= 1ULL << (p*EREL+e);
+    for (int p = 0; p < PU; p++) fm |= 1ULL << (p*EREL + randbelow(EREL));
+    for (int r = 0; r < PB; r++)
+      for (int e1 = 0; e1 < EREL; e1++)
+        for (int e2 = 0; e2 < EREL; e2++)
+          if (chance_pct(16)) fm |= 1ULL << (PU*EREL + r*EREL*EREL + e1*EREL+e2);
+    /* guarantee at least one r0 and one r1 atom so joins are possible */
+    fm |= 1ULL << (PU*EREL + 0*EREL*EREL + randbelow(EREL)*EREL + randbelow(EREL));
+    fm |= 1ULL << (PU*EREL + 1*EREL*EREL + randbelow(EREL)*EREL + randbelow(EREL));
+    fs_store(fm, w->facts);
+  }
+#else
   sample_ents(split, w->ents);
   for (int e = 0; e < WENT; e++){
     uint8_t m = 0;
@@ -420,6 +520,7 @@ static int make_world(World *w, int split, int idx){
   }
   for (int p = 0; p < P; p++)
     w->facts[randbelow(WENT)] |= (uint8_t)(1u << p);
+#endif
 
   int order[NRULES_ALL];
   for (int i = 0; i < NRULES_ALL; i++) order[i] = i;
@@ -430,7 +531,28 @@ static int make_world(World *w, int split, int idx){
   uint8_t base[WENT];
   closure(w->facts, w->theory, SEED_RULES, base);
 
-#if HARD_GOALS
+#if RELATOM
+  /* relational depth pool: binary atoms derivable with ALL candidates but not
+   * with any subset of size <= depth-1 (same construction as HARD_GOALS, over
+   * the atom mask). Per-goal witness = membership in k1; reachability audited
+   * independently by tools/check_parity_rel.py. */
+  int gp[POOL*WENT], ge[POOL*WENT], ng = 0;
+  {
+    int depth = (g_goaldepth > 0) ? g_goaldepth : 2;
+    int all[SEED_RULES+POOL];
+    for (int t = 0; t < SEED_RULES; t++) all[t] = w->theory[t];
+    for (int i = 0; i < POOL; i++) all[SEED_RULES+i] = w->cands[i];
+    uint8_t k1[WENT];
+    closure(w->facts, all, SEED_RULES+POOL, k1);
+    uint64_t pool = (fs_load(k1) & ~rel_union_upto(w, base, depth-1)) & BINMASK;
+    for (int id = PU*EREL; id < NA; id++)
+      if ((pool >> id) & 1ULL){
+        gp[ng] = (id-PU*EREL)/(EREL*EREL);
+        ge[ng] = (id-PU*EREL)%(EREL*EREL);
+        ng++;
+      }
+  }
+#elif HARD_GOALS
   /* depth-parameterised goal pool: goals = closure(seed + all) \ union over
    * candidate subsets of size <= k-1 of closure(seed + subset), i.e. goals that
    * need at least k candidate steps. k=2 is the 0.0245 hard fixture. */
@@ -485,6 +607,24 @@ static int make_world(World *w, int split, int idx){
 #endif
   if (ng == 0 && g_goal_scan) return 0;   /* scan mode: try the next structure */
   if (ng == 0){
+#if RELATOM
+    int want = (g_goaldepth > 0) ? g_goaldepth : 2;
+    int all2[SEED_RULES+POOL];
+    for (int t = 0; t < SEED_RULES; t++) all2[t] = w->theory[t];
+    for (int i2 = 0; i2 < POOL; i2++) all2[SEED_RULES+i2] = w->cands[i2];
+    uint8_t kk[WENT];
+    closure(w->facts, all2, SEED_RULES+POOL, kk);
+    for (int d2 = want - 1; d2 >= 1 && ng == 0; d2--){
+      uint64_t pool = (fs_load(kk) & ~rel_union_upto(w, base, d2-1)) & BINMASK;
+      for (int id = PU*EREL; id < NA; id++)
+        if ((pool >> id) & 1ULL){
+          gp[ng] = (id-PU*EREL)/(EREL*EREL);
+          ge[ng] = (id-PU*EREL)%(EREL*EREL);
+          ng++;
+        }
+      if (ng > 0){ g_goal_fallback = 1; g_goal_depth_used = d2; }
+    }
+#else
     /* fallback: shallowest non-empty pool <= requested depth (recorded) */
     int want = (g_goaldepth > 0) ? g_goaldepth : 2;
     for (int d2 = want - 1; d2 >= 1 && ng == 0; d2--){
@@ -517,6 +657,7 @@ static int make_world(World *w, int split, int idx){
         }
       if (ng > 0){ g_goal_fallback = 1; g_goal_depth_used = d2; }
     }
+#endif
   }
   if (ng == 0) return 0;   /* no pool even at depth 1: reject the world (rare) */
   /* shuffle goal list with a LOCAL stream seeded by (split, idx, depth) */
@@ -657,6 +798,26 @@ static void alloc_globals(void){
 
 int main(int argc, char **argv){
   build_all_rules();
+  for (int i = 1; i < argc; i++)
+    if (!strcmp(argv[i], "--dump-rules") && i+1 < argc){
+      FILE *f = fopen(argv[i+1], "w");
+      if (!f){ fprintf(stderr, "cannot open %s\n", argv[i+1]); exit(2); }
+#if RELATOM
+      fprintf(f, "RELATOM 1 NA %d E %d PU %d PB %d NRULES %d POOL %d SEED_RULES %d GOAL_COUNT %d\n",
+              NA, EREL, PU, PB, NRULES_ALL, POOL, SEED_RULES, GOAL_COUNT);
+#else
+      fprintf(f, "RELATOM 0 NRULES %d POOL %d SEED_RULES %d GOAL_COUNT %d WENT %d P %d\n",
+              NRULES_ALL, POOL, SEED_RULES, GOAL_COUNT, WENT, P);
+#endif
+      for (int k = 0; k < NRULES_ALL; k++){
+        const Rule *r = &all_rules[k];
+        fprintf(f, "R %d %d %d %d %d\n", k, r->head,
+                r->blen > 0 ? r->body[0] : -1, r->blen > 1 ? r->body[1] : -1, r->blen);
+      }
+      fclose(f);
+      printf("DUMP-RULES %d rules -> %s\n", NRULES_ALL, argv[i+1]);
+      return 0;
+    }
   const char *mode = "train";
   const char *dump = NULL;
   uint64_t seed = 11;
@@ -713,6 +874,7 @@ int main(int argc, char **argv){
     else if (!strcmp(argv[i], "--dump-forward") && i+1 < argc){ mode = "dumph"; dump = argv[++i]; }
     else if (!strcmp(argv[i], "--case") && i+1 < argc) nworlds = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--gradcheck")) mode = "gradcheck";
+    else if (!strcmp(argv[i], "--dump-dp") && i+1 < argc){ mode = "dumpdp"; dump = argv[++i]; }
     else if (!strcmp(argv[i], "--path-check")) mode = "pathcheck";
     else if (!strcmp(argv[i], "--train")) mode = "train";
   }
@@ -741,7 +903,7 @@ int main(int argc, char **argv){
     export_maru(dump, (int)seed, epochs, nworlds);
     return 0;
   }
-  if (dump && (!mode || strcmp(mode, "export"))){
+  if (dump && (!mode || strcmp(mode, "export")) && strcmp(mode, "dumpdp")){
     FILE *f = fopen(dump, "w");
     if (!f){ fprintf(stderr, "cannot open %s\n", dump); return 2; }
     long total = 0, st = 0;
@@ -772,6 +934,31 @@ int main(int argc, char **argv){
   if (!strcmp(mode, "dsstats")){
     build_dataset();
     dataset_stats();
+    return 0;
+  }
+  if (!strcmp(mode, "dumpdp")){
+    build_dataset();
+    rule_prior_from_train();
+    FILE *f = fopen(dump, "w");
+    if (!f){ fprintf(stderr, "cannot open %s\n", dump); exit(2); }
+    for (int i = 0; i < g_nw[0]; i++){
+      const WSteps *ws = &g_data[0][i];
+      const World *w = &ws->w;
+      fprintf(f, "W %d %d %d\n", w->split, w->idx, w->ngoals);
+      fprintf(f, "F"); for (int e = 0; e < WENT; e++) fprintf(f, " %d", (int)w->facts[e]); fprintf(f, "\n");
+      fprintf(f, "T"); for (int t = 0; t < SEED_RULES; t++) fprintf(f, " %d", w->theory[t]); fprintf(f, "\n");
+      fprintf(f, "C"); for (int c = 0; c < POOL; c++) fprintf(f, " %d", w->cands[c]); fprintf(f, "\n");
+      fprintf(f, "G"); for (int g = 0; g < w->ngoals; g++) fprintf(f, " %d:%d", w->goal_pred[g], w->goal_ent[g]); fprintf(f, "\n");
+      for (int st = 0; st < ws->nsteps; st++){
+        const RStep *rs = &ws->st[st];
+        fprintf(f, "S %d %d %d", st, rs->nlive, rs->best);
+        for (int k = 0; k < rs->nlive; k++) fprintf(f, " %d", rs->live[k]);
+        fprintf(f, "\n");
+        fprintf(f, "L"); for (int k = 0; k < rs->nlive; k++) fprintf(f, " %.6f", rs->util[k]); fprintf(f, "\n");
+      }
+    }
+    fclose(f);
+    printf("DUMP-DP worlds=%d -> %s\n", (int)g_nw[0], dump);
     return 0;
   }
   if (!strcmp(mode, "gradcheck")){
