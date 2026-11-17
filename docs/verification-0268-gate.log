@@ -1,0 +1,29 @@
+== 1. gradient check, ten configurations
+RECOMB-GRADCHECK-PASS
+== 2. F1: labels and weights independent of the evaluation budget (behavioural)
+LABEL-INDEPENDENT-PASS (pchk=8943.499165, mean_top=12.57top_share=0.559 at both budgets)
+== 3. F2: label flags in the weight header
+HEADER-LABELFLAGS-PASS (ncost and label_rem cross-loads refused)
+== 4. budget ladder + guard exit code (F6)
+  budget 4: 310 ms
+  budget 5: 334 ms
+  budget 6: 335 ms
+BUDGET-LADDER-PASS; BUDGET-GUARD-PASS (exit 2)
+== 5. F3: per-seed ceiling recomputed from artefacts
+CEILING-PASS per-seed ceilings [0.9286, 0.9365, 0.9365, 0.9365, 0.9444] mean=0.9365; D=0.8825 = 94.2% of mean, below every seed ceiling
+== 6. claims, incl. the node-matched control
+HYBRID-CONTRAST B_pair16-A_nocost goal mean=+0.1238 se1=0.0132 2se=0.0264 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST A_b5-A_nocost goal mean=+0.1032 se1=0.0165 2se=0.0329 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST D_pair16_b5-A_b5 goal mean=+0.0952 se1=0.0107 2se=0.0213 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST E_pair16_e6-A_b6 goal mean=+0.0063 se1=0.0030 2se=0.0059 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST C_pair64-B_pair16 goal mean=+0.0000 se1=0.0000 2se=0.0000 n=5 INCONCLUSIVE(2SE)
+CLAIMS-PASS contracts at matched nodes, branch width, budget dependence all as stated
+CLAIMS-NODEMATCH D=7236 <= A_b5=7331 (contract gain is node-matched)
+== documentation hygiene
+DOC-PASS 1 release notes: prose only, tokens in context (fenced commands allowed)
+== 7. aggregation + mutation regression
+HYBRID-TABLE-PASS table equals per-seed recomputation (all arms, 5 seeds)
+GATE-REGRESSION-PASS 10 mutations rejected, baseline accepted
+== 8. LLVM identity + sanitizers (best arm)
+LLVM-PASS
+V0268-RECOMB-PASS

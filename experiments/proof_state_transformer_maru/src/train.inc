@@ -16,6 +16,7 @@ typedef struct {
   int attmode, symgate, cert, focus, lemma;   /* 0260 hybrid-layer tag */
   int pairmode, pair_keep;                   /* 0261 contract proposer */
   int valmode;                               /* 0262 value label */
+  int label_ncost, label_steps, label_rem;   /* 0268 label definition */
   int branchtok, readmax, regshuf;           /* 0263 multi-register structure */
   int md, mnl, phaseuntie;                   /* 0264 capacity */
   double lift_rho, path_gamma;
@@ -70,7 +71,10 @@ static int g_pair_uses = 0, g_pair_viol = 0;   /* applied / kernel-mismatch */
 static double g_pairw[PAIRF];
 static int g_pair_learned = 0;
 static int g_valmode = VALMODE;   /* 0 utility, 1 DP value, 2 shuffled DP (control) */
-static long g_dp_states = 0, g_dp_masks = 0, g_onpath_cands = 0, g_onpath_states = 0, g_onpath_distinct = 0;
+static int g_label_rem_max = 4;   /* 0.0267: labels are defined at budget 4 regardless of
+                                    * the search budget; --eval-budget 6 must not change the
+                                    * label dataset (it made build_dataset exponential) */
+static long g_dp_store_fail = 0, g_dp_states = 0, g_dp_masks = 0, g_onpath_cands = 0, g_onpath_states = 0, g_onpath_distinct = 0;
 static long g_lab_states[3], g_lab_top[3], g_lab_nlive[3];
 static int g_lab_split = 0;
 static int g_cert_on = CERT;           /* independent certificate check on the DFS proof */
@@ -98,7 +102,8 @@ static void pair_learn(void);
  * verify_value.sh compares it against an independent brute-force enumeration.
  * VALMODE=2 keeps the same label multiset with the correspondence to candidates
  * destroyed, so any gain from VALMODE=1 can be attributed to the labels. */
-#define DPMEMO 32768
+#define DPMEMO (1<<20)    /* 0.0267: C(22,<=6)=110,056 keys; 32k overflowed at eval budget 6 */
+#define DPPROBE 256
 typedef struct { uint32_t mask; int8_t rem; int8_t used; int val; int8_t steps; } DpCell;
 static DpCell g_dp[DPMEMO];
 
@@ -126,7 +131,7 @@ static int dp_value_s(const World *w, uint32_t mask, int rem);  /* returns steps
 
 static int dp_lookup(uint32_t mask, int rem, int *val, int *steps){
   uint32_t h = dp_hash(mask, rem);
-  for (int i = 0; i < 64; i++){
+  for (int i = 0; i < DPPROBE; i++){
     DpCell *e = &g_dp[(h+i) & (DPMEMO-1)];
     if (!e->used) return 0;
     if (e->mask == mask && e->rem == rem){ *val = e->val; if (steps) *steps = e->steps; return 1; }
@@ -136,12 +141,13 @@ static int dp_lookup(uint32_t mask, int rem, int *val, int *steps){
 static void dp_store(uint32_t mask, int rem, int val){
   /* steps are stored by dp_store2 below when needed */
   uint32_t h = dp_hash(mask, rem);
-  for (int i = 0; i < 64; i++){
+  for (int i = 0; i < DPPROBE; i++){
     DpCell *e = &g_dp[(h+i) & (DPMEMO-1)];
     if (!e->used || (e->mask == mask && e->rem == rem)){
       e->used = 1; e->mask = mask; e->rem = (int8_t)rem; e->val = val; return;
     }
   }
+  g_dp_store_fail++;   /* table full: the recursion would recompute exponentially */
 }
 
 static int dp_value(const World *w, uint32_t mask, int rem){
@@ -181,7 +187,7 @@ static int dp_value_sx(const World *w, uint32_t mask, int rem, int *steps){
   }
   /* store both fields */
   uint32_t h = dp_hash(mask, rem);
-  for (int i = 0; i < 64; i++){
+  for (int i = 0; i < DPPROBE; i++){
     DpCell *e = &g_dp[(h+i) & (DPMEMO-1)];
     if (!e->used || (e->mask == mask && e->rem == rem)){
       e->used = 1; e->mask = mask; e->rem = (int8_t)rem; e->val = best; e->steps = (int8_t)bstep; break;
@@ -335,8 +341,14 @@ static void build_dataset(void){
           rs->util[k] = utility(&ws->w, rules, nrules, live[k]);
           if (rs->util[k] > rs->util[best]) best = k;
         }
-        if (g_valmode != 0)
-          dp_labels(&ws->w, rules, nrules, live, nlive, g_eval_budget - st, rs->util);
+        if (g_valmode != 0){
+          /* 0.0268 (review F1): the label budget is a function of the STEP only.
+           * Using min(eval_budget - st, 4) still coupled the training labels to
+           * the evaluation budget for every non-root state. */
+          int rem = g_label_rem_max - st;
+          if (rem < 0) rem = 0;
+          dp_labels(&ws->w, rules, nrules, live, nlive, rem, rs->util);
+        }
         for (int k = 0; k < nlive; k++)
           if (rs->util[k] > rs->util[best]) best = k;
         fill_path_features(&ws->w, rules, nrules, live, nlive, rs->cf);
@@ -367,6 +379,9 @@ static void build_dataset(void){
 
 static void onpath_report(void){
   if (g_valmode == 0) return;
+  printf("LABELMEMO cells=%ld store_fail=%ld probe=%d cap=%d label_rem_max=%d\n",
+         g_dp_masks, g_dp_store_fail, DPPROBE, DPMEMO, g_label_rem_max);
+  if (g_dp_store_fail) printf("LABELMEMO-WARN table overflow: labels stay correct but the DP recomputes without memo\n");
   /* one line per split: this is the label the weights are trained on (review N1) */
   for (int s = 0; s < 3; s++){
     if (!g_lab_states[s]) continue;
@@ -1800,15 +1815,23 @@ static void run_variant(int seeds, int epochs, int verbose){
           h.focus != FOCUS || h.lemma != LEMMA ||
           h.pairmode != PAIRMODE || h.pair_keep != g_pair_keep || h.valmode != VALMODE ||
           h.branchtok != BRANCHTOK || h.readmax != READMAX || h.regshuf != REGSHUF ||
+          h.label_ncost != LABEL_NCOST || h.label_steps != LABEL_STEPS || h.label_rem != g_label_rem_max ||
           h.md != D || h.mnl != NL || h.phaseuntie != PHASEUNTIE){
-        fprintf(stderr, "WEIGHTS-MISMATCH %s: header dims %d/%d variant %d hard %d relob %d bindtok %d "
-                "integral %d lifted %d holdout %d attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d, "
-                "binary dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d branchtok %d readmax %d regshuf %d md %d nl %d untie %d\n",
-                g_load_weights, h.state_dim, h.cand_dim, h.variant, h.hard, h.relob, h.bindtok,
+        fprintf(stderr, "WEIGHTS-MISMATCH %s\n", g_load_weights);
+        fprintf(stderr, "  weights: dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d "
+                        "attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d "
+                        "ncost %d steps %d label_rem %d branchtok %d readmax %d regshuf %d md %d nl %d untie %d\n",
+                h.state_dim, h.cand_dim, h.variant, h.hard, h.relob, h.bindtok,
                 h.integral, h.lifted, h.holdout, h.attmode, h.symgate, h.cert, h.focus, h.lemma,
                 h.pairmode, h.pair_keep, h.valmode,
-                STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, INTEGRAL, LIFTED, g_holdout_mask,
-                ATTMODE, SYMGATE, CERT, FOCUS, LEMMA, PAIRMODE, g_pair_keep, VALMODE,
+                h.label_ncost, h.label_steps, h.label_rem,
+                h.branchtok, h.readmax, h.regshuf, h.md, h.mnl, h.phaseuntie);
+        fprintf(stderr, "  binary : dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d "
+                        "attmode %d symgate %d cert %d focus %d lemma %d pairmode %d keep %d valmode %d "
+                        "ncost %d steps %d label_rem %d branchtok %d readmax %d regshuf %d md %d nl %d untie %d\n",
+                STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK,
+                INTEGRAL, LIFTED, g_holdout_mask, ATTMODE, SYMGATE, CERT, FOCUS, LEMMA,
+                PAIRMODE, g_pair_keep, VALMODE, LABEL_NCOST, LABEL_STEPS, g_label_rem_max,
                 BRANCHTOK, READMAX, REGSHUF, D, NL, PHASEUNTIE);
         exit(4);
       }
@@ -1824,6 +1847,7 @@ static void run_variant(int seeds, int epochs, int verbose){
         WHeader h = { W_MAGIC, STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, g_goaldepth, g_eval_budget,
                       INTEGRAL, LIFTED, PRIOR_SHUF, g_holdout_mask,
                       ATTMODE, SYMGATE, CERT, FOCUS, LEMMA, PAIRMODE, g_pair_keep, VALMODE,
+                      LABEL_NCOST, LABEL_STEPS, g_label_rem_max,
                       BRANCHTOK, READMAX, REGSHUF, D, NL, PHASEUNTIE,
                       LIFT_RHO, PATH_GAMMA, pchk };
         fwrite(&h, sizeof h, 1, sf);

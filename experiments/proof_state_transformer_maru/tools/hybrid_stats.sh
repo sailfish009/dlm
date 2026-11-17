@@ -29,7 +29,7 @@ recompute () { # arm seeds -> one ARM row
     co[s]=num($0,"cert_ok")+0; cX[s]=num($0,"cert_fail")+0; cc[s]=num($0,"cert_checked")+0;
     lu[s]=num($0,"lemma_uses")+0; fs[s]=num($0,"focus_states")+0; fr[s]=num($0,"focus_removed")+0;
     pm[s]=num($0,"pairmode")+0; pu[s]=num($0,"pair_uses")+0; pv[s]=num($0,"pair_viol")+0 }
-  { if (length($0) > 0 && $0 !~ /^(SEED |DFS seed=|HYBRID seed=|LEMMA-MINE|PAIR-LEARN|ONPATH|LABELCENSUS|MEAN |BOOT |BOUND-ASSERT|SEARCH-BUDGET|PARAMS |DATASET|CENSUS|EXPORT|TRAJ |REGRET)/){
+  { if (length($0) > 0 && $0 !~ /^(SEED |DFS seed=|HYBRID seed=|LEMMA-MINE|PAIR-LEARN|ONPATH|LABELCENSUS|LABELMEMO|MEAN |BOOT |BOUND-ASSERT|SEARCH-BUDGET|PARAMS |DATASET|CENSUS|EXPORT|TRAJ |REGRET)/){
       printf "HYBRID-AGG-FAIL %s stray line: %s\n", a, $0; bad=1 } }
   END{
     if (ns!=n || nd!=n || nh!=n){ printf "HYBRID-AGG-FAIL %s rows seedy=%d dfs=%d hybrid=%d need %d\n", a, ns, nd, nh, n; exit 1 }

@@ -55,6 +55,20 @@ echo "LAB-GATE proof_state_transformer_maru: $(grep -c '^PARITY\|^GRADCHECK\|^LL
     && ./verify_hybrid.sh > /tmp/pst_hybrid_verify_0260.log 2>&1 ) \
   || { echo HYBRID-LAB-GATE-FAIL; tail -n 20 /tmp/pst_hybrid_run_0260.log /tmp/pst_hybrid_verify_0260.log; exit 1; }
 grep -q '^V0260-HYBRID-PASS$' /tmp/pst_hybrid_verify_0260.log || { echo HYBRID-LAB-GATE-FAIL; exit 1; }
+# --- 0.0268 corrected recombination gate ------------------------------------
+( cd experiments/proof_state_transformer_maru && ./run_recomb0268.sh > /tmp/pst_r268_run.log 2>&1 \
+    && SEEDS=5 ./verify_recomb0268.sh > /tmp/pst_r268_verify.log 2>&1 ) \
+  || { echo R268-LAB-GATE-FAIL; tail -n 20 /tmp/pst_r268_run.log /tmp/pst_r268_verify.log; exit 1; }
+grep -q '^V0268-RECOMB-PASS$' /tmp/pst_r268_verify.log || { echo R268-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE corrected recombination: $(grep -c '^RECOMB-\|^LABEL-INDEPENDENT-PASS\|^HEADER-LABELFLAGS-PASS\|^BUDGET-\|^CEILING-PASS\|^CLAIMS-\|^HYBRID-TABLE-PASS\|^GATE-REGRESSION-PASS\|^LLVM-PASS' /tmp/pst_r268_verify.log) checks, V0268-RECOMB-PASS"
+
+# --- 0.0267 recombination gate ----------------------------------------------
+( cd experiments/proof_state_transformer_maru && ./run_recomb.sh > /tmp/pst_recomb_run_0267.log 2>&1 \
+    && SEEDS=5 ./verify_recomb.sh > /tmp/pst_recomb_verify_0267.log 2>&1 ) \
+  || { echo RECOMB-LAB-GATE-FAIL; tail -n 20 /tmp/pst_recomb_run_0267.log /tmp/pst_recomb_verify_0267.log; exit 1; }
+grep -q '^V0267-RECOMB-PASS$' /tmp/pst_recomb_verify_0267.log || { echo RECOMB-LAB-GATE-FAIL; exit 1; }
+echo "LAB-GATE recombination: $(grep -c '^RECOMB-\|^LABEL-BUDGET-PASS\|^BUDGET-LADDER-PASS\|^BUDGET-GUARD-PASS\|^CEILING-PASS\|^HYBRID-TABLE-PASS\|^GATE-REGRESSION-PASS\|^WHDR-PASS\|^LLVM-PASS' /tmp/pst_recomb_verify_0267.log) checks, V0267-RECOMB-PASS"
+
 # --- 0.0266 label-decomposition gate ----------------------------------------
 ( cd experiments/proof_state_transformer_maru && ./run_decomp.sh.0266 > /tmp/pst_decomp_run_0266.log 2>&1 \
     && SEEDS=15 ./verify_decomp0266.sh > /tmp/pst_decomp_verify_0266.log 2>&1 ) \

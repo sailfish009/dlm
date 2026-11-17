@@ -1,0 +1,9 @@
+HYBRID-AGG-FAIL A_nocost stray line: LABELMEMO cells=5192140 store_fail=0 probe=256 cap=1048576 label_rem_max=4
+HYBRID-AGG-FAIL A_nocost stray line: LABELMEMO cells=5192140 store_fail=0 probe=256 cap=1048576 label_rem_max=4
+HYBRID-AGG-FAIL A_nocost stray line: LABELMEMO cells=5192140 store_fail=0 probe=256 cap=1048576 label_rem_max=4
+HYBRID-AGG-FAIL A_nocost stray line: LABELMEMO cells=5192140 store_fail=0 probe=256 cap=1048576 label_rem_max=4
+HYBRID-AGG-FAIL A_nocost stray line: LABELMEMO cells=5192140 store_fail=0 probe=256 cap=1048576 label_rem_max=4
+
+real	2m54.270s
+user	19m54.993s
+sys	0m5.266s

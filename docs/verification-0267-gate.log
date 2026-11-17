@@ -1,0 +1,27 @@
+== 1. gradient check, eight arms
+RECOMB-GRADCHECK-PASS (8 arms)
+== 2. labels independent of the search budget; memo healthy
+LABEL-BUDGET-PASS (label_rem_max=4 for budgets 4 and 6, store_fail=0)
+== 3. budget ladder (the overflow regression)
+  budget 4: 315 ms
+  budget 5: 384 ms
+  budget 6: 454 ms
+BUDGET-LADDER-PASS (all budgets under 30 s)
+== 4. eval budget above MAXBUDGET fails loudly
+BUDGET-GUARD-PASS
+== 5. claims and ceilings
+HYBRID-CONTRAST B_pair16-A_nocost goal mean=+0.1238 se1=0.0132 2se=0.0264 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST D_pair16_b5-B_pair16 goal mean=+0.0746 se1=0.0092 2se=0.0185 n=5 SIGNIFICANT(2SE)
+HYBRID-CONTRAST C_pair64-B_pair16 goal mean=+0.0000 se1=0.0000 2se=0.0000 n=5 INCONCLUSIVE(2SE)
+RECOMB-CLAIM-PASS contracts and wider branching both significant
+CEILING-PASS D=0.8825 <= 0.9286 (contract exhaustive), B=0.8079; E=0.9905 <= 1.0000 (budget-6 bound)
+== documentation hygiene
+DOC-PASS 1 release notes: prose only, tokens in context (fenced commands allowed)
+== 6. aggregation + mutation regression
+HYBRID-TABLE-PASS table equals per-seed recomputation (all arms, 5 seeds)
+GATE-REGRESSION-PASS 10 mutations rejected, baseline accepted
+== 7. header tag: contract/branch configuration
+WHDR-PASS
+== 8. LLVM identity + sanitizers (best arm)
+LLVM-PASS
+V0267-RECOMB-PASS

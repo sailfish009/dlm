@@ -1,1 +1,1 @@
-CANDIDATE — 0.0266 label decomposition: gain localised to removing the rule-cost term (+12.4pp at 2SE); length term inert; shuffle control collapses; ceiling 0.8492 goal.
+CANDIDATE — 0.0268 corrected recombination: contract gain node-matched (+9.5pp at 7236 vs 7331 nodes), 94.2% of 5-seed mean ceiling; label budget decoupled behaviourally; label flags in header.

@@ -687,6 +687,7 @@ int main(int argc, char **argv){
     else if (!strcmp(argv[i], "--pairmode") && i+1 < argc) g_pairmode = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--pair-keep") && i+1 < argc) g_pair_keep = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--valmode") && i+1 < argc) g_valmode = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--label-rem") && i+1 < argc) g_label_rem_max = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--dp-bruteforce-check")) g_dp_check = 1;
     else if (!strcmp(argv[i], "--goal-scan")) g_goal_scan = 1;
     else if (!strcmp(argv[i], "--serve") && i+1 < argc){ mode = "serve"; g_load_weights = argv[++i]; }
@@ -703,8 +704,13 @@ int main(int argc, char **argv){
     else if (!strcmp(argv[i], "--path-check")) mode = "pathcheck";
     else if (!strcmp(argv[i], "--train")) mode = "train";
   }
+  if (g_eval_budget > MAXBUDGET){
+    fprintf(stderr, "EVAL-BUDGET-FAIL eval budget %d exceeds MAXBUDGET %d (rule-sequence capacity); rebuild with -DMAXBUDGET=%d\n",
+            g_eval_budget, MAXBUDGET, g_eval_budget);
+    return 2;
+  }
   if (mode && !strcmp(mode, "dumph")){
-    alloc_globals();
+  alloc_globals();
     dump_forward(dump, (int)seed, epochs, nworlds);
     return 0;
   }

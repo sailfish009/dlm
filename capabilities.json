@@ -1,5 +1,5 @@
 {
-  "version": "0.0266",
+  "version": "0.0268",
   "note": "Minimal-core capability ledger. Research snapshots are separate; the native scope is docs/native-scope-0243.md.",
   "removed_in_0_0205": [
     "d107 contract layer (d107-*.l, contract/unit/surface/plan/session modules)",
@@ -424,6 +424,21 @@
       "status": "experimental",
       "witness": "experiments/proof_state_transformer_maru/verify_decomp0266.sh",
       "note": "shuffled-label arm collapses (onpath-onpathshuf +31.9pp at 2SE)"
+    },
+    "contract_branch_recombination": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_recomb0268.sh",
+      "note": "node-matched control: D(contracts,b5)=0.8825 vs A_b5(no contracts,b5)=0.7873 at 7236 vs 7331 nodes (+9.5pp); 94.2% of the 5-seed mean contract ceiling 0.9365; at budget 6 the contract contribution drops to +0.6pp"
+    },
+    "label_budget_separation": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_recomb0268.sh",
+      "note": "label budget is label_rem - step (independent of eval budget); behavioural gate: identical pchk and census at eval budgets 4 and 6"
+    },
+    "label_header_flags": {
+      "status": "experimental",
+      "witness": "experiments/proof_state_transformer_maru/verify_recomb0268.sh",
+      "note": "WHeader carries label_ncost/label_steps/label_rem; cross-load refused (exit 4)"
     }
   }
 }
