@@ -1,4 +1,34 @@
-# Proof-state transformer — native (C/LLVM + Maru Q16), 0.0246
+# Proof-state transformer — native (C/LLVM + Maru Q16), 0.0260
+
+## 0.0260 hybrid reasoning layer (`run_hybrid.sh`, `verify_hybrid.sh`)
+
+Same transformer, same 19,939 parameters, same data/epochs; only the symbolic
+layers around the score change. 8 arms, 3 seeds, d4/b4:
+
+```text
+arm     greedy   beam    dfs     dfs_full  gate_viol cert_ok/fail lemma_uses
+pure     0.3281  0.4180  0.5529  0.4767    0         –            0
+topk     0.2461  0.3228  0.4921  0.4133    0         –            0
+pc       0.3095  0.3730  0.5238  0.4433    0         –            0
+soft     0.2910  0.3651  0.5212  0.4467    57        –            0
+focus    0.3281  0.4180  0.5529  0.4767    0         –            0
+cert     0.3281  0.4180  0.5529  0.4767    0         70 / 0       0
+lemma    0.3281  0.4180  0.6825  0.6367    0         –            465
+hybrid   0.2672  0.3968  0.7037  0.6567    0         89 / 0       480
+```
+
+Verified 2-rule contracts are the effect (+13.0 pp goal, +16.0 pp full, node
+count unchanged). Path condition is neutral-to-negative; obligation focus is
+vacuous on this fixture (relevance closure saturates, census reported);
+certificates are conservation (answer identity, mutated map rejected 81/81);
+sparse top-k attention stays negative. Full write-up: `docs/release-0260.md`.
+
+```bash
+./run_hybrid.sh     # 8 arms x 3 seeds, ~6 min
+./verify_hybrid.sh  # gates, ~3 min -> V0260-HYBRID-PASS
+```
+
+## 0.0246 baseline (unchanged)
 
 0.0246 applies the second review (R245-1..5). The decisive intervention
 (teacher-state exposure × representation, 5 seeds, matched updates):

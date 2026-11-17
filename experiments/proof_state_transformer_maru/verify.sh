@@ -219,12 +219,19 @@ echo "RHO1-EQUIV-PASS lifted(rho=1) == base ($rb)"
 echo "PATH-CHECK exact (path + prior columns)"
 
 # default-build harness regression: bal arm must reproduce the pinned 0251 ladder
+# The pinned 0.7832 is a FIVE-seed measurement (0.0251 protocol). Running the
+# harness with a different seed count changes the mean, so the pin is only
+# meaningful at SEEDS=5; state that instead of reporting a spurious regression.
+if [ "${SEEDS:-5}" -ne 5 ]; then
+  echo "HARNESS-REGRESSION-SKIP pinned 0.7832 is a 5-seed measurement (SEEDS=$SEEDS); release gate uses SEEDS=5"
+else
 awk '
 function val(file, cfg, key,   line,n,i,f,kv,v){ while((getline line<file)>0){ n=split(line,f," ");
   if(f[1]!="ladder"||f[2]!=cfg) continue; for(i=3;i<=n;i++){split(f[i],kv,"="); if(kv[1]==key)v=kv[2]+0}} close(file); return v}
 BEGIN{ g=val("out/probes_bal.txt","2_4","goal");
   if(!(g>0.7732 && g<0.7932)){ printf "HARNESS-REGRESSION-FAIL bal 2_4 goal=%.4f (pinned 0.7832)\n",g; exit 1 }
   printf "HARNESS-REGRESSION-PASS bal 2_4 goal=%.4f (0251 pinned 0.7832)\n",g }' || exit 1
+fi
 
 # O0/O2/O3 identity + ASan for the combined arm
 for O in 0 2 3; do
@@ -266,6 +273,7 @@ for arm in bal integral lifted both lifted0; do
           v=num(line,"proof_model"); if(v==""||v<0||v>1){printf "HOCHECK-FAIL %s bad field: %s\n",cfg,line;bad=1}}
         else if(line~/^MEAN /){nm++}
         else if(line~/^(REGRET|BOOT|BOUND-ASSERT|SEARCH-BUDGET|PARAMS|DATASET|CENSUS|EXPORT)/){}
+        else if(line~/^(TRAJ|REGRET|BOOT|BOUND-ASSERT|SEARCH-BUDGET|PARAMS|CENSUS)/){}
         else if(line!~/^#/&&length(line)>0){printf "HOCHECK-FAIL %s stray: %s\n",cfg,line;bad=1}}
       close(f); if(ns!=n||nm!=n){printf "HOCHECK-FAIL %s rows %d/%d need %d\n",cfg,ns,nm,n;bad=1}
       d=0;for(s in seen)d++; if(d!=n){printf "HOCHECK-FAIL %s distinct %d need %d\n",cfg,d,n;bad=1}}
@@ -295,4 +303,89 @@ for c in "integral bal" "lifted bal" "lifted0 bal" "both bal"; do
   rm -f "$pa" "$pb"
 done
 
-echo "V0252-INTEGRAL-LIFTED-PASS"
+# 0.0254 search-vs-scorer decomposition
+echo "== beam width sweep (model scorer)"
+grep '^DECOMP' out/decomp.txt | sed 's/^/  /'
+awk '
+/DECOMP d=2 W=/{ for(i=1;i<=NF;i++){split($i,kv,"="); if(kv[1]=="beam") b2[kv[2]]=kv[3]} }
+' out/decomp.txt >/dev/null
+awk '
+BEGIN{ bad=0 }
+/DECOMP /{ split($2,a,"="); d=a[2]; split($3,w,"="); W=w[2]; for(i=1;i<=NF;i++){split($i,kv,"="); v[kv[1]]=kv[2]}
+  if (!(v["beam"]+1e-9 >= last[d])) { printf "FAIL beam not monotone in width (d=%s W=%s)\n", d, W; bad=1 }
+  last[d]=v["beam"]; val[d"@"W]=v["beam"] }
+END{
+  if (!(val["2@25"] >= 0.85)) { printf "FAIL d2 W=25 beam %.4f < 0.85\n", val["2@25"]; bad=1 }
+  if (!(val["4@25"] >= 0.45)) { printf "FAIL d4 W=25 beam %.4f < 0.45\n", val["4@25"]; bad=1 }
+  if (!(val["2@25"] > val["2@1"])) { print "FAIL d2 search widths indistinguishable"; bad=1 }
+  printf "SEARCH-WIDTH d2 %.3f->%.3f d4 %.3f->%.3f (W=1->25, same scorer)\n", val["2@1"], val["2@25"], val["4@1"], val["4@25"]
+  if (bad) exit 1
+}' out/decomp.txt
+echo "== own-trajectory optimality profile (exact Q at every step)"
+for d in 2 4; do
+  awk -v d=$d '/^TRAJ /{ step=""; opt=""; os=""; rg="";
+    for(i=1;i<=NF;i++){split($i,kv,"="); if(kv[1]=="step")step=kv[2]; if(kv[1]=="opt")opt=kv[2]; if(kv[1]=="optset")os=kv[2]; if(kv[1]=="regret")rg=kv[2]}
+    n[step]++; O[step]+=opt; S[step]+=os; R[step]+=rg }
+    END{ for (k in n) printf "%s %.4f %.2f %.4f\n", k, O[k]/n[k], S[k]/n[k], R[k]/n[k] }' probes/cfg_traj$d.txt | sort -n > out/traj_d$d.txt
+  awk -v d=$d '{printf "  d=%d step=%s opt=%s optset=%s regret=%s\n", d, $1, $2, $3, $4}' out/traj_d$d.txt
+done
+# 0.0260 gate repair: the 0259 assertion "d4 step1 < step3 < step4" is FALSE for
+# this model on its own protocol (measured 0.898 / 0.732 / 0.972 in both 0259 and
+# 0260, i.e. step 3 is a dip). That claim is withdrawn. The profile is reported in
+# full and two stable invariants are gated: the harder fixture lowers first-step
+# optimality, and the d4 profile recovers by the last step.
+awk 'BEGIN{ bad=0 }
+FILENAME ~ /traj_d2/ { if ($1==1) d2s1=$2 }
+FILENAME ~ /traj_d4/ { if ($1==1) d4s1=$2; if ($1==2) d4s2=$2; if ($1==4) d4s4=$2 }
+END{
+  if (!(d4s1 <= d2s1)) { printf "FAIL d4 step1 opt %.3f not below d2 %.3f\n", d4s1, d2s1; bad=1 }
+  if (!(d4s4 >= d4s2)) { printf "FAIL d4 profile does not recover (step2 %.3f > step4 %.3f)\n", d4s2, d4s4; bad=1 }
+  printf "TRAJECTORY d4 step1=%.3f step2=%.3f step4=%.3f (non-monotone dip at step 3 is reported, not gated); d2 step1=%.3f\n",
+         d4s1, d4s2, d4s4, d2s1
+  if (bad) exit 1
+}' out/traj_d2.txt out/traj_d4.txt
+# 0.0255 native ports (Screamer: choice/backtrack/propagation; Silicon: subsumption)
+echo "== native search ports vs beam (same scorer, genuine depth-4)"
+grep '^PORT' out/port.txt | sed 's/^/  /'
+awk '
+/PORT /{ for(i=1;i<=NF;i++){split($i,kv,"="); v[kv[1]]=kv[2]+0}
+  if ($2 ~ /^dfs_b3_sub1$/) { d3=v["goal"]; d3c=v["cands"] }
+  if ($2 ~ /^dfs_b3_sub0$/) { d0=v["goal"]; d0n=v["nodes"] }
+  if ($2 ~ /^dfs_b3_noprop$/) { np=v["goal"] }
+  if ($2 ~ /^dfs_b5_sub1$/) { d5=v["goal"]; d5n=v["nodes"] }
+  if ($2 ~ /^dfs_b3_sub1$/) { s1n=v["nodes"] }
+  if ($2 ~ /^beam_W3$/) { b3=v["goal"]; b3c=v["cands"] }
+  if ($2 ~ /^beam_W10$/) { b10=v["goal"] }
+}
+END{
+  bad=0
+  if (!(d3 >= b3 + 0.10)) { printf "FAIL DFS(b3,sub) %.4f < beam W3 %.4f + 0.10\n", d3, b3; bad=1 }
+  if (!(d3c <= b3c*1.30)) { printf "FAIL DFS used %.0f cands vs beam %.0f (>1.3x)\n", d3c, b3c; bad=1 }
+  if (!(d5 >= b10 + 0.10)) { printf "FAIL DFS(b5,sub) %.4f < beam W10 %.4f + 0.10\n", d5, b10; bad=1 }
+  if (!(s1n*2 <= d0n)) { printf "FAIL subsumption reduced nodes only %.0f -> %.0f\n", d0n, s1n; bad=1 }
+  if (!(d3 >= np)) { printf "FAIL propagation did not help (%.4f vs noprop %.4f)\n", d3, np; bad=1 }
+  printf "PORT-GAIN dfs_b3_sub1=%.4f beam_W3=%.4f dfs_b5_sub1=%.4f beam_W10=%.4f subsumption_nodes %.0f->%.0f prop %+.4f\n",
+         d3, b3, d5, b10, d0n, s1n, d3-np
+  if (bad) exit 1
+}' out/port.txt
+
+# 0.0256 soundness gates (review 0255 repairs F1/F2/F3/F3b)
+echo "== 0256 soundness gates"
+# G1: exhaustive DFS (branch=POOL) with postorder per-world subsumption + prop
+# must reach the budget-exact bound on every seed (F3/F3b regression oracle).
+awk '/^EXH-ORACLE/{n++; if ($NF != "ok=1") bad=1}
+     END{ if (!n || bad) { print "FAIL EXH-ORACLE missing or mismatch"; exit 1 }
+          printf "EXH-ORACLE-PASS seeds=%d\n", n }' out/port.txt || exit 1
+# G2: greedy == beam W1 on the test split (F1 stale goal-slot regression).
+awk '/^PORT beam_W1 /{for(i=1;i<=NF;i++){split($i,kv,"=");v[kv[1]]=kv[2]}
+     if (v["goal"] != v["greedy"]) { printf "FAIL greedy %.4f != beamW1 %.4f\n", v["greedy"], v["goal"]; exit 1 }
+     printf "GREEDY-W1-PASS goal=%s\n", v["goal"]}' out/port.txt || exit 1
+# G3: no single commit proves 2+ goals from the root (prop-bound assumption, F5).
+./bin/pst_hard_relob --train --seeds 1 --seed-base 11 --collect full --sample sub \
+  --train-n 180 --val-n 60 --test-n 100 --goal-scan --balance-reward --goaldepth 4 \
+  --eval-budget 4 --no-bound --onecommit-audit --load-weights probes/w_11.bin \
+  > out/onecommit.txt 2>&1
+grep '^ONECOMMIT-AUDIT ' out/onecommit.txt | awk '{for(i=1;i<=NF;i++){split($i,kv,"=");v[kv[1]]=kv[2]}
+     if (v["violations"] != 0) { print "FAIL ONECOMMIT violations=" v["violations"]; exit 1 }
+     printf "ONECOMMIT-PASS worlds=%s max=%s\n", v["worlds"], v["max"]}' || exit 1
+echo "V0256-SOUNDNESS-PASS"

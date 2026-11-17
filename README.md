@@ -1,4 +1,25 @@
-# DLM 0.0251 — minimal deductive core + harness repair and fixture redesign
+# DLM 0.0260 — minimal deductive core + hybrid reasoning layer
+
+**0.0260** continues the 0.0259 layer-substitution experiment in
+`experiments/proof_state_transformer_maru/` with reasoning layers borrowed from
+proof engineering, all ablatable on the same 19,939-parameter native model:
+Rocq (independent proof certificates, obligation focus), Silicon (kernel path
+condition, verified 2-rule contracts) and Screamer (sparse top-k attention,
+branch/backtrack/propagation/subsumption). Measured on the hard fixture
+(d4/b4, 3 seeds): verified contracts +13.0 pp goal / +16.0 pp full over the
+unmodified transformer, hybrid +15.1 pp / +18.0 pp; top-k attention, the soft
+residual gate and obligation focus are neutral-to-negative on this fixture
+(focus is vacuous: the relevance closure saturates). Gates:
+`experiments/proof_state_transformer_maru/verify_hybrid.sh` →
+`V0260-HYBRID-PASS`. Details: `docs/release-0260.md`. 0.0259's review
+(`/research/code-review-0259.md`) found the layer table printed the seed-13 row
+as a 3-seed average and the release gate failing on stale manifests; both are
+repaired here (per-seed aggregation with a mutation regression, regenerated
+manifests, wrapper token matches, new lab inside the release gate). The 0.0260
+ASan gate also found a latent stack overflow in the 0.0257 lemma action (two
+rules written into an array sized for one per slot), now fixed.
+
+# DLM 0.0256 — minimal deductive core + native-search soundness repairs
 
 This is the **minimal-core lineage** of DLM on Maru, extended with the v0.0216
 array-view C/LLVM backend, the v0.0237 transformer graph/LLVM variant matrix,

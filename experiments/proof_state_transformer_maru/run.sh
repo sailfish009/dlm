@@ -64,4 +64,8 @@ grep '^MEAN' out/2x2_D_full_relob.txt
 # 0.0252 integration + lifted-token arms and the predicate-held-out rung
 SEEDS="$SEEDS" EPOCHS="$EPOCHS" ./run_integral.sh > out/integral_run.log 2>&1
 tail -1 out/integral_run.log
+# search-vs-scorer decomposition (beam width sweep + own-trajectory profile)
+SEEDS="$SEEDS" ./run_decomp.sh | tee out/decomp_summary.txt
+# native ports: Screamer-style backtracking+propagation, Silicon-style subsumption
+SEEDS="$SEEDS" ./run_port.sh | tee out/port_summary.txt
 echo "RUN-DONE"

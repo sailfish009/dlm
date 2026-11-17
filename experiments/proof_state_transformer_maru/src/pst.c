@@ -66,6 +66,10 @@ static int g_holdout_mask = 0; /* predicate-held-out bitmask: train/val exclude,
 #define MAXENT 12                /* largest split (train) */
 #define WENT 6                   /* entities per world */
 #define SEED_RULES 2
+/* a lemma action commits TWO rules for one budget slot, so the rule-sequence
+ * arrays must cover 2*MAXBUDGET (0260 gate found a stack overflow at 0257/0259
+ * sizing: depth 4 with with lemma actions wrote past SEED_RULES+MAXBUDGET). */
+#define MAXRULE (SEED_RULES + 2*MAXBUDGET)
 #define POOL 24                  /* candidate rules per world */
 #define NSTEPS 4
 #define GOAL_COUNT 3
@@ -347,7 +351,7 @@ static void cand_features(const World *w, const int *rules, int nrules,
   {
     int k = CAND_BASE;
     for (int g = 0; g < GOAL_COUNT; g++){
-      if (g >= w->ngoals){ k += CAND_GOAL_FEAT; continue; }
+      if (g >= w->ngoals){ for (int z = 0; z < CAND_GOAL_FEAT; z++) out[k++] = 0.0; continue; }
       int e = w->goal_ent[g], gp = w->goal_pred[g];
       uint8_t hm = (uint8_t)(1u << r->head);
       int body_at = (int)((known[e] & bm) == bm);
@@ -668,7 +672,18 @@ int main(int argc, char **argv){
     else if (!strcmp(argv[i], "--no-bound")) g_no_bound = 1;
     else if (!strcmp(argv[i], "--balance-reward")) g_balance = 1;
     else if (!strcmp(argv[i], "--regret")) g_regret = 1;
+    else if (!strcmp(argv[i], "--dfs")) g_dfs = 1;
+    else if (!strcmp(argv[i], "--onecommit-audit")) g_onecommit_audit = 1;
+    else if (!strcmp(argv[i], "--branch") && i+1 < argc) g_branch = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--subsume") && i+1 < argc) g_subsume = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--prop") && i+1 < argc) g_prop = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--goal-directed") && i+1 < argc) g_focus = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--lemmas") && i+1 < argc) g_lemmas = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--lemma-cost") && i+1 < argc) g_lemma_cost = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--cert") && i+1 < argc) g_cert_on = atoi(argv[++i]);
+    else if (!strcmp(argv[i], "--cert-selftest")) g_cert_selftest = 1;
     else if (!strcmp(argv[i], "--goal-scan")) g_goal_scan = 1;
+    else if (!strcmp(argv[i], "--serve") && i+1 < argc){ mode = "serve"; g_load_weights = argv[++i]; }
     else if (!strcmp(argv[i], "--holdout") && i+1 < argc){
       const char *h = argv[++i]; g_holdout_mask = 0;
       while (*h){ if (*h >= '0' && *h < '0'+P) g_holdout_mask |= 1 << (*h - '0'); h++; }
@@ -718,6 +733,18 @@ int main(int argc, char **argv){
     fprintf(stderr, "HOLDOUT-REQUIRES-GOAL-SCAN\n"); return 2;
   }
   alloc_globals();
+  if (!strcmp(mode, "serve")){
+    build_dataset();
+    /* serve always uses the test split; load the trained weights */
+    FILE *lf = fopen(g_load_weights, "rb");
+    if (!lf){ fprintf(stderr, "cannot open weights %s\n", g_load_weights); return 2; }
+    WHeader h;
+    if (fread(&h, sizeof h, 1, lf) != 1){ fprintf(stderr, "short header\n"); return 2; }
+    if (fread(g_p, sizeof(Params), 1, lf) != 1){ fprintf(stderr, "short weights\n"); return 2; }
+    fclose(lf);
+    serve();
+    return 0;
+  }
   if (!strcmp(mode, "dsstats")){
     build_dataset();
     dataset_stats();

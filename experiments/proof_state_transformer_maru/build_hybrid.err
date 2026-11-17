@@ -1,0 +1,5 @@
+In file included from src/pst.c:628:
+src/train.inc:429:47: error: read-only variable is not assignable
+  429 |     if ((int)support(r, known) > 0) live[m++] = live[k];
+      |                                     ~~~~~~~~~ ^
+1 error generated.

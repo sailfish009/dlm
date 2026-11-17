@@ -1,1 +1,1 @@
-CANDIDATE — 0.0243 native integral-credit protocol repair (Maru + LLVM IR).
+CANDIDATE — 0.0260 hybrid reasoning layer (Rocq certificate/focus, Silicon path condition/contracts, Screamer branching attention/search) on the native proof-state transformer.

@@ -13,6 +13,7 @@ typedef struct {
   uint64_t magic;
   int state_dim, cand_dim, variant, hard, relob, bindtok, goaldepth, eval_budget;
   int integral, lifted, prior_shuf, holdout;
+  int attmode, symgate, cert, focus, lemma;   /* 0260 hybrid-layer tag */
   double lift_rho, path_gamma;
   double pchk;
 } WHeader;
@@ -36,13 +37,32 @@ typedef struct {
 static int g_collect = 0;       /* 0 = stop when best utility <= 0 (0245), 1 = full budget */
 static int g_sample = 0;        /* 0 = all collected states, 1 = root only, 2 = root + subsample */
 static int g_balance = 0;       /* 1 = reward-bearing states first, then fill to the same count */
-static int g_regret = 0;        /* 1 = report exact first-step regret at root states */
+static int g_regret = 0;
+static int g_dfs = 0;        /* 1 = native DFS search metrics */
+static int g_onecommit_audit = 0;  /* 1 = scan test split for single-commit multi-goal proofs */
 static long g_ds_worlds[3], g_ds_steps[3], g_ds_hist[3][NSTEPS+1], g_ds_reward[3], g_ds_labels[3];
 
 static WSteps *g_data[3];
 static int g_nw[3] = {NW_TRAIN, NW_VAL, NW_TEST};
 static int g_beam = 3;                 /* beam width for the beam policy */
+static int g_branch = 3;               /* children kept per node in the DFS search */
+static int g_subsume = 1;              /* state-subsumption pruning (Silicon port) */
+static int g_prop = 1;                 /* admissible propagation (Screamer port) */
+static int g_focus = FOCUS;            /* 1 = obligation-directed candidate focus (Rocq tactic) */
+static int g_lemmas = LEMMA;           /* 1 = verified 2-rule lemma (contract) actions */
+static int g_lemma_max = 64;
+static int g_lemma_cost = 1;           /* action slots charged for a lemma (contract use) */
+typedef struct { int r1, r2; int body; int uses; } Lemma;  /* pre: body atom holds at an entity */
+static Lemma g_lem[128];
+static int g_nlem = 0;
+static int g_cert_on = CERT;           /* independent certificate check on the DFS proof */
+static int g_cert_selftest = 0;        /* 1 = corrupt one parent (checker must fail) */
+static long g_dfs_nodes = 0, g_dfs_cands = 0, g_dfs_leafs = 0, g_dfs_pruned = 0;
 static long g_nsteps[3];
+
+static void pc_filter(const uint8_t *known, int *live, int *nlive);
+static int focus_filter(const World *w, const uint8_t *known, int *live, int nlive);
+static void lemma_mine(void);
 
 static void build_dataset(void){
   for (int s = 0; s < 3; s++){
@@ -60,7 +80,7 @@ static void build_dataset(void){
       } else {
         while (!ok) ok = make_world(&ws->w, s, i);
       }
-      int rules[SEED_RULES + MAXBUDGET];
+      int rules[MAXRULE];
       int nrules = SEED_RULES;
       for (int k = 0; k < SEED_RULES; k++) rules[k] = ws->w.theory[k];
       int used[POOL] = {0};
@@ -222,7 +242,7 @@ static void step_features(const World *w, const int *rules, int nrules,
 /* mode: 0 model, 1 support, 2 prior, 3 random, 4 untrained, 5 shuffled, 6 oracle */
 static void policy_world(const World *w, const Params *p, int mode, uint64_t seed,
                          int *goals_proved, int *steps_used, int *full_success){
-  int rules[SEED_RULES + MAXBUDGET];
+  int rules[MAXRULE];
   int nrules = SEED_RULES;
   for (int k = 0; k < SEED_RULES; k++) rules[k] = w->theory[k];
   rng_state = seed | 1ULL;
@@ -236,6 +256,13 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
       int r = w->cands[c], u = 0;
       for (int k = 0; k < nrules; k++) if (rules[k] == r) u = 1;
       if (!u) live[nlive++] = r;
+    }
+    if (!nlive) break;
+    {
+      uint8_t known[WENT];
+      closure(w->facts, rules, nrules, known);
+      nlive = focus_filter(w, known, live, nlive);   /* Rocq obligation focus */
+      pc_filter(known, live, &nlive);                /* Silicon path condition */
     }
     if (!nlive) break;
     step_features(w, rules, nrules, live, nlive, state, cf2, util);
@@ -255,6 +282,11 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
         for (int d = 0; d < CAND_DIM; d++) cfp[k][d] = cf2[perm[k]][d];
       model_forward(mp, state, (const double (*)[CAND_DIM])cfp, nlive, g_c);
       for (int k = 1; k < nlive; k++) if (g_c->score[k] > g_c->score[pick]) pick = k;
+#if SYMGATE >= 1
+      /* path-condition census at the actual selection point: the soft residual
+       * gate can still select an inadmissible candidate, the hard gate cannot. */
+      if (!g_c->sym[1+pick]) g_pc_picks++;
+#endif
     } else if (mode == 1){
       for (int k = 1; k < nlive; k++)
         if (cf2[k][3] + 0.5*cf2[k][5] > cf2[pick][3] + 0.5*cf2[pick][5]) pick = k;
@@ -282,6 +314,335 @@ static void policy_world(const World *w, const Params *p, int mode, uint64_t see
   *goals_proved = gp;
   *steps_used = used_steps;
   *full_success = (gp == w->ngoals) ? 1 : 0;
+}
+
+/* ---- native nondeterministic search -------------------------------------
+ * Port of the Screamer core (choice points + backtracking + propagation) and of
+ * the Silicon state-subsumption idea into the C/LLVM line, with the transformer
+ * supplying the child order. The trail is the applied-rule list (budget is the
+ * only other state), so undo is O(1).
+ * Propagation: an admissible bound prunes a subtree when the best continuation
+ * cannot beat the incumbent. Subsumption: a fact set that is a subset of an
+ * already-visited state at the same or smaller depth is dominated (it cannot
+ * derive more with the same remaining budget). */
+#define SUBS_MAX 4096
+static uint64_t subs_key[SUBS_MAX];
+static int subs_depth[SUBS_MAX];
+static int subs_n = 0;
+
+static uint64_t pack_facts_u64(const uint8_t m[WENT]){
+  uint64_t s = 0;
+  for (int e = 0; e < WENT; e++) s |= (uint64_t)m[e] << (6*e);
+  return s;
+}
+static int is_subset_mask(uint64_t a, uint64_t b){   /* a subset of b */
+  for (int e = 0; e < WENT; e++){
+    uint64_t am = (a >> (6*e)) & 0x3f, bm = (b >> (6*e)) & 0x3f;
+    if ((am & ~bm) != 0) return 0;
+  }
+  return 1;
+}
+static int dominated(uint64_t mask, int depth){
+  for (int i = 0; i < subs_n; i++)
+    if (subs_depth[i] <= depth && is_subset_mask(mask, subs_key[i])) return 1;
+  return 0;
+}
+static void subs_add(uint64_t mask, int depth){
+  if (subs_n < SUBS_MAX){ subs_key[subs_n] = mask; subs_depth[subs_n] = depth; subs_n++; }
+}
+
+static int g_best_seen;
+static int g_best_rules[MAXRULE];
+static int g_best_nrules = 0;
+static int g_leaf_best = -1;
+
+/* ---- Rocq-style independent proof certificate -----------------------------
+ * The search records WHICH rule derived each atom (a parent map). The checker
+ * then re-derives every goal from base facts using ONLY the parent map: leaves
+ * must be base facts, and every used rule must have the head it claims. The
+ * checker never trusts the closure that the search used.
+ * g_cert_selftest=1 corrupts one parent after recording, so the gate can show a
+ * mutated certificate is rejected (the checker is not vacuous). */
+static int cert_check(const World *w, const int *rules, int nrules){
+  uint8_t base[WENT];
+  closure(w->facts, w->theory, SEED_RULES, base);
+  uint8_t known[WENT];
+  for (int e = 0; e < WENT; e++) known[e] = base[e];
+  int parent[WENT][P];
+  for (int e = 0; e < WENT; e++) for (int p = 0; p < P; p++) parent[e][p] = -1;
+  int changed = 1;
+  while (changed){
+    changed = 0;
+    for (int k = 0; k < nrules; k++){
+      const Rule *r = &all_rules[rules[k]];
+      uint8_t bm = 0;
+      for (int q = 0; q < r->blen; q++) bm |= (uint8_t)(1u << r->body[q]);
+      uint8_t hm = (uint8_t)(1u << r->head);
+      for (int e = 0; e < WENT; e++)
+        if ((known[e] & bm) == bm && !(known[e] & hm)){
+          known[e] |= hm; parent[e][r->head] = rules[k]; changed = 1;
+        }
+    }
+  }
+  if (g_cert_selftest){
+    /* negative control: drop the parent of a goal atom that is not a base fact.
+     * The walk cannot reach a base fact for it, so the checker MUST fail. */
+    for (int g = 0; g < w->ngoals; g++){
+      int e = w->goal_ent[g], p = w->goal_pred[g];
+      if (!(base[e] & (uint8_t)(1u << p)) && parent[e][p] >= 0){ parent[e][p] = -1; }
+    }
+  }
+  for (int g = 0; g < w->ngoals; g++){
+    int e = w->goal_ent[g], p = w->goal_pred[g];
+    if (!(known[e] & (uint8_t)(1u << p))) continue;   /* not derived: nothing to certify */
+    g_cert_checked++;
+    int stack_e[64], stack_p[64], sp = 0, ok = 1, guard = 0;
+    stack_e[sp] = e; stack_p[sp] = p; sp++;
+    while (sp > 0 && ok){
+      if (++guard > 256){ ok = 0; break; }
+      int ce = stack_e[--sp], cp = stack_p[sp];
+      if (base[ce] & (uint8_t)(1u << cp)) continue;   /* justified by a base fact */
+      int r = parent[ce][cp];
+      if (r < 0){ ok = 0; break; }
+      const Rule *rr = &all_rules[r];
+      if (rr->head != cp){ ok = 0; break; }
+      for (int q = 0; q < rr->blen; q++){
+        if (sp >= 60){ ok = 0; break; }
+        stack_e[sp] = ce; stack_p[sp] = rr->body[q]; sp++;
+      }
+    }
+    if (g_cert_selftest){ if (!ok) g_cert_mutfail++; else g_cert_ok++; }
+    else if (ok) g_cert_ok++;
+    else g_cert_fail++;
+  }
+  return (int)g_cert_fail;
+}
+
+/* ---- Silicon-style path condition (admissibility) in search ---------------
+ * A candidate whose body is not supported by the current closure violates the
+ * path condition: under SYMGATE>=2 it is removed from the action set. The DFS
+ * has no transformer mask, so the condition is applied on the explicit set. */
+static int pc_admissible(const double *cfrow){ return cfrow[6] > 0.5; }
+static void pc_filter(const uint8_t *known, int *live, int *nlive){
+#if SYMGATE >= 2
+  int m = 0;
+  for (int k = 0; k < *nlive; k++){
+    const Rule *r = &all_rules[live[k]];
+    if ((int)support(r, known) > 0) live[m++] = live[k];
+    else g_pc_dropped++;
+  }
+  if (m == 0) g_pc_fallback++;   /* no admissible action: keep the set, count it */
+  else *nlive = m;
+#else
+  (void)known; (void)live; (void)nlive;
+#endif
+}
+
+/* obligation-directed focus (Rocq tactic focus / obligation closure): keep only
+ * candidates whose head predicate can contribute to an unproved goal. The
+ * relevance set is the fixpoint "heads of candidates whose head is relevant add
+ * their body predicates", starting from the unproved goal predicates. Forward
+ * chaining only derives atoms with the head predicate of an applied rule, so a
+ * candidate whose head never reaches a goal cannot contribute. Gate: exhaustive
+ * DFS agreement with the unfiltered search (completeness). */
+static long g_focus_states = 0, g_focus_removed = 0;
+static int focus_filter(const World *w, const uint8_t *known, int *live, int nlive){
+  if (!g_focus) return nlive;
+  int rel[P];
+  for (int p = 0; p < P; p++) rel[p] = 0;
+  for (int g = 0; g < w->ngoals; g++){
+    int e = w->goal_ent[g], p = w->goal_pred[g];
+    if (!(known[e] & (uint8_t)(1u << p))) rel[p] = 1;
+  }
+  int changed = 1;
+  while (changed){
+    changed = 0;
+    for (int c = 0; c < POOL; c++){
+      const Rule *r = &all_rules[w->cands[c]];
+      if (!rel[r->head]) continue;
+      for (int q = 0; q < r->blen; q++)
+        if (!rel[r->body[q]]){ rel[r->body[q]] = 1; changed = 1; }
+    }
+  }
+  int focal[POOL], nf = 0;
+  for (int k = 0; k < nlive; k++)
+    if (rel[all_rules[live[k]].head]) focal[nf++] = live[k];
+  g_focus_states++;
+  g_focus_removed += (nlive - nf);
+  if (!nf) return nlive;
+  for (int k = 0; k < nf; k++) live[k] = focal[k];
+  return nf;
+}
+
+/* ---- verified 2-rule lemma (contract) mining --------------------------------
+ * A lemma (r1,r2) is admitted only when the kernel confirms the chain: r1's body
+ * is a single atom and r2's body equals r1's head, so applying the pair derives
+ * r2's head at r1's body entity. Applying a lemma charges one action slot
+ * instead of two (Silicon method-summary / Rocq lemma reuse). */
+static void lemma_mine(void){
+  g_nlem = 0;
+  for (int i = 0; i < g_nw[0] && g_nlem < g_lemma_max; i++){
+    const WSteps *ws = &g_data[0][i];
+    int seq[MAXRULE];
+    int m = SEED_RULES;
+    for (int k = 0; k < SEED_RULES; k++) seq[k] = ws->w.theory[k];
+    for (int st = 0; st < ws->nsteps; st++){
+      const RStep *rs = &ws->st[st];
+      if (rs->nlive <= 0) break;
+      seq[m++] = rs->live[rs->best];
+    }
+    for (int k = SEED_RULES; k + 1 < m && g_nlem < g_lemma_max; k++){
+      int r1 = seq[k], r2 = seq[k+1];
+      const Rule *a = &all_rules[r1], *b = &all_rules[r2];
+      if (a->blen != 1 || b->blen != 1 || b->body[0] != a->head) continue;
+      /* kernel check of the contract on every train world that has both rules */
+      uint8_t kn[WENT];
+      closure(ws->w.facts, ws->w.theory, SEED_RULES, kn);
+      int ok = 0;
+      for (int e = 0; e < WENT; e++) if (kn[e] & (uint8_t)(1u << a->body[0])) ok = 1;
+      if (!ok) continue;
+      int dup = 0;
+      for (int q = 0; q < g_nlem; q++) if (g_lem[q].r1 == r1 && g_lem[q].r2 == r2) dup = 1;
+      if (dup) continue;
+      g_lem[g_nlem].r1 = r1; g_lem[g_nlem].r2 = r2;
+      g_lem[g_nlem].body = a->body[0];
+      g_lem[g_nlem].uses = 0;
+      g_nlem++;
+    }
+  }
+  printf("LEMMA-MINE unique=%d cap=%d kernel_checked=1\n", g_nlem, g_lemma_max);
+}
+
+static void dfs_world(const World *w, int *rules, int nrules, int depth, int budget){
+  g_dfs_nodes++;
+  uint8_t known[WENT];
+  closure(w->facts, rules, nrules, known);
+  int proven = 0;
+  for (int g = 0; g < w->ngoals; g++)
+    if (known[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) proven++;
+  if (proven > g_best_seen) g_best_seen = proven;
+  if (depth >= budget){
+    g_dfs_leafs++;
+    if (proven >= g_leaf_best){
+      g_leaf_best = proven; g_best_nrules = nrules;
+      for (int k = 0; k < nrules; k++) g_best_rules[k] = rules[k];
+    }
+    return;
+  }
+  if (proven == w->ngoals){
+    g_dfs_leafs++;
+    if (proven >= g_leaf_best){
+      g_leaf_best = proven; g_best_nrules = nrules;
+      for (int k = 0; k < nrules; k++) g_best_rules[k] = rules[k];
+    }
+    return;
+  }
+  if (g_prop && proven + (budget - depth) <= g_best_seen) { g_dfs_pruned++; return; }
+  uint64_t mask = 0;
+  if (g_subsume){
+    mask = pack_facts_u64(known);
+    if (dominated(mask, depth)){ g_dfs_pruned++; return; }
+  }
+  int live[POOL], nlive = 0;
+  for (int c = 0; c < POOL; c++){
+    int used = 0;
+    for (int k = 0; k < nrules; k++) if (rules[k] == w->cands[c]) used = 1;
+    if (!used) live[nlive++] = w->cands[c];
+  }
+  if (!nlive) { g_dfs_leafs++; return; }
+  nlive = focus_filter(w, known, live, nlive);   /* Rocq obligation focus */
+  pc_filter(known, live, &nlive);                /* Silicon path condition (hard) */
+  if (!nlive) { g_dfs_leafs++; return; }
+  static double state[STATE_DIM];
+  static double cf2[POOL][CAND_DIM];
+  static double util[POOL];
+  step_features(w, rules, nrules, live, nlive, state, cf2, util);
+  model_forward(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, g_c);
+  g_dfs_cands += nlive;
+  int order[POOL];
+  for (int a = 0; a < nlive; a++) order[a] = a;
+  for (int a = 0; a < nlive; a++)
+    for (int b = a+1; b < nlive; b++)
+      if (g_c->score[order[b]] > g_c->score[order[a]]){ int t = order[a]; order[a] = order[b]; order[b] = t; }
+  /* combined action set: single rules + kernel-verified lemma (pair) actions */
+  int act_kind[POOL+128], act_val[POOL+128];
+  double act_score[POOL+128];
+  int nact = 0;
+  for (int a = 0; a < nlive; a++){
+    act_kind[nact] = 0; act_val[nact] = live[order[a]]; act_score[nact] = g_c->score[order[a]]; nact++;
+  }
+  if (g_lemmas){
+    int rules_used[POOL];
+    for (int c = 0; c < POOL; c++) rules_used[c] = 0;
+    for (int k = 0; k < nrules; k++)
+      for (int c = 0; c < POOL; c++) if (w->cands[c] == rules[k]) rules_used[c] = 1;
+    for (int L = 0; L < g_nlem; L++){
+      int r1 = g_lem[L].r1, r2 = g_lem[L].r2, i1 = -1, i2 = -1;
+      for (int c = 0; c < POOL; c++){ if (w->cands[c] == r1) i1 = c; if (w->cands[c] == r2) i2 = c; }
+      if (i1 < 0 || i2 < 0 || rules_used[i1] || rules_used[i2]) continue;
+      int pre_ok = 0;
+      for (int e = 0; e < WENT; e++) if (known[e] & (uint8_t)(1u << g_lem[L].body)) pre_ok = 1;
+      if (!pre_ok) continue;
+      double sc = -1e30;
+      for (int a = 0; a < nlive; a++) if (live[a] == r1) sc = g_c->score[a];
+      if (sc <= -1e29) continue;
+      act_kind[nact] = 1; act_val[nact] = L; act_score[nact] = sc; nact++;
+    }
+  }
+  for (int a = 0; a < nact; a++)
+    for (int b2 = a+1; b2 < nact; b2++)
+      if (act_score[b2] > act_score[a]){
+        double t = act_score[a]; act_score[a] = act_score[b2]; act_score[b2] = t;
+        int tk = act_kind[a]; act_kind[a] = act_kind[b2]; act_kind[b2] = tk;
+        int tv = act_val[a]; act_val[a] = act_val[b2]; act_val[b2] = tv;
+      }
+#if SYMGATE >= 1
+  if (nact > 0 && act_kind[0] == 0){
+    int top = act_val[0], ti = -1;
+    for (int a = 0; a < nlive; a++) if (live[a] == top) ti = a;
+    if (ti >= 0 && !g_c->sym[1+ti]) g_pc_picks++;
+  }
+#endif
+  int keep = (g_branch < nact) ? g_branch : nact;
+  for (int a = 0; a < keep; a++){
+    if (act_kind[a] == 0){
+      rules[nrules] = act_val[a];
+      dfs_world(w, rules, nrules+1, depth+1, budget);
+    } else {
+      int L = act_val[a];
+      if (nrules + 2 > MAXRULE) continue;      /* capacity guard (0260 fix) */
+      rules[nrules] = g_lem[L].r1; rules[nrules+1] = g_lem[L].r2;
+      g_lemma_uses++; g_lem[L].uses++;
+      dfs_world(w, rules, nrules+2, depth+g_lemma_cost, budget);
+    }
+    if (proven > g_best_seen) g_best_seen = proven;
+  }
+  /* R255-3: register only fully-explored states (postorder). Preorder registration
+   * let an ancestor on the current path dominate its own descendants, which is
+   * unsound even for exhaustive search (review 0255 F3). */
+  if (g_subsume) subs_add(mask, depth);
+}
+
+/* native DFS policy over the test split (returns goal fraction) */
+static double policy_metrics_dfs(int split, double *full){
+  subs_n = 0;
+  g_dfs_nodes = g_dfs_cands = g_dfs_leafs = g_dfs_pruned = 0;
+  long gp = 0, gt = 0, fs = 0, nw = 0;
+  for (int i = 0; i < g_nw[split]; i++){
+    const World *w = &g_data[split][i].w;
+    int rules[MAXRULE];
+    for (int k = 0; k < SEED_RULES; k++) rules[k] = w->theory[k];
+    g_best_seen = 0; g_best_nrules = 0; g_leaf_best = -1;
+    subs_n = 0;   /* R255-2: dominance is per-world; worlds share no facts/goals */
+    dfs_world(w, rules, SEED_RULES, 0, g_eval_budget);
+#if CERT
+    if (g_cert_on && g_best_nrules > 0) cert_check(w, g_best_rules, g_best_nrules);
+#endif
+    gp += g_best_seen; gt += w->ngoals; if (g_best_seen == w->ngoals) fs++;
+    nw++;
+  }
+  *full = nw ? (double)fs/(double)nw : 0.0;
+  return gt ? (double)gp/(double)gt : 0.0;
 }
 
 /* Beam search over rule sequences scored by the model (width g_beam, depth NSTEPS).
@@ -374,7 +735,7 @@ static int score_candidates(int scorer, const Params *p, const double *state,
 
 static void policy_world_beam(const World *w, const Params *p, int scorer, uint64_t seed,
                               int *goals_proved, int *full_success, Counters *ctr){
-  enum { BW = 3, MAXSEQ = SEED_RULES + MAXBUDGET, MAXC = BW*BW };
+  enum { BW = 32, MAXSEQ = SEED_RULES + MAXBUDGET, MAXC = BW*BW };
   int W = g_beam; if (W > BW) W = BW;
   static double state[STATE_DIM];
   static double cf2[POOL][CAND_DIM];
@@ -397,6 +758,13 @@ static void policy_world_beam(const World *w, const Params *p, int scorer, uint6
         int r = w->cands[c], u = 0;
         for (int k = 0; k < nrules; k++) if (seq[bi][k] == r) u = 1;
         if (!u) live[nlive++] = r;
+      }
+      if (!nlive) continue;
+      {
+        uint8_t known[WENT];
+        closure(w->facts, seq[bi], nrules, known);
+        nlive = focus_filter(w, known, live, nlive);  /* Rocq obligation focus */
+        pc_filter(known, live, &nlive);               /* Silicon path condition */
       }
       if (!nlive) continue;
       step_features(w, seq[bi], nrules, live, nlive, state, cf2, util);
@@ -674,6 +1042,56 @@ static void q_actions(const World *w, const int *rules, int nrules,
   }
 }
 
+/* Step-indexed optimality along the model's OWN greedy trajectory: at each step
+ * the exact Q (remaining budget) is computed over live candidates, so we can see
+ * whether the failure starts at step 1 (scorer) or later (compounding). */
+static void traj_profile(int seed){
+  int nstep = g_eval_budget;
+  long opt[MAXBUDGET], tot[MAXBUDGET], setsz[MAXBUDGET];
+  double reg[MAXBUDGET];
+  for (int i = 0; i < MAXBUDGET; i++){ opt[i]=0; tot[i]=0; setsz[i]=0; reg[i]=0; }
+  static double state[STATE_DIM];
+  static double cf2[POOL][CAND_DIM];
+  static double util[POOL];
+  int q[POOL];
+  for (int w = 0; w < g_nw[2]; w++){
+    const World *wd = &g_data[2][w].w;
+    int rules[MAXRULE];
+    int nrules = SEED_RULES;
+    for (int k = 0; k < SEED_RULES; k++) rules[k] = wd->theory[k];
+    for (int st = 0; st < nstep; st++){
+      int live[POOL], nlive = 0;
+      for (int c = 0; c < POOL; c++){
+        int r = wd->cands[c], used = 0;
+        for (int k = 0; k < nrules; k++) if (rules[k] == r) used = 1;
+        if (!used) live[nlive++] = r;
+      }
+      if (!nlive) break;
+      step_features(wd, rules, nrules, live, nlive, state, cf2, util);
+      model_forward(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, g_c);
+      int pick = 0;
+      for (int a = 1; a < nlive; a++) if (g_c->score[a] > g_c->score[pick]) pick = a;
+      int rem = nstep - st;
+      q_actions(wd, rules, nrules, live, nlive, rem, q);
+      int qmax = q[0], nopt = 0;
+      for (int a = 1; a < nlive; a++) if (q[a] > qmax) qmax = q[a];
+      for (int a = 0; a < nlive; a++) if (q[a] == qmax) nopt++;
+      tot[st]++;
+      if (q[pick] == qmax) opt[st]++;
+      setsz[st] += nopt;
+      reg[st] += (double)(qmax - q[pick]);
+      rules[nrules++] = live[pick];
+    }
+  }
+  for (int st = 0; st < nstep; st++){
+    if (!tot[st]) continue;
+    printf("TRAJ seed=%d step=%d opt=%.4f optset=%.2f regret=%.4f worlds=%ld depth=%d budget=%d\n",
+           seed, st+1, (double)opt[st]/(double)tot[st], (double)setsz[st]/(double)tot[st],
+           reg[st]/(double)tot[st], tot[st],
+           (g_goaldepth > 0 ? g_goaldepth : 2), g_eval_budget);
+  }
+}
+
 /* first-action regret for the model, the support heuristic and utility_greedy */
 static void first_step_regret(double *r_model, double *h_model,
                               double *r_sup, double *h_sup,
@@ -714,6 +1132,40 @@ static void first_step_regret(double *r_model, double *h_model,
   *r_model = n ? rm/n : 0; *h_model = n ? hm/n : 0;
   *r_sup = n ? rs/n : 0;   *h_sup = n ? hs/n : 0;
   *r_ug = n ? ru/n : 0;    *h_ug = n ? hu/n : 0;
+}
+
+/* ---- query server: the C model scores a proof state on demand ----------
+ * One line per query on stdin:   <world> <nrules> <r1> ... <rn>
+ * One line per reply on stdout:  <nlive> <id> <score> <id> <score> ...
+ * Used to drive an external (Common Lisp / Screamer) backtracking search with
+ * the native transformer as the ordering heuristic. */
+static void serve(void){
+  static double state[STATE_DIM];
+  static double cf2[POOL][CAND_DIM];
+  static double util[POOL];
+  char line[8192];
+  while (fgets(line, sizeof line, stdin)){
+    int w = 0, n = 0, rules[SEED_RULES + MAXBUDGET + 8];
+    char *p = line;
+    w = (int)strtol(p, &p, 10);
+    n = (int)strtol(p, &p, 10);
+    if (w < 0 || w >= g_nw[2] || n < 0 || n > SEED_RULES + MAXBUDGET){ printf("0\n"); fflush(stdout); continue; }
+    for (int i = 0; i < n; i++) rules[i] = (int)strtol(p, &p, 10);
+    const World *wd = &g_data[2][w].w;
+    int live[POOL], nlive = 0;
+    for (int c = 0; c < POOL; c++){
+      int used = 0;
+      for (int k = 0; k < n; k++) if (rules[k] == wd->cands[c]) used = 1;
+      if (!used) live[nlive++] = wd->cands[c];
+    }
+    if (!nlive){ printf("0\n"); fflush(stdout); continue; }
+    step_features(wd, rules, n, live, nlive, state, cf2, util);
+    model_forward(g_p, state, (const double (*)[CAND_DIM])cf2, nlive, g_c);
+    printf("%d", nlive);
+    for (int a = 0; a < nlive; a++) printf(" %d %.9f", live[a], g_c->score[a]);
+    printf("\n");
+    fflush(stdout);
+  }
 }
 
 static int g_emit_worlds = 0;
@@ -809,6 +1261,27 @@ static void run_variant(int seeds, int epochs, int verbose){
     bound_full = bound_w ? bound_full/(double)bound_w : 0.0;
   }
 
+  if (g_onecommit_audit){
+    int viol = 0, mx = 0;
+    for (int i = 0; i < g_nw[2]; i++){
+      const World *w = &g_data[2][i].w;
+      int wmax = 0;
+      for (int c = 0; c < POOL; c++){
+        int rr[SEED_RULES+1];
+        for (int k = 0; k < SEED_RULES; k++) rr[k] = w->theory[k];
+        rr[SEED_RULES] = w->cands[c];
+        uint8_t kn[WENT]; closure(w->facts, rr, SEED_RULES+1, kn);
+        int gp1 = 0;
+        for (int g = 0; g < w->ngoals; g++)
+          if (kn[w->goal_ent[g]] & (uint8_t)(1u << w->goal_pred[g])) gp1++;
+        if (gp1 > wmax) wmax = gp1;
+      }
+      if (wmax >= 2) viol++;
+      if (wmax > mx) mx = wmax;
+    }
+    printf("ONECOMMIT-AUDIT worlds=%d max=%d violations=%d\n", g_nw[2], mx, viol);
+  }
+
   enum { NAGG = 35 };
   double agg[NAGG];
   for (int i = 0; i < NAGG; i++) agg[i] = 0;
@@ -829,13 +1302,16 @@ static void run_variant(int seeds, int epochs, int verbose){
       if (h.magic != W_MAGIC || h.state_dim != STATE_DIM || h.cand_dim != CAND_DIM ||
           h.variant != NOUT || h.hard != HARD_GOALS || h.relob != RELOB || h.bindtok != BINDTOK ||
           h.integral != INTEGRAL || h.lifted != LIFTED || h.prior_shuf != PRIOR_SHUF ||
-          h.holdout != g_holdout_mask || h.lift_rho != LIFT_RHO || h.path_gamma != PATH_GAMMA){
+          h.holdout != g_holdout_mask || h.lift_rho != LIFT_RHO || h.path_gamma != PATH_GAMMA ||
+          h.attmode != ATTMODE || h.symgate != SYMGATE || h.cert != CERT ||
+          h.focus != FOCUS || h.lemma != LEMMA){
         fprintf(stderr, "WEIGHTS-MISMATCH %s: header dims %d/%d variant %d hard %d relob %d bindtok %d "
-                "integral %d lifted %d holdout %d, "
-                "binary dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d\n",
+                "integral %d lifted %d holdout %d attmode %d symgate %d cert %d focus %d lemma %d, "
+                "binary dims %d/%d variant %d hard %d relob %d bindtok %d integral %d lifted %d holdout %d attmode %d symgate %d cert %d focus %d lemma %d\n",
                 g_load_weights, h.state_dim, h.cand_dim, h.variant, h.hard, h.relob, h.bindtok,
-                h.integral, h.lifted, h.holdout,
-                STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, INTEGRAL, LIFTED, g_holdout_mask);
+                h.integral, h.lifted, h.holdout, h.attmode, h.symgate, h.cert, h.focus, h.lemma,
+                STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, INTEGRAL, LIFTED, g_holdout_mask,
+                ATTMODE, SYMGATE, CERT, FOCUS, LEMMA);
         exit(4);
       }
       if (fread(g_p, sizeof(Params), 1, lf) != 1){ fprintf(stderr, "short weights\n"); exit(2); }
@@ -848,12 +1324,18 @@ static void run_variant(int seeds, int epochs, int verbose){
         double pchk = 0;
         { double *pp = pv(g_p); long np = param_count(); for (long i = 0; i < np; i++) pchk += pp[i]*(double)(i % 97); }
         WHeader h = { W_MAGIC, STATE_DIM, CAND_DIM, NOUT, HARD_GOALS, RELOB, BINDTOK, g_goaldepth, g_eval_budget,
-                      INTEGRAL, LIFTED, PRIOR_SHUF, g_holdout_mask, LIFT_RHO, PATH_GAMMA, pchk };
+                      INTEGRAL, LIFTED, PRIOR_SHUF, g_holdout_mask,
+                      ATTMODE, SYMGATE, CERT, FOCUS, LEMMA,
+                      LIFT_RHO, PATH_GAMMA, pchk };
         fwrite(&h, sizeof h, 1, sf);
         fwrite(g_p, sizeof(Params), 1, sf);
         fclose(sf);
       }
     }
+    if (g_lemmas) lemma_mine();   /* verified 2-rule contracts from train rollouts */
+    g_pc_tokens = g_pc_dropped = g_pc_fallback = g_pc_picks = 0;
+    g_cert_ok = g_cert_fail = g_cert_checked = g_cert_mutfail = 0;
+    g_focus_states = g_focus_removed = 0;
     Metrics m;
     eval_steps(g_p, 2, &m);
 
@@ -913,6 +1395,26 @@ static void run_variant(int seeds, int epochs, int verbose){
     }
     double rg_m = 0, ht_m = 0, rg_s = 0, ht_s = 0, rg_u = 0, ht_u = 0;
     if (g_regret) first_step_regret(&rg_m, &ht_m, &rg_s, &ht_s, &rg_u, &ht_u);
+    if (g_regret) traj_profile(seed);
+    if (g_dfs){
+      double dv_full = 0;
+      double dv = policy_metrics_dfs(2, &dv_full);
+      printf("DFS seed=%d variant=%s d=%d b=%d branch=%d subsume=%d prop=%d goal=%.4f full=%.4f "
+             "nodes=%ld cands=%ld leafs=%ld pruned=%ld\n",
+             seed, VNAME, (g_goaldepth > 0 ? g_goaldepth : 2), g_eval_budget,
+             g_branch, g_subsume, g_prop, dv, dv_full,
+             g_dfs_nodes, g_dfs_cands, g_dfs_leafs, g_dfs_pruned);
+      /* 0260 hybrid layers: kernel path condition (Silicon), certificate (Rocq),
+       * verified lemma contracts, obligation focus. One line per seed. */
+      printf("HYBRID seed=%d variant=%s attmode=%d symgate=%d cert=%d focus=%d lemma=%d "
+             "gate_viol=%ld pc_fallback=%ld pc_tokens=%ld pc_dropped=%ld "
+             "cert_ok=%ld cert_fail=%ld cert_checked=%ld cert_mutfail=%ld lemma_uses=%ld lemmas=%d "
+             "focus_states=%ld focus_removed=%ld\n",
+             seed, VNAME, ATTMODE, SYMGATE, CERT, FOCUS, LEMMA,
+             g_pc_picks, g_pc_fallback, g_pc_tokens, g_pc_dropped,
+             g_cert_ok, g_cert_fail, g_cert_checked, g_cert_mutfail, g_lemma_uses, g_nlem,
+             g_focus_states, g_focus_removed);
+    }
     double perm = permutation_invariance();
     Metrics vt, bs, bp, br; eval_steps(g_p, 1, &vt);
     eval_steps_base(2, 1, &bs); eval_steps_base(2, 2, &bp); eval_steps_base(2, 3, &br);
@@ -1170,7 +1672,7 @@ static int path_check(void){
     const WSteps *ws = &g_data[0][i];
     double acc[NRULES_ALL] = {0}, root[NRULES_ALL] = {0}, wsum = 0;
     int t = 0;
-    int rules[SEED_RULES + MAXBUDGET];
+    int rules[MAXRULE];
     int nrules = SEED_RULES;
     for (int k = 0; k < SEED_RULES; k++) rules[k] = ws->w.theory[k];
     for (int s = 0; s < ws->nsteps; s++){

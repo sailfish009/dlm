@@ -1,0 +1,48 @@
+== 1. gradient check, every arm (finite differences vs analytic)
+GRADCHECK-PASS eight arms (GRADCHECK params=19939 loss=3.247387 max_abs=1.328e-10 max_grad=4.538e-01 rel_to_max_grad=2.927e-10 max_rel_small=1.276e-04)
+== 2. Silicon path condition: hard enforces, soft does not, control drops nothing
+PC-PATH-PASS hard gate_viol=0 (soft=57), dropped candidates hybrid=24432 pc=24173 pure=0
+== 3. Rocq certificate: valid accepted, mutated rejected, answer conserved
+CERT-PASS certified=81 goals, fail=0
+CERT-MUTATION-PASS corrupted parents rejected 81/81
+CERT-CONSERVATION-PASS certificate check did not change the proved-goal answer
+== 4. Rocq focus / Silicon contracts
+FOCUS-VACUOUS-SATURATED filter consulted 10312 times, removed 0: the relevance closure saturates on this fixture (reported as a negative result, no gain claimed)
+FOCUS-COMPLETENESS-PASS exhaustive DFS (branch=POOL) answer unchanged (0.8492)
+LEMMA-PASS uses lemma=465 hybrid=480; nodes 3437 -> 3422
+== 5. aggregation schema + table/recomputation identity + mutation regression
+HYBRID-TABLE-PASS table equals per-seed recomputation (all arms, 3 seeds)
+GATE-REGRESSION-PASS 11 mutations rejected, baseline accepted
+== 6. weight-header variant tag (cross-variant load must be refused)
+WHDR-PASS cross-variant loads refused (exit 4), own weights accepted
+== 7. LLVM identity + sanitizers on the hybrid arm
+LLVM-PASS O0/O2/O3 byte-identical; ASAN+UBSAN clean (hybrid, depth 4)
+== 8. paired-by-seed contrasts (reported, 2SE verdict; n=3 is underpowered)
+  HYBRID-CONTRAST hybrid-pure goal mean=+0.1508 se=0.0720 n=3 SIGNIFICANT(2SE)
+  HYBRID-CONTRAST hybrid-pure full mean=+0.1800 se=0.0757 n=3 SIGNIFICANT(2SE)
+  HYBRID-CONTRAST hybrid-pure proof_beam mean=-0.0211 se=0.0980 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST lemma-pure goal mean=+0.1296 se=0.0115 n=3 SIGNIFICANT(2SE)
+  HYBRID-CONTRAST lemma-pure full mean=+0.1600 se=0.0100 n=3 SIGNIFICANT(2SE)
+  HYBRID-CONTRAST lemma-pure proof_beam mean=+0.0000 se=0.0000 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST pc-pure goal mean=-0.0291 se=0.0295 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST pc-pure full mean=-0.0333 se=0.0393 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST pc-pure proof_beam mean=-0.0449 se=0.0608 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST soft-pure goal mean=-0.0318 se=0.0738 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST soft-pure full mean=-0.0300 se=0.0872 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST soft-pure proof_beam mean=-0.0529 se=0.0852 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST topk-pure goal mean=-0.0609 se=0.0713 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST topk-pure full mean=-0.0633 se=0.0780 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST topk-pure proof_beam mean=-0.0952 se=0.0665 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST cert-pure goal mean=+0.0000 se=0.0000 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST cert-pure full mean=+0.0000 se=0.0000 n=3 INCONCLUSIVE(2SE)
+  HYBRID-CONTRAST cert-pure proof_beam mean=+0.0000 se=0.0000 n=3 INCONCLUSIVE(2SE)
+== absolute table (each field a per-seed mean, 3 seeds)
+  ARM pure    greedy=0.3281 beam=0.4180 dfs=0.5529 dfs_full=0.4767 nodes=3437 cands=24625 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=0 focus_removed=0 n=3
+  ARM topk    greedy=0.2461 beam=0.3228 dfs=0.4921 dfs_full=0.4133 nodes=3735 cands=26723 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=0 focus_removed=0 n=3
+  ARM pc      greedy=0.3095 beam=0.3730 dfs=0.5238 dfs_full=0.4433 nodes=3592 cands=23333 gate_viol=0 pc_dropped=24173 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=0 focus_removed=0 n=3
+  ARM soft    greedy=0.2910 beam=0.3651 dfs=0.5212 dfs_full=0.4467 nodes=3491 cands=25002 gate_viol=57 pc_dropped=14011 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=0 focus_removed=0 n=3
+  ARM focus   greedy=0.3281 beam=0.4180 dfs=0.5529 dfs_full=0.4767 nodes=3437 cands=24625 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=0 focus_states=10312 focus_removed=0 n=3
+  ARM cert    greedy=0.3281 beam=0.4180 dfs=0.5529 dfs_full=0.4767 nodes=3437 cands=24625 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=70 cert_fail=0 cert_checked=70 lemma_uses=0 focus_states=0 focus_removed=0 n=3
+  ARM lemma   greedy=0.3281 beam=0.4180 dfs=0.6825 dfs_full=0.6367 nodes=3422 cands=24142 gate_viol=0 pc_dropped=0 pc_fallback=0 cert_ok=0 cert_fail=0 cert_checked=0 lemma_uses=465 focus_states=0 focus_removed=0 n=3
+  ARM hybrid  greedy=0.2672 beam=0.3968 dfs=0.7037 dfs_full=0.6567 nodes=3592 cands=23117 gate_viol=0 pc_dropped=24432 pc_fallback=0 cert_ok=89 cert_fail=0 cert_checked=89 lemma_uses=480 focus_states=10364 focus_removed=0 n=3
+V0260-HYBRID-PASS

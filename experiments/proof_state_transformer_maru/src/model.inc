@@ -28,6 +28,26 @@
 #ifndef VAR_BIND
 #define VAR_BIND 0
 #endif
+#ifndef ATTMODE
+#define ATTMODE 0        /* 0 = full softmax, k>=2 = top-k renormalised (branching layer) */
+#endif
+#ifndef SYMGATE
+#define SYMGATE 0        /* 0 = off; 1 = soft: residual gate on inadmissible candidates;
+                          * 2 = hard: inadmissible candidates removed from the choice set */
+#endif
+#ifndef CERT
+#define CERT 0           /* 1 = independent proof-certificate check (Rocq kernel port) */
+#endif
+#ifndef FOCUS
+#define FOCUS 0          /* 1 = obligation-directed candidate focus (Rocq tactic focus) */
+#endif
+#ifndef LEMMA
+#define LEMMA 0          /* 1 = verified 2-rule lemma (contract) actions */
+#endif
+/* census counters (kernel path condition / certificate / lemma), reset per run */
+static long g_pc_tokens = 0, g_pc_dropped = 0, g_pc_fallback = 0, g_pc_picks = 0;
+static long g_cert_ok = 0, g_cert_fail = 0, g_cert_checked = 0, g_cert_mutfail = 0;
+static long g_lemma_uses = 0;
 #ifndef VNAME
 #define VNAME "base"
 #endif
@@ -92,6 +112,7 @@ typedef struct {
 typedef struct {
   int L, nlive;
   int msk[POOL];
+  int sym[MAXL];         /* symbolic path condition per token (1 = admissible) */
   double h[MAXL][D];
   double bias[MAXL][MAXL];
   LayerCache lc[NBLK];
@@ -220,6 +241,34 @@ static void model_forward(const Params *p, const double *state,
     for (int j = 0; j < nlive; j++) m += c->msk[j];
     if (m == 0) for (int j = 0; j < nlive; j++) c->msk[j] = 1;
   }
+  for (int i = 0; i <= nlive; i++) c->sym[i] = 1;
+#if SYMGATE >= 1
+  /* Silicon-style path condition: candidate j is admissible only when its body
+   * is supported by the current kernel closure (feature 6). The state token is
+   * always admissible. SYMGATE==1 gates the attention residual only (soft);
+   * SYMGATE==2 additionally removes the token from the choice set (hard), so no
+   * selection or backward pass can use it. */
+  for (int j = 0; j < nlive; j++) c->sym[1+j] = (cf[j][6] > 0.5) ? 1 : 0;
+#endif
+#if SYMGATE >= 2
+  {
+    int adm = 0;
+    for (int j = 0; j < nlive; j++){
+      c->msk[j] = c->sym[1+j];
+      adm += c->msk[j];
+    }
+    if (adm == 0){
+      /* every candidate is inadmissible: no admissible action exists. Keep the
+       * set (a score is still required) and count the fallback so the gate can
+       * see it instead of silently reporting a proof. */
+      for (int j = 0; j < nlive; j++) c->msk[j] = 1;
+      g_pc_fallback++;
+    }
+  }
+#endif
+  { /* census: fraction of tokens the path condition removes */
+    for (int i = 0; i <= nlive; i++){ g_pc_tokens++; if (SYMGATE >= 1 && !c->sym[i]) g_pc_dropped++; }
+  }
   for (int i = 0; i < D; i++){
     double s = p->bs[i] + p->ts[i];
     for (int k = 0; k < STATE_DIM; k++) s += p->Ws[i*STATE_DIM+k]*state[k];
@@ -278,6 +327,27 @@ static void model_forward(const Params *p, const double *state,
             sum += e;
           }
           for (int j = 0; j < L; j++) lc->att[hh][i][j] /= sum;
+#if ATTMODE >= 2
+          {
+            /* keep the ATTMODE largest weights and renormalise: a branching layer
+             * that preserves several discrete alternatives instead of averaging
+             * over all of them (Screamer-style choice inside the block). */
+            int k = ATTMODE; if (k > L) k = L;
+            double sorted[MAXL];
+            for (int j = 0; j < L; j++) sorted[j] = lc->att[hh][i][j];
+            for (int a = 0; a < L; a++)
+              for (int b2 = a+1; b2 < L; b2++)
+                if (sorted[b2] > sorted[a]){ double t = sorted[a]; sorted[a] = sorted[b2]; sorted[b2] = t; }
+            double thr = sorted[k-1];
+            double z = 0;
+            for (int j = 0; j < L; j++){
+              double w = lc->att[hh][i][j];
+              lc->att[hh][i][j] = (w >= thr) ? w : 0.0;
+              z += lc->att[hh][i][j];
+            }
+            if (z > 0) for (int j = 0; j < L; j++) lc->att[hh][i][j] /= z;
+          }
+#endif
         }
         for (int i = 0; i < L; i++)
           for (int d = 0; d < DH; d++){
@@ -290,7 +360,7 @@ static void model_forward(const Params *p, const double *state,
         for (int d = 0; d < D; d++){
           double s = p->bo[l][d];
           for (int k = 0; k < D; k++) s += p->Wo[l][d*D+k]*lc->ao[i][k];
-          lc->h1[i][d] = lc->in[i][d] + s;
+          lc->h1[i][d] = lc->in[i][d] + (c->sym[i] ? s : 0.0);
         }
       for (int i = 0; i < L; i++){
         double xh[D], inv;
@@ -458,6 +528,7 @@ static double model_step(const double *statev, const double (*cf)[CAND_DIM],
       }
       /* attention out projection backward */
       for (int i = 0; i < L; i++){
+        if (!c->sym[i]) continue;    /* symbolic path condition: this branch was gated off */
         for (int d = 0; d < D; d++) g->bo[l][d] += dh1[i][d];
         for (int d = 0; d < D; d++)
           for (int k = 0; k < D; k++) g->Wo[l][d*D+k] += dh1[i][d]*lc->ao[i][k];

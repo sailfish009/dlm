@@ -24,7 +24,7 @@ if [ "$mode" = check ]; then
             printf "PROBECHECK-FAIL %s bad field in SEED line: %s\n", cfg, line; bad = 1 }
         } else if (line ~ /^MEAN /){ nm++ }
         else if (line ~ /^REGRET/) { }
-        else if (line ~ /^(BOOT|BOUND-ASSERT|SEARCH-BUDGET|PARAMS|DATASET|CENSUS|EXPORT)/) { }
+        else if (line ~ /^(BOOT|BOUND-ASSERT|SEARCH-BUDGET|PARAMS|DATASET|CENSUS|EXPORT|TRAJ)/) { }
         else if (line !~ /^#/ && length(line) > 0){ printf "PROBECHECK-FAIL %s stray line: %s\n", cfg, line; bad = 1 }
       }
       close(f)
